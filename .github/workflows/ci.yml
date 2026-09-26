@@ -1,0 +1,64 @@
+name: OS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-boot:
+    name: Build ISO and smoke-test boot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install toolchain and emulator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            nasm \
+            binutils \
+            grub-pc-bin \
+            grub-common \
+            xorriso \
+            mtools \
+            qemu-system-x86 \
+            file
+
+      - name: Show tool versions
+        run: |
+          nasm --version
+          ld --version | head -n 1
+          grub-mkrescue --version
+          qemu-system-i386 --version | head -n 1
+
+      - name: Build bootable ISO
+        run: make iso
+
+      - name: Inspect build outputs
+        run: |
+          test -s dist/mini-os.iso
+          file dist/mini-os.iso
+          ls -lh dist/
+          xorriso -indev dist/mini-os.iso -find / -print
+
+      - name: Smoke-test QEMU boot
+        run: make smoke-test
+
+      - name: Upload ISO and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mini-os-${{ github.sha }}
+          path: |
+            dist/*.iso
+            build/*.log
+          if-no-files-found: warn
+          retention-days: 14
