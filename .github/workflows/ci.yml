@@ -1,4 +1,4 @@
-name: OS CI
+name: mini-os CI
 
 on:
   push:
