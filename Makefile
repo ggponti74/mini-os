@@ -66,15 +66,15 @@ $(KERNEL_ENTRY_OBJ): $(KERNEL_ENTRY_SRC) | $(BUILD)
 $(BUILD)/%.o: kernel/%.asm | $(BUILD)
 	$(NASM) -f $(NASM_FMT) $< -o $@
 
-# 4. Compile all kernel/*.c files (e.g., main.c, idt.c, pic.c)
+# 4. Compile all kernel/*.c files (e.g., main.c, idt.c, pic.c, keyboard.c)
 $(BUILD)/%.o: kernel/%.c | $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
-# 5. Link kernel objects and extract raw binary image
+# If building on Linux / ELF32:
 kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
-	$(CC) -m32 -nostdlib -Wl,-Ttext,0x7e00 -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
+	$(CC) -m32 -nostdlib -Wl,-e,stage2_entry -Wl,-Ttext,0x7e00 -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
 	$(OBJCOPY) -O binary -j .text -j .data -j .rodata -j .bss $(KERNEL_ELF) $(KERNEL_BIN)
-
+    
 # 6. Concatenate boot sector and kernel binary, then pad image to 1.44MB
 image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
