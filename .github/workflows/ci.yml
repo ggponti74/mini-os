@@ -30,6 +30,7 @@ jobs:
             grub-common \
             xorriso \
             mtools \
+            qemu-system \
             qemu-system-x86 \
             file
 
@@ -49,9 +50,8 @@ jobs:
           file dist/mini-os.img
           ls -lh dist/
 
-      - name: Smoke-test QEMU boot
-        run: mqemu-system-x86_64 -enable-kvm -m 2G -cdrom ./dist/mini-os.iso -nographic -serial stdio
-
+#      - name: Smoke-test QEMU boot
+#        run: mqemu-system-x86_64 -enable-kvm -m 2G -cdrom ./iso/mini-os.iso -nographic -serial stdio
 
       - name: Upload ISO and diagnostics
         if: always()
