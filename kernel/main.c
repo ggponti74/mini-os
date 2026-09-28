@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include"idt.h"
+#include "shell.h"
 
 // Forward declarations for display routines
 void clear_screen(void);
@@ -36,6 +37,9 @@ void kernel_main(void) {
     // 4. Enable CPU interrupts
     __asm__ volatile("sti");
     kprint("Interrupts enabled (STI). System ready.\n");
+
+    // Launch prompt
+    shell_init();
 
     while (1) {
         __asm__ volatile("hlt");
