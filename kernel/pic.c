@@ -35,6 +35,10 @@ void pic_remap(int offset1, int offset2) {
     // Restore saved interrupt masks
     outb(PIC1_DATA, a1);
     outb(PIC2_DATA, a2);
+
+    // Read current Master PIC mask (port 0x21) and clear bit 1 (IRQ1)
+    uint8_t mask = inb(0x21);
+    outb(0x21, mask & ~(1 << 1));
 }
 
 // Send End-of-Interrupt signal to PIC

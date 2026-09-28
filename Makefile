@@ -5,6 +5,7 @@ ifeq ($(OS),Windows_NT)
     RM = if exist $(call FIX_PATH,$(1)) rmdir /s /q $(call FIX_PATH,$(1))
     NASM_FMT = win32
     FIX_PATH = $(subst /,\,$(1))
+    COPY = copy /y
     CONCAT = copy /b $(call FIX_PATH,$(1)) + $(call FIX_PATH,$(2)) $(call FIX_PATH,$(3))
     PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
     QEMU = qemu-system-x86_64
@@ -14,6 +15,7 @@ else
     RM = rm -rf $(1)
     NASM_FMT = elf32
     FIX_PATH = $(1)
+    COPY = cp
     CONCAT = cat $(1) $(2) > $(3)
     PAD_IMAGE = truncate -s 1474560 $(1)
     QEMU = qemu-system-x86_64
@@ -30,6 +32,7 @@ KERNEL_ENTRY_OBJ := $(BUILD)/kernel_entry.o
 KERNEL_ELF := $(BUILD)/kernel.elf
 KERNEL_BIN := $(BUILD)/kernel.bin
 IMAGE := $(DIST)/mini-os.img
+ISO := $(DIST)/mini-os.iso
 
 # Automatically gather all C sources and ASM files in kernel/
 C_SRCS := $(wildcard kernel/*.c)
@@ -41,9 +44,9 @@ ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
-CFLAGS := -m32 -ffreestanding -c -O2
+CFLAGS := -m32 -ffreestanding -fno-pie -c -O2
 
-.PHONY: all boot kernel image run clean
+.PHONY: all boot kernel image iso run clean
 
 all: image
 
@@ -66,20 +69,27 @@ $(KERNEL_ENTRY_OBJ): $(KERNEL_ENTRY_SRC) | $(BUILD)
 $(BUILD)/%.o: kernel/%.asm | $(BUILD)
 	$(NASM) -f $(NASM_FMT) $< -o $@
 
-# 4. Compile all kernel/*.c files (e.g., main.c, idt.c, pic.c, keyboard.c)
+# 4. Compile all kernel/*.c files (e.g., main.c, idt.c, pic.c, keyboard.c, shell.c)
 $(BUILD)/%.o: kernel/%.c | $(BUILD)
 	$(CC) $(CFLAGS) $< -o $@
 
-# If building on Linux / ELF32:
+# 5. Link kernel entry, assembly objects, and C objects into binary
 kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
-	$(CC) -m32 -nostdlib -Wl,-e,stage2_entry -Wl,-Ttext,0x7e00 -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
+	$(CC) -m32 -nostdlib -no-pie -Wl,-z,noexecstack -Wl,-e,stage2_entry -Wl,-Ttext,0x7e00 -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
 	$(OBJCOPY) -O binary -j .text -j .data -j .rodata -j .bss $(KERNEL_ELF) $(KERNEL_BIN)
-    
+
 # 6. Concatenate boot sector and kernel binary, then pad image to 1.44MB
 image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
 
+# 7. Construct a bootable ISO image using xorriso
+# Step to construct a bootable ISO image using xorriso (Floppy Emulation Mode)
+iso: image | $(DIST)
+	@$(call MKDIR,$(BUILD)/iso_root)
+	$(COPY) $(call FIX_PATH,$(IMAGE)) $(call FIX_PATH,$(BUILD)/iso_root/mini-os.img)
+	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
+    
 run: image
 	$(QEMU) -drive file=$(IMAGE),format=raw,index=0,media=disk -nographic -audiodev id=audio0,driver=none -device sb16,audiodev=audio0
 

@@ -1,12 +1,7 @@
 // kernel/keyboard.c
 #include "keyboard.h"
 #include "shell.h" // Add shell header
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
+#include "io.h"  
 
 extern void pic_send_eoi(unsigned char irq);
 
@@ -50,4 +45,6 @@ void keyboard_handler(void) {
     }
 
     pic_send_eoi(1);
+
+    outb(0x20, 0x20); // Send EOI to Master PIC
 }
