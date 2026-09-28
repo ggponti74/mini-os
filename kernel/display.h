@@ -1,7 +1,7 @@
 #ifndef _DISPLAY_H
 #define _DISPLAY_H
 
-#define VGA_MEMORY (volatile char *)0xB8000
+#define VGA_MEMORY ((volatile uint16_t*)0xB8000)
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 
@@ -13,12 +13,7 @@
 
 static int cursor_x = 0;
 static int cursor_y = 0;
-
-// Write a byte to an I/O port
-void outb(unsigned short port, unsigned char val);
-
-// Read a byte from an I/O port
-unsigned char inb(unsigned short port);
+static int current_color= COLOR_DEFAULT;
 
 // Write a single character to COM1 serial port
 void serial_putc(char c) ;
@@ -27,11 +22,10 @@ void serial_putc(char c) ;
 void serial_puts(const char* str) ;
 
 // Print a null-terminated string
-void kprint(const char *str, char color);
+void kprint(const char* str) ;
+void kputchar(char c);
 
-void kputchar(char c, char color);
-
-void clear_vga_screen(void) ;
+void clear_screen(void) ;
 void serial_clear_screen(void);
 
 #endif

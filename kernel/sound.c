@@ -1,4 +1,6 @@
 #include "sound.h"
+#include "display.h"
+#include "io.h"
 
 #define SB16_MIXER_ADDR 0x224
 #define SB16_MIXER_DATA 0x225

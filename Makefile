@@ -1,13 +1,13 @@
 # Detect Operating System
 ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
-    MKDIR = if not exist $(1) mkdir $(1)
-    RM = if exist $(1) rmdir /s /q $(1)
+    MKDIR = if not exist $(call FIX_PATH,$(1)) mkdir $(call FIX_PATH,$(1))
+    RM = if exist $(call FIX_PATH,$(1)) rmdir /s /q $(call FIX_PATH,$(1))
     NASM_FMT = win32
     FIX_PATH = $(subst /,\,$(1))
     CONCAT = copy /b $(call FIX_PATH,$(1)) + $(call FIX_PATH,$(2)) $(call FIX_PATH,$(3))
     PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
-	QEMU = qemu-system-x86_64
+    QEMU = qemu-system-x86_64
 else
     SHELL := /bin/sh
     MKDIR = mkdir -p $(1)
@@ -16,26 +16,27 @@ else
     FIX_PATH = $(1)
     CONCAT = cat $(1) $(2) > $(3)
     PAD_IMAGE = truncate -s 1474560 $(1)
-	QEMU = qemu-system-x86_64
+    QEMU = qemu-system-x86_64
 endif
 
 BUILD := build
 DIST := dist
 
-C_SRCS := $(wildcard kernel/*.c)
-C_OBJS := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
-
-
 BOOT_SRC := boot/boot.asm
 KERNEL_ENTRY_SRC := boot/kernel.asm
-KERNEL_C_SRC := kernel/main.c
 
 BOOT_BIN := $(BUILD)/boot.bin
 KERNEL_ENTRY_OBJ := $(BUILD)/kernel_entry.o
-KERNEL_C_OBJ := $(BUILD)/main.o
 KERNEL_ELF := $(BUILD)/kernel.elf
 KERNEL_BIN := $(BUILD)/kernel.bin
 IMAGE := $(DIST)/mini-os.img
+
+# Automatically gather all C sources and ASM files in kernel/
+C_SRCS := $(wildcard kernel/*.c)
+C_OBJS := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
+
+ASM_SRCS := $(wildcard kernel/*.asm)
+ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
 
 NASM := nasm
 CC := gcc
@@ -46,42 +47,36 @@ CFLAGS := -m32 -ffreestanding -c -O2
 
 all: image
 
-# Ensure build directory rule exists
+# Directory creation rules
 $(BUILD):
-	mkdir -p $(BUILD)
-
-# Ensure dist directory rule exists
-$(DIST):
-	mkdir -p $(DIST)
-	
-# Rule to compile any kernel C source file into an object file
-$(BUILD)/%.o: kernel/%.c | $(BUILD)
-	$(CC) $(CFLAGS) -c $< -o $@
-
+	@$(call MKDIR,$(BUILD))
 
 $(DIST):
 	@$(call MKDIR,$(DIST))
 
 # 1. Assemble 16-bit bootloader
-boot: $(BUILD)
+boot: | $(BUILD)
 	$(NASM) -f bin $(BOOT_SRC) -o $(BOOT_BIN)
 
-# 2. Assemble Stage 2 Entry (win32 for Windows COFF, elf32 for Linux ELF)
+# 2. Assemble Kernel Stage Entry (boot/kernel.asm)
 $(KERNEL_ENTRY_OBJ): $(KERNEL_ENTRY_SRC) | $(BUILD)
 	$(NASM) -f $(NASM_FMT) $(KERNEL_ENTRY_SRC) -o $(KERNEL_ENTRY_OBJ)
 
-# 3. Compile C kernel into 32-bit object file
-$(KERNEL_C_OBJ): $(KERNEL_C_SRC) | $(BUILD)
-	$(CC) $(CFLAGS) $(KERNEL_C_SRC) -o $(KERNEL_C_OBJ)
+# 3. Assemble all kernel/*.asm files (e.g., interrupts.asm)
+$(BUILD)/%.o: kernel/%.asm | $(BUILD)
+	$(NASM) -f $(NASM_FMT) $< -o $@
 
-# Update the kernel linking rule to pass all C objects
-kernel: $(KERNEL_ENTRY_OBJ) $(C_OBJS)
-	$(CC) -m32 -nostdlib -T linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(C_OBJS)
-	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
-	
-	
-# 5. Concatenate boot sector and kernel binary, then pad image to 1.44MB
-image: boot kernel $(DIST)
+# 4. Compile all kernel/*.c files (e.g., main.c, idt.c, pic.c)
+$(BUILD)/%.o: kernel/%.c | $(BUILD)
+	$(CC) $(CFLAGS) $< -o $@
+
+# 5. Link kernel objects and extract raw binary image
+kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
+	$(CC) -m32 -nostdlib -Wl,-Ttext,0x7e00 -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
+	$(OBJCOPY) -O binary -j .text -j .data -j .rodata -j .bss $(KERNEL_ELF) $(KERNEL_BIN)
+
+# 6. Concatenate boot sector and kernel binary, then pad image to 1.44MB
+image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
 
