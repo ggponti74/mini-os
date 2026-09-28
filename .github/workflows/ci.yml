@@ -50,7 +50,8 @@ jobs:
           ls -lh dist/
 
       - name: Smoke-test QEMU boot
-        run: make smoke-test
+        run: mqemu-system-x86_64 -enable-kvm -m 2G -cdrom ./dist/mini-os.iso -nographic -serial stdio
+
 
       - name: Upload ISO and diagnostics
         if: always()
