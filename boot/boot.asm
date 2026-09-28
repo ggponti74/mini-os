@@ -4,19 +4,24 @@ org 0x7c00
 KERNEL_OFFSET equ 0x7e00
 
 start:
-    ; Set up 16-bit segment registers and stack
+    cli                         ; 1. Disable interrupts immediately
+    cld                         ; Clear direction flag
+
+    ; 2. Initialize segment registers FIRST before accessing memory
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
     mov sp, 0x7c00
+    sti                         ; Re-enable interrupts
 
+    ; 3. Store the boot drive passed in DL by BIOS (0x80 for hard disk)
     mov [BOOT_DRIVE], dl
 
-    ; 1. LOAD KERNEL FROM DISK IN REAL MODE FIRST
+    ; 4. Read kernel sectors into RAM at 0x7E00
     call load_kernel
 
-    ; 2. SWITCH TO PROTECTED MODE
+    ; 5. Switch to 32-bit Protected Mode
     cli
     lgdt [gdt_descriptor]
 
@@ -24,52 +29,72 @@ start:
     or eax, 0x1
     mov cr0, eax
 
-    ; Far jump to flush pipeline and load CS with 0x08 (CODE_SEG)
-    jmp CODE_SEG:init_pm
+    ; 6. CRITICAL: Explicit 32-bit far jump from 16-bit real mode
+    jmp dword CODE_SEG:init_pm
 
 load_kernel:
-    ; Reset disk drive
+    ; Reset disk controller
     xor ax, ax
     mov dl, [BOOT_DRIVE]
     int 0x13
 
-    ; Read 15 sectors into 0x0000:0x7E00
+    ; Read 15 sectors to 0x0000:0x7E00
     mov ah, 0x02
-    mov al, 15          ; Sector count
-    mov ch, 0           ; Cylinder 0
-    mov dh, 0           ; Head 0
-    mov cl, 2           ; Sector 2 (Sector 1 is boot.bin)
+    mov al, 15                  ; Sectors to read
+    mov ch, 0                   ; Cylinder 0
+    mov dh, 0                   ; Head 0
+    mov cl, 2                   ; Sector 2 (Sector 1 = boot sector)
     mov dl, [BOOT_DRIVE]
     mov bx, KERNEL_OFFSET
     int 0x13
+    jnc .read_success           ; Continue if read succeeded
+
+    ; Fallback retry forcing Hard Drive 0x80
+    mov ah, 0x02
+    mov al, 15
+    mov ch, 0
+    mov dh, 0
+    mov cl, 2
+    mov dl, 0x80
+    mov bx, KERNEL_OFFSET
+    int 0x13
     jc disk_error
+
+.read_success:
     ret
 
 disk_error:
-    ; Print 'E' at top left if disk read failed
-    mov ax, 0xb800
-    mov es, ax
-    mov byte [es:0], 'E'
-    mov byte [es:1], 0x4f
+    ; Output "ERR\n" to serial COM1 for terminal debugging
+    mov dx, 0x3f8
+    mov al, 'E'
+    out dx, al
+    mov al, 'R'
+    out dx, al
+    mov al, 'R'
+    out dx, al
+    mov al, 0x0a
+    out dx, al
+.halt_loop:
     hlt
+    jmp .halt_loop
 
-; --- GDT Setup ---
+; --- Global Descriptor Table (GDT) ---
 gdt_start:
-    dq 0x0
+    dq 0x0                      ; Null descriptor
 
 gdt_code:
-    dw 0xffff
-    dw 0x0
-    db 0x0
-    db 10011010b
-    db 11001111b
-    db 0x0
+    dw 0xffff                   ; Limit 0-15
+    dw 0x0                      ; Base 0-15
+    db 0x0                      ; Base 16-23
+    db 10011010b                ; Access byte (Code, Executable, Readable)
+    db 11001111b                ; Granularity (4KB blocks, 32-bit PM)
+    db 0x0                      ; Base 24-31
 
 gdt_data:
     dw 0xffff
     dw 0x0
     db 0x0
-    db 10010010b
+    db 10010010b                ; Access byte (Data, Read/Write)
     db 11001111b
     db 0x0
 
@@ -94,8 +119,7 @@ init_pm:
     mov ebp, 0x90000
     mov esp, ebp
 
-    ; Jump directly to kernel entry point at 0x7E00
-    jmp KERNEL_OFFSET
+    jmp KERNEL_OFFSET           ; Transfer control to kernel_entry (0x7E00)
 
 BOOT_DRIVE: db 0
 

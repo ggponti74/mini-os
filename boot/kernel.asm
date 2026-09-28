@@ -1,7 +1,16 @@
 [bits 32]
-[global _stage2_entry]
-[extern _kernel_main]
 
-_stage2_entry:
-    call _kernel_main
+%ifidn __OUTPUT_FORMAT__, win32
+    %define KERNEL_MAIN _kernel_main
+    %define STAGE2_ENTRY _stage2_entry
+%else
+    %define KERNEL_MAIN kernel_main
+    %define STAGE2_ENTRY stage2_entry
+%endif
+
+[global STAGE2_ENTRY]
+[extern KERNEL_MAIN]
+
+STAGE2_ENTRY:
+    call KERNEL_MAIN
     hlt
