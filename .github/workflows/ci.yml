@@ -26,6 +26,7 @@ jobs:
             nasm \
             binutils \
             grub-pc-bin \
+            gcc-multilib \
             grub-common \
             xorriso \
             mtools \
@@ -42,12 +43,11 @@ jobs:
       - name: Build bootable ISO
         run: make iso
 
-      - name: Inspect build outputs
+      - name: Verify disk image
         run: |
-          test -s dist/mini-os.iso
-          file dist/mini-os.iso
+          test -s dist/mini-os.img
+          file dist/mini-os.img
           ls -lh dist/
-          xorriso -indev dist/mini-os.iso -find / -print
 
       - name: Smoke-test QEMU boot
         run: make smoke-test
