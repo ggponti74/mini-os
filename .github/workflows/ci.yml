@@ -53,17 +53,6 @@ jobs:
 #      - name: Smoke-test QEMU boot
 #        run: mqemu-system-x86_64 -enable-kvm -m 2G -cdrom ./iso/mini-os.iso -nographic -serial stdio
 
-      - name: Upload ISO and diagnostics
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: mini-os-${{ github.sha }}
-          path: |
-            dist/*.iso
-            build/*.log
-          if-no-files-found: warn
-          retention-days: 14
-
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
