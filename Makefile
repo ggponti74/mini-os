@@ -53,7 +53,6 @@ ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
--netdev user,id=u1 -device e1000,netdev=u1
 
 .PHONY: all boot kernel image iso run clean
 
@@ -99,8 +98,9 @@ iso: image | $(DIST)
 	@$(call MKDIR,$(BUILD)/iso_root)
 	$(COPY) $(call FIX_PATH,$(IMAGE)) $(call FIX_PATH,$(BUILD)/iso_root/mini-os.img)
 	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
+
 run: image
-	$(QEMU) -drive file=$(IMAGE),format=raw,index=0,media=disk -nographic -audiodev id=audio0,driver=none -device sb16,audiodev=audio0
+	$(QEMU) -drive file=$(IMAGE),format=raw,index=0,media=disk -nographic -audiodev id=audio0,driver=none -device sb16,audiodev=audio0 -netdev user,id=u1 -device e1000,netdev=u1
 
 clean:
 	$(call RM,$(BUILD))
