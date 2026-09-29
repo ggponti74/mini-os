@@ -16,14 +16,14 @@ extern void isr_default_stub(void);
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags);
 
 void kernel_main(void) {
+
     clear_screen();
 
-    kprint("mini-os kernel initialized\n");
-    kprint("--------------------------\n");
+    kprint("Initializing kernel...\n");
 
     // 1. Remap 8259 PIC vectors to 0x20-0x27 and 0x28-0x2F
     pic_remap(0x20, 0x28);
-    kprint("PIC Remapped (Master: 0x20, Slave: 0x28)\n");
+    kprint("Remapping PIC...\n");
 
     // 2. Load IDT structure
     idt_init();
@@ -32,11 +32,13 @@ void kernel_main(void) {
     for (int i = 0; i < 256; i++) {
         idt_set_gate(i, (uint32_t)isr_default_stub, 0x08, 0x8E);
     }
-    kprint("IDT Loaded successfully!\n");
+    kprint("Loading IDT...\n");
 
     // 4. Enable CPU interrupts
     __asm__ volatile("sti");
-    kprint("Interrupts enabled (STI). System ready.\n");
+    kprint("Enabling interrupts...\n");
+
+    kprint("System ready.\n\n");
 
     // Launch prompt
     shell_init();
