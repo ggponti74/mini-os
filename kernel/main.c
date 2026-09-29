@@ -1,7 +1,7 @@
 // kernel/main.c
 #include <stdint.h>
 
-#include"idt.h"
+#include "idt.h"
 #include "shell.h"
 
 // Forward declarations for display routines
