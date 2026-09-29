@@ -34,17 +34,26 @@ KERNEL_BIN := $(BUILD)/kernel.bin
 IMAGE := $(DIST)/mini-os.img
 ISO := $(DIST)/mini-os.iso
 
-# Automatically gather all C sources and ASM files in kernel/
-C_SRCS := $(wildcard kernel/*.c)
-C_OBJS := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
+# Recursive wildcard function
+rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
-ASM_SRCS := $(wildcard kernel/*.asm)
+# Option A1: Explicit subdirectories
+C_SRCS := $(wildcard kernel/*.c) \
+          $(wildcard kernel/hal/*.c) \
+          $(wildcard kernel/fs/*.c)
+
+ASM_SRCS := $(wildcard kernel/*.asm) \
+            $(wildcard kernel/hal/*.asm) \
+            $(wildcard kernel/fs/*.asm)
+
+# Flatten object paths while retaining subfolders inside build/
+C_OBJS   := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
 ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
-
+    
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
-CFLAGS := -m32 -ffreestanding -fno-pie -c -O2
+-netdev user,id=u1 -device e1000,netdev=u1
 
 .PHONY: all boot kernel image iso run clean
 
@@ -65,13 +74,15 @@ boot: | $(BUILD)
 $(KERNEL_ENTRY_OBJ): $(KERNEL_ENTRY_SRC) | $(BUILD)
 	$(NASM) -f $(NASM_FMT) $(KERNEL_ENTRY_SRC) -o $(KERNEL_ENTRY_OBJ)
 
-# 3. Assemble all kernel/*.asm files (e.g., interrupts.asm)
+# Generic pattern matching rules (with directory auto-creation)
+$(BUILD)/%.o: kernel/%.c | $(BUILD)
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(CFLAGS) $< -o $@
+
 $(BUILD)/%.o: kernel/%.asm | $(BUILD)
+	@$(call MKDIR,$(dir $@))
 	$(NASM) -f $(NASM_FMT) $< -o $@
 
-# 4. Compile all kernel/*.c files (e.g., main.c, idt.c, pic.c, keyboard.c, shell.c)
-$(BUILD)/%.o: kernel/%.c | $(BUILD)
-	$(CC) $(CFLAGS) $< -o $@
 
 # 5. Link kernel entry, assembly objects, and C objects into binary
 kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
@@ -83,13 +94,11 @@ image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
 
-# 7. Construct a bootable ISO image using xorriso
 # Step to construct a bootable ISO image using xorriso (Floppy Emulation Mode)
 iso: image | $(DIST)
 	@$(call MKDIR,$(BUILD)/iso_root)
 	$(COPY) $(call FIX_PATH,$(IMAGE)) $(call FIX_PATH,$(BUILD)/iso_root/mini-os.img)
 	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
-    
 run: image
 	$(QEMU) -drive file=$(IMAGE),format=raw,index=0,media=disk -nographic -audiodev id=audio0,driver=none -device sb16,audiodev=audio0
 

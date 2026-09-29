@@ -38,7 +38,7 @@ void kernel_main(void) {
     __asm__ volatile("sti");
     kprint("Enabling interrupts...\n");
 
-    kprint("System ready.\n\n");
+    kprint("System ready, starting shell...\n\n");
 
     // Launch prompt
     shell_init();

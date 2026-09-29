@@ -33,25 +33,25 @@ start:
     jmp dword CODE_SEG:init_pm
 
 load_kernel:
-    ; Reset disk controller
+    ; 1. Reset disk drive controller
     xor ax, ax
     mov dl, [BOOT_DRIVE]
     int 0x13
 
-    ; Read 15 sectors to 0x0000:0x7E00
+    ; 2. Read sectors into memory at 0x7E00
     mov ah, 0x02
-    mov al, 15                  ; Sectors to read
+    mov al, 64                  ; <-- BUMP FROM 15 TO 64 SECTORS (32 KB)
     mov ch, 0                   ; Cylinder 0
     mov dh, 0                   ; Head 0
-    mov cl, 2                   ; Sector 2 (Sector 1 = boot sector)
-    mov dl, [BOOT_DRIVE]
-    mov bx, KERNEL_OFFSET
+    mov cl, 2                   ; Start at Sector 2 (Sector 1 is bootloader)
+    mov dl, [BOOT_DRIVE]        ; Boot drive passed by BIOS
+    mov bx, KERNEL_OFFSET       ; Destination 0x7E00
     int 0x13
-    jnc .read_success           ; Continue if read succeeded
+    jnc .read_success           ; Jump if successful
 
     ; Fallback retry forcing Hard Drive 0x80
     mov ah, 0x02
-    mov al, 15
+    mov al, 64                  ; <-- BUMP RETRY COUNT TO 64 SECTORS
     mov ch, 0
     mov dh, 0
     mov cl, 2
