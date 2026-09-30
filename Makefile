@@ -7,7 +7,7 @@ ifeq ($(OS),Windows_NT)
     FIX_PATH = $(subst /,\,$(1))
     COPY = copy /y
     CONCAT = copy /b $(call FIX_PATH,$(1)) + $(call FIX_PATH,$(2)) $(call FIX_PATH,$(3))
-    PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
+    PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)');$$f.SetLength(1474560);$$f.Close()"
     QEMU = qemu-system-x86_64
 else
     SHELL := /bin/sh
@@ -34,61 +34,56 @@ KERNEL_BIN := $(BUILD)/kernel.bin
 IMAGE := $(DIST)/mini-os.img
 ISO := $(DIST)/mini-os.iso
 
-# Recursive wildcard function
+# Recursive wildcard function definition
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
-# Option A1: Explicit subdirectories
-C_SRCS := $(wildcard kernel/*.c) \
-          $(wildcard kernel/hal/*.c) \
-          $(wildcard kernel/fs/*.c)
+# Discover C and ASM sources in kernel/ and any subfolders
+C_SRCS   := $(call rwildcard,kernel,*.c)
+ASM_SRCS := $(call rwildcard,kernel,*.asm)
 
-ASM_SRCS := $(wildcard kernel/*.asm) \
-            $(wildcard kernel/hal/*.asm) \
-            $(wildcard kernel/fs/*.asm)
-
-# Flatten object paths while retaining subfolders inside build/
 C_OBJS   := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
 ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
-    
+
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
+CFLAGS := -m32 -ffreestanding -fno-pie -c -O2 -Ikernel
 
-.PHONY: all boot kernel image iso run clean
+.PHONY: all boot kernel image iso run run-iso clean
 
 all: image
 
-# Directory creation rules
+### Directory creation rules
 $(BUILD):
 	@$(call MKDIR,$(BUILD))
 
 $(DIST):
 	@$(call MKDIR,$(DIST))
 
-# 1. Assemble 16-bit bootloader
+### 1. Assemble 16-bit bootloader
 boot: | $(BUILD)
 	$(NASM) -f bin $(BOOT_SRC) -o $(BOOT_BIN)
 
-# 2. Assemble Kernel Stage Entry (boot/kernel.asm)
+### 2. Assemble Kernel Stage Entry (boot/kernel.asm)
 $(KERNEL_ENTRY_OBJ): $(KERNEL_ENTRY_SRC) | $(BUILD)
 	$(NASM) -f $(NASM_FMT) $(KERNEL_ENTRY_SRC) -o $(KERNEL_ENTRY_OBJ)
 
-# Generic pattern matching rules (with directory auto-creation)
-$(BUILD)/%.o: kernel/%.c | $(BUILD)
-	@$(call MKDIR,$(dir $@))
-	$(CC) $(CFLAGS) $< -o $@
-
+### 3. Assemble all kernel/*.asm files across subdirectories
 $(BUILD)/%.o: kernel/%.asm | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(NASM) -f $(NASM_FMT) $< -o $@
 
+### 4. Compile all kernel/*.c files across subdirectories
+$(BUILD)/%.o: kernel/%.c | $(BUILD)
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(CFLAGS) $< -o $@
 
-# 5. Link kernel entry, assembly objects, and C objects into binary
+### 5. Link kernel objects into flat binary using linker script
 kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
-	$(CC) -m32 -nostdlib -no-pie -Wl,-z,noexecstack -Wl,-e,stage2_entry -Wl,-Ttext,0x7e00 -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
-	$(OBJCOPY) -O binary -j .text -j .data -j .rodata -j .bss $(KERNEL_ELF) $(KERNEL_BIN)
+	$(CC) -m32 -nostdlib -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
+	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
-# 6. Concatenate boot sector and kernel binary, then pad image to 1.44MB
+### 6. Concatenate boot sector and kernel binary
 image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
@@ -100,8 +95,12 @@ iso: image | $(DIST)
 	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
 
 run: image
-	$(QEMU) -drive file=$(IMAGE),format=raw,index=0,media=disk -nographic -audiodev id=audio0,driver=none -device sb16,audiodev=audio0 -netdev user,id=u1 -device e1000,netdev=u1
+	$(QEMU) -drive format=raw,file=$(IMAGE)
+
+run-iso: iso
+	$(QEMU) -drive format=raw,file=$(IMAGE) -nographic
 
 clean:
 	$(call RM,$(BUILD))
 	$(call RM,$(DIST))
+    

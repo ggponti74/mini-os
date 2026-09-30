@@ -41,6 +41,12 @@ void pic_remap(int offset1, int offset2) {
     outb(0x21, mask & ~(1 << 1));
 }
 
+// Unmask IRQ1 (Keyboard) on Master PIC
+void pic_unmask_keyboard(void) {
+    uint8_t current_mask = inb(PIC1_DATA);
+    outb(PIC1_DATA, current_mask & ~(1 << 1)); // Clear bit 1 (IRQ1)
+}
+
 // Send End-of-Interrupt signal to PIC
 void pic_send_eoi(unsigned char irq) {
     if (irq >= 8) {

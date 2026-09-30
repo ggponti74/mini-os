@@ -1,125 +1,133 @@
-org 0x7c00
+[org 0x7c00]
 [bits 16]
 
 KERNEL_OFFSET equ 0x7e00
 
 start:
-    cli                         ; 1. Disable interrupts immediately
-    cld                         ; Clear direction flag
-
-    ; 2. Initialize segment registers FIRST before accessing memory
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
     mov sp, 0x7c00
-    sti                         ; Re-enable interrupts
 
-    ; 3. Store the boot drive passed in DL by BIOS (0x80 for hard disk)
-    mov [BOOT_DRIVE], dl
+    mov [BOOT_DRIVE], dl    ; Save boot drive index passed by BIOS
 
-    ; 4. Read kernel sectors into RAM at 0x7E00
-    call load_kernel
+    call load_kernel_lba
 
-    ; 5. Switch to 32-bit Protected Mode
-    cli
-    lgdt [gdt_descriptor]
+    ; --- Protected Mode Transition ---
+    cli                     ; Disable interrupts
+    lgdt [gdt_descriptor]   ; Load GDT structure
 
     mov eax, cr0
-    or eax, 0x1
+    or eax, 0x1             ; Set Bit 0 in CR0 (Enable Protected Mode)
     mov cr0, eax
 
-    ; 6. CRITICAL: Explicit 32-bit far jump from 16-bit real mode
-    jmp dword CODE_SEG:init_pm
+    ; Far jump using Code Segment selector (0x08) to flush 16-bit pipeline
+    jmp CODE_SEG:init_pm
 
-load_kernel:
-    ; 1. Reset disk drive controller
+; ------------------------------------------------------------------------------
+; LBA / CHS Disk Loader Routine
+; ------------------------------------------------------------------------------
+load_kernel_lba:
+    ; Check for BIOS LBA Extensions (AH = 0x41)
+    mov ah, 0x41
+    mov bx, 0x55aa
+    mov dl, [BOOT_DRIVE]
+    int 0x13
+    jc .fallback_chs
+
+    ; LBA Extended Read (AH = 0x42) using DAP
+    mov ah, 0x42
+    mov dl, [BOOT_DRIVE]
+    mov si, dap
+    int 0x13
+    jnc .read_success
+
+.fallback_chs:
+    ; CHS Read Fallback
     xor ax, ax
     mov dl, [BOOT_DRIVE]
     int 0x13
 
-    ; 2. Read sectors into memory at 0x7E00
     mov ah, 0x02
-    mov al, 64                  ; <-- BUMP FROM 15 TO 64 SECTORS (32 KB)
-    mov ch, 0                   ; Cylinder 0
-    mov dh, 0                   ; Head 0
-    mov cl, 2                   ; Start at Sector 2 (Sector 1 is bootloader)
-    mov dl, [BOOT_DRIVE]        ; Boot drive passed by BIOS
-    mov bx, KERNEL_OFFSET       ; Destination 0x7E00
-    int 0x13
-    jnc .read_success           ; Jump if successful
-
-    ; Fallback retry forcing Hard Drive 0x80
-    mov ah, 0x02
-    mov al, 64                  ; <-- BUMP RETRY COUNT TO 64 SECTORS
+    mov al, 64              ; Read 64 sectors
     mov ch, 0
     mov dh, 0
     mov cl, 2
-    mov dl, 0x80
+    mov dl, [BOOT_DRIVE]
     mov bx, KERNEL_OFFSET
     int 0x13
-    jc disk_error
+    jc .disk_error
 
 .read_success:
     ret
 
-disk_error:
-    ; Output "ERR\n" to serial COM1 for terminal debugging
-    mov dx, 0x3f8
-    mov al, 'E'
-    out dx, al
-    mov al, 'R'
-    out dx, al
-    mov al, 'R'
-    out dx, al
-    mov al, 0x0a
-    out dx, al
-.halt_loop:
+.disk_error:
+    mov ax, 0xb800
+    mov es, ax
+    mov byte [es:0], 'E'
+    mov byte [es:1], 0x4f
     hlt
-    jmp .halt_loop
 
-; --- Global Descriptor Table (GDT) ---
-gdt_start:
-    dq 0x0                      ; Null descriptor
-
-gdt_code:
-    dw 0xffff                   ; Limit 0-15
-    dw 0x0                      ; Base 0-15
-    db 0x0                      ; Base 16-23
-    db 10011010b                ; Access byte (Code, Executable, Readable)
-    db 11001111b                ; Granularity (4KB blocks, 32-bit PM)
-    db 0x0                      ; Base 24-31
-
-gdt_data:
-    dw 0xffff
-    dw 0x0
-    db 0x0
-    db 10010010b                ; Access byte (Data, Read/Write)
-    db 11001111b
-    db 0x0
-
-gdt_end:
-
-gdt_descriptor:
-    dw gdt_end - gdt_start - 1
-    dd gdt_start
-
-CODE_SEG equ gdt_code - gdt_start
-DATA_SEG equ gdt_data - gdt_start
-
+; ------------------------------------------------------------------------------
+; 32-bit Protected Mode Initialization
+; ------------------------------------------------------------------------------
 [bits 32]
 init_pm:
-    mov ax, DATA_SEG
+    mov ax, DATA_SEG        ; Point all data segments to Data Descriptor (0x10)
     mov ds, ax
     mov ss, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
-    mov ebp, 0x90000
+    mov ebp, 0x90000        ; Set stack location safely above kernel
     mov esp, ebp
 
-    jmp KERNEL_OFFSET           ; Transfer control to kernel_entry (0x7E00)
+    jmp KERNEL_OFFSET       ; Jump directly into kernel_entry in kernel.asm
+
+; ------------------------------------------------------------------------------
+; Global Descriptor Table (GDT) & DAP Data
+; ------------------------------------------------------------------------------
+align 4
+dap:
+    db 0x10                 ; Packet size (16 bytes)
+    db 0x00                 ; Reserved
+    dw 64                   ; Number of sectors to read
+    dw KERNEL_OFFSET        ; Destination offset (0x7E00)
+    dw 0x0000               ; Destination segment (0x0000)
+    dd 1                    ; Starting LBA (Sector 1)
+    dd 0                    ; Upper 32-bits of LBA
+
+gdt_start:
+    ; Null Descriptor (Mandatory 8 null bytes)
+    dd 0x0
+    dd 0x0
+
+    ; Code Segment Descriptor (Base: 0x0, Limit: 4GB)
+    dw 0xffff
+    dw 0x0
+    db 0x0
+    db 10011010b
+    db 11001111b
+    db 0x0
+
+    ; Data Segment Descriptor (Base: 0x0, Limit: 4GB)
+    dw 0xffff
+    dw 0x0
+    db 0x0
+    db 10010010b
+    db 11001111b
+    db 0x0
+
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1   ; GDT Size - 1
+    dd gdt_start                ; GDT Offset Address
+
+CODE_SEG equ gdt_start + 8      ; Code Segment Selector (0x08)
+DATA_SEG equ gdt_end - 8        ; Data Segment Selector (0x10)
 
 BOOT_DRIVE: db 0
 

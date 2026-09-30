@@ -1,5 +1,5 @@
 // hal/net.c
-#include "hal/net.h"
+#include "network.h"
 #include <stddef.h>
 
 static net_device_t *default_net_dev = NULL;
