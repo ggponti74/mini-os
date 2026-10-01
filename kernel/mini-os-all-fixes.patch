@@ -1,0 +1,640 @@
+diff --git a/Makefile b/Makefile
+index 06f6bf0..e9bd347 100644
+--- a/Makefile
++++ b/Makefile
+@@ -47,9 +47,9 @@ ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
+ NASM := nasm
+ CC := gcc
+ OBJCOPY := objcopy
+-CFLAGS := -m32 -ffreestanding -fno-pie -c -O2 -Ikernel
++CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -c -O2 -Ikernel
+ 
+-.PHONY: all boot kernel image iso run run-iso clean
++.PHONY: all boot kernel image iso run run-iso run-serial run-serial-image smoke clean
+ 
+ all: image
+ 
+@@ -80,8 +80,8 @@ $(BUILD)/%.o: kernel/%.c | $(BUILD)
+ 
+ ### 5. Link kernel objects into flat binary using linker script
+ kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
+-	$(CC) -m32 -nostdlib -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
+-	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
++	$(CC) -m32 -nostdlib -no-pie -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
++	$(OBJCOPY) --set-section-flags .bss=alloc,load,contents -O binary $(KERNEL_ELF) $(KERNEL_BIN)
+ 
+ ### 6. Concatenate boot sector and kernel binary
+ image: boot kernel | $(DIST)
+@@ -98,8 +98,19 @@ run: image
+ 	$(QEMU) -drive format=raw,file=$(IMAGE)
+ 
+ run-iso: iso
++	$(QEMU) -cdrom $(ISO) -boot d
++
++# Headless: kernel I/O goes over COM1 (QEMU -nographic). Exit with Ctrl-A then x.
++run-serial: iso
++	$(QEMU) -cdrom $(ISO) -boot d -nographic
++
++run-serial-image: image
+ 	$(QEMU) -drive format=raw,file=$(IMAGE) -nographic
+ 
++# Non-interactive boot check (for CI / headless dev environments)
++smoke: iso
++	sh scripts/smoke-test.sh $(ISO)
++
+ clean:
+ 	$(call RM,$(BUILD))
+ 	$(call RM,$(DIST))
+diff --git a/boot/boot.asm b/boot/boot.asm
+index a08ae8f..84df6b3 100644
+--- a/boot/boot.asm
++++ b/boot/boot.asm
+@@ -1,18 +1,27 @@
+ [org 0x7c00]
+ [bits 16]
+ 
+-KERNEL_OFFSET equ 0x7e00
++KERNEL_OFFSET  equ 0x7e00
++KERNEL_SECTORS equ 64               ; sectors to load (LBA 1..64) = 32 KiB max
+ 
+ start:
++    cli
+     xor ax, ax
+     mov ds, ax
+     mov es, ax
+     mov ss, ax
+     mov sp, 0x7c00
++    sti
+ 
+     mov [BOOT_DRIVE], dl    ; Save boot drive index passed by BIOS
+ 
+-    call load_kernel_lba
++    mov si, msg_boot
++    call print
++
++    call load_kernel
++
++    mov si, msg_loaded
++    call print
+ 
+     ; --- Protected Mode Transition ---
+     cli                     ; Disable interrupts
+@@ -26,48 +35,132 @@ start:
+     jmp CODE_SEG:init_pm
+ 
+ ; ------------------------------------------------------------------------------
+-; LBA / CHS Disk Loader Routine
++; Disk loader
++;   Hard disk / USB (DL >= 0x80): try INT 13h extensions (LBA) first.
++;   Everything else (floppy, El Torito floppy emulation) or if LBA fails:
++;   CHS, one sector at a time, so we never cross a track/cylinder boundary
++;   within a single BIOS call, with retries on each sector.
+ ; ------------------------------------------------------------------------------
+-load_kernel_lba:
+-    ; Check for BIOS LBA Extensions (AH = 0x41)
++load_kernel:
++    cmp byte [BOOT_DRIVE], 0x80
++    jb .chs
++
+     mov ah, 0x41
+     mov bx, 0x55aa
+     mov dl, [BOOT_DRIVE]
+     int 0x13
+-    jc .fallback_chs
++    jc .chs
++    cmp bx, 0xaa55
++    jne .chs
+ 
+-    ; LBA Extended Read (AH = 0x42) using DAP
+     mov ah, 0x42
+     mov dl, [BOOT_DRIVE]
+     mov si, dap
+     int 0x13
+-    jnc .read_success
++    jnc .done
+ 
+-.fallback_chs:
+-    ; CHS Read Fallback
+-    xor ax, ax
++.chs:
++    ; Ask the BIOS for the drive geometry (INT 13h AH=08h)
+     mov dl, [BOOT_DRIVE]
++    mov ah, 0x08
++    xor di, di
++    push es
+     int 0x13
++    pop es
++    jc .geom_default
++    mov al, cl
++    and ax, 0x003f          ; AX = sectors per track (CL bits 0-5)
++    jz .geom_default
++    mov [spt], ax
++    movzx ax, dh
++    inc ax                  ; heads = max head + 1
++    mov [heads], ax
++    jmp .geom_done
++.geom_default:              ; assume a 1.44 MB floppy: 18 spt, 2 heads
++    mov word [spt], 18
++    mov word [heads], 2
++.geom_done:
++    mov word [cur_lba], 1
++    mov word [remaining], KERNEL_SECTORS
++    mov bx, KERNEL_OFFSET
+ 
+-    mov ah, 0x02
+-    mov al, 64              ; Read 64 sectors
+-    mov ch, 0
+-    mov dh, 0
+-    mov cl, 2
++.next_sector:
++    mov ax, [cur_lba]
++    xor dx, dx
++    div word [spt]          ; AX = LBA / spt, DX = LBA % spt
++    mov cl, dl
++    inc cl                  ; sector number is 1-based
++    xor dx, dx
++    div word [heads]        ; AX = cylinder, DX = head
++    mov ch, al              ; cylinder bits 0-7
++    shl ah, 6
++    or cl, ah               ; cylinder bits 8-9 into CL bits 6-7
++    mov dh, dl              ; head
+     mov dl, [BOOT_DRIVE]
+-    mov bx, KERNEL_OFFSET
+-    int 0x13
+-    jc .disk_error
+ 
+-.read_success:
++    mov byte [retries], 3
++.retry:
++    mov ax, 0x0201          ; read 1 sector
++    int 0x13
++    jnc .sector_ok
++    mov [err_code], ah
++    xor ax, ax              ; reset disk system and retry
++    mov dl, [BOOT_DRIVE]
++    int 0x13
++    mov dl, [BOOT_DRIVE]
++    dec byte [retries]
++    jnz .retry
++    jmp disk_error
++
++.sector_ok:
++    add bx, 512
++    inc word [cur_lba]
++    dec word [remaining]
++    jnz .next_sector
++.done:
+     ret
+ 
+-.disk_error:
+-    mov ax, 0xb800
+-    mov es, ax
+-    mov byte [es:0], 'E'
+-    mov byte [es:1], 0x4f
++disk_error:
++    mov si, msg_err
++    call print
++    mov al, [err_code]
++    call print_hex
++    cli
++.hang:
+     hlt
++    jmp .hang
++
++; print: SI = zero-terminated string
++print:
++    lodsb
++    test al, al
++    jz .ret
++    mov ah, 0x0e
++    xor bh, bh
++    mov bl, 0x07
++    int 0x10
++    jmp print
++.ret:
++    ret
++
++; print_hex: AL = byte to print as two hex digits
++print_hex:
++    mov cl, al
++    shr al, 4
++    call .nibble
++    mov al, cl
++    and al, 0x0f
++.nibble:
++    and al, 0x0f
++    add al, '0'
++    cmp al, '9'
++    jbe .out
++    add al, 7
++.out:
++    mov ah, 0x0e
++    xor bh, bh
++    int 0x10
++    ret
+ 
+ ; ------------------------------------------------------------------------------
+ ; 32-bit Protected Mode Initialization
+@@ -84,8 +177,22 @@ init_pm:
+     mov ebp, 0x90000        ; Set stack location safely above kernel
+     mov esp, ebp
+ 
++    ; Debug marker: green 'P' in the top-right corner = protected mode reached
++    mov word [0xb8000 + 158], 0x2f50
++
+     jmp KERNEL_OFFSET       ; Jump directly into kernel_entry in kernel.asm
+ 
++msg_boot:   db "mini-os: boot sector OK", 13, 10, 0
++msg_loaded: db "mini-os: kernel loaded", 13, 10, 0
++msg_err:    db "mini-os: DISK ERROR 0x", 0
++
++spt:        dw 18
++heads:      dw 2
++cur_lba:    dw 1
++remaining:  dw 0
++retries:    db 0
++err_code:   db 0
++
+ ; ------------------------------------------------------------------------------
+ ; Global Descriptor Table (GDT) & DAP Data
+ ; ------------------------------------------------------------------------------
+@@ -93,7 +200,7 @@ align 4
+ dap:
+     db 0x10                 ; Packet size (16 bytes)
+     db 0x00                 ; Reserved
+-    dw 64                   ; Number of sectors to read
++    dw KERNEL_SECTORS      ; Number of sectors to read
+     dw KERNEL_OFFSET        ; Destination offset (0x7E00)
+     dw 0x0000               ; Destination segment (0x0000)
+     dd 1                    ; Starting LBA (Sector 1)
+@@ -104,6 +211,7 @@ gdt_start:
+     dd 0x0
+     dd 0x0
+ 
++gdt_code:
+     ; Code Segment Descriptor (Base: 0x0, Limit: 4GB)
+     dw 0xffff
+     dw 0x0
+@@ -112,6 +220,7 @@ gdt_start:
+     db 11001111b
+     db 0x0
+ 
++gdt_data:
+     ; Data Segment Descriptor (Base: 0x0, Limit: 4GB)
+     dw 0xffff
+     dw 0x0
+@@ -126,8 +235,8 @@ gdt_descriptor:
+     dw gdt_end - gdt_start - 1   ; GDT Size - 1
+     dd gdt_start                ; GDT Offset Address
+ 
+-CODE_SEG equ gdt_start + 8      ; Code Segment Selector (0x08)
+-DATA_SEG equ gdt_end - 8        ; Data Segment Selector (0x10)
++CODE_SEG equ gdt_code - gdt_start   ; Code Segment Selector (0x08)
++DATA_SEG equ gdt_data - gdt_start   ; Data Segment Selector (0x10)
+ 
+ BOOT_DRIVE: db 0
+ 
+diff --git a/boot/kernel.asm b/boot/kernel.asm
+index b1b7f7f..b7c5414 100644
+--- a/boot/kernel.asm
++++ b/boot/kernel.asm
+@@ -13,6 +13,7 @@
+ [extern KERNEL_MAIN]
+ 
+ STAGE2_ENTRY:
++    mov word [0xb8000 + 156], 0x2f4b   ; debug marker: green 'K' = kernel entry reached
+     call KERNEL_MAIN
+     hlt
+ 
+diff --git a/kernel/display.c b/kernel/display.c
+index acda560..97b8b1c 100644
+--- a/kernel/display.c
++++ b/kernel/display.c
+@@ -3,7 +3,8 @@
+ #include "display.h"
+ #include "io.h"
+ 
+-void clear_screen(void) {
++// Clear only the VGA text buffer (also used when the cursor runs off the bottom)
++static void vga_clear(void) {
+     uint16_t blank = ' ' | (current_color << 8);
+     for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+         VGA_MEMORY[i] = blank;
+@@ -12,10 +13,30 @@ void clear_screen(void) {
+     cursor_y = 0;
+ }
+ 
++void clear_screen(void) {
++    vga_clear();
++    serial_clear_screen();
++}
++
+ void kputchar(char c) {
++    // Mirror everything to the serial console (headless / -nographic use)
++    if (c == '\n') {
++        serial_putc('\r');
++        serial_putc('\n');
++    } else if (c == '\b') {
++        serial_puts("\b \b");
++    } else {
++        serial_putc(c);
++    }
++
+     if (c == '\n') {
+         cursor_x = 0;
+         cursor_y++;
++    } else if (c == '\b') {
++        if (cursor_x > 0) {
++            cursor_x--;
++            VGA_MEMORY[cursor_y * VGA_WIDTH + cursor_x] = (uint16_t)' ' | ((uint16_t)current_color << 8);
++        }
+     } else {
+         int index = cursor_y * VGA_WIDTH + cursor_x;
+         VGA_MEMORY[index] = (uint16_t)c | ((uint16_t)current_color << 8);
+@@ -27,7 +48,7 @@ void kputchar(char c) {
+     }
+ 
+     if (cursor_y >= VGA_HEIGHT) {
+-        clear_screen();
++        vga_clear();
+     }
+ }
+ 
+@@ -35,4 +56,4 @@ void kprint(const char* str) {
+     for (int i = 0; str[i] != '\0'; i++) {
+         kputchar(str[i]);
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/kernel/display.h b/kernel/display.h
+index f11ece1..69c63e3 100644
+--- a/kernel/display.h
++++ b/kernel/display.h
+@@ -15,6 +15,9 @@ static int cursor_x = 0;
+ static int cursor_y = 0;
+ static int current_color= COLOR_DEFAULT;
+ 
++// Initialise COM1 (115200 8N1, RX interrupt enabled)
++void serial_init(void);
++
+ // Write a single character to COM1 serial port
+ void serial_putc(char c) ;
+ 
+diff --git a/kernel/interrupts.asm b/kernel/interrupts.asm
+index 5ba8b0f..1103270 100644
+--- a/kernel/interrupts.asm
++++ b/kernel/interrupts.asm
+@@ -6,18 +6,24 @@
+     %define ISR_DEFAULT_STUB _isr_default_stub
+     %define IRQ1_KEYBOARD_STUB _irq1_keyboard_stub
+     %define KEYBOARD_HANDLER _keyboard_handler
++    %define IRQ4_SERIAL_STUB _irq4_serial_stub
++    %define SERIAL_HANDLER _serial_handler
+ %else
+     %define IDT_LOAD idt_load
+     %define ISR_DEFAULT_STUB isr_default_stub
+     %define IRQ1_KEYBOARD_STUB irq1_keyboard_stub
+     %define KEYBOARD_HANDLER keyboard_handler
++    %define IRQ4_SERIAL_STUB irq4_serial_stub
++    %define SERIAL_HANDLER serial_handler
+ %endif
+ 
+ global IDT_LOAD
+ global ISR_DEFAULT_STUB
+ global IRQ1_KEYBOARD_STUB
++global IRQ4_SERIAL_STUB
+ 
+ extern KEYBOARD_HANDLER
++extern SERIAL_HANDLER
+ 
+ ; Load IDT Pointer passed from C
+ IDT_LOAD:
+@@ -38,6 +44,13 @@ IRQ1_KEYBOARD_STUB:
+     popa                ; Restore registers
+     iret                ; Return from interrupt
+ 
++; IRQ4 (COM1) Serial Interrupt Assembly Stub
++IRQ4_SERIAL_STUB:
++    pusha
++    call SERIAL_HANDLER
++    popa
++    iret
++
+ ; Non-executable stack section declaration for Linux ELF targets
+ %ifidn __OUTPUT_FORMAT__, elf32
+ section .note.GNU-stack noexec alloc progbits
+diff --git a/kernel/keyboard.c b/kernel/keyboard.c
+index c96addd..8e10721 100644
+--- a/kernel/keyboard.c
++++ b/kernel/keyboard.c
+@@ -45,6 +45,4 @@ void keyboard_handler(void) {
+     }
+ 
+     pic_send_eoi(1);
+-
+-    outb(0x20, 0x20); // Send EOI to Master PIC
+ }
+\ No newline at end of file
+diff --git a/kernel/main.c b/kernel/main.c
+index 726da84..044b544 100644
+--- a/kernel/main.c
++++ b/kernel/main.c
+@@ -13,10 +13,14 @@ void pic_remap(int offset1, int offset2);
+ void idt_init(void);
+ 
+ extern void isr_default_stub(void);
++extern void irq1_keyboard_stub(void);
++extern void irq4_serial_stub(void);
++void serial_init(void);
+ void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags);
+ 
+ void kernel_main(void) {
+ 
++    serial_init();
+     clear_screen();
+ 
+     kprint("Initializing kernel...\n");
+@@ -32,6 +36,10 @@ void kernel_main(void) {
+     for (int i = 0; i < 256; i++) {
+         idt_set_gate(i, (uint32_t)isr_default_stub, 0x08, 0x8E);
+     }
++    // Install the keyboard handler on IRQ1 (vector 0x21 after remap)
++    idt_set_gate(0x21, (uint32_t)irq1_keyboard_stub, 0x08, 0x8E);
++    // Install the serial handler on IRQ4 / COM1 (vector 0x24 after remap)
++    idt_set_gate(0x24, (uint32_t)irq4_serial_stub, 0x08, 0x8E);
+     kprint("Loading IDT...\n");
+ 
+     // 4. Enable CPU interrupts
+diff --git a/kernel/pic.c b/kernel/pic.c
+index 2c843fa..d281952 100644
+--- a/kernel/pic.c
++++ b/kernel/pic.c
+@@ -32,13 +32,13 @@ void pic_remap(int offset1, int offset2) {
+     outb(PIC1_DATA, ICW4_8086);
+     outb(PIC2_DATA, ICW4_8086);
+ 
+-    // Restore saved interrupt masks
+-    outb(PIC1_DATA, a1);
+-    outb(PIC2_DATA, a2);
++    (void)a1; (void)a2;
+ 
+-    // Read current Master PIC mask (port 0x21) and clear bit 1 (IRQ1)
+-    uint8_t mask = inb(0x21);
+-    outb(0x21, mask & ~(1 << 1));
++    // Mask everything except IRQ1 (keyboard) and IRQ4 (COM1 serial).
++    // Unhandled IRQs (e.g. the PIT on IRQ0) would otherwise hit the default
++    // stub, which sends no EOI.
++    outb(PIC1_DATA, 0xED);
++    outb(PIC2_DATA, 0xFF);
+ }
+ 
+ // Unmask IRQ1 (Keyboard) on Master PIC
+diff --git a/kernel/serial.c b/kernel/serial.c
+new file mode 100644
+index 0000000..0c10609
+--- /dev/null
++++ b/kernel/serial.c
+@@ -0,0 +1,63 @@
++// kernel/serial.c - COM1 serial console (115200 8N1), output + interrupt-driven input
++#include <stdint.h>
++#include "io.h"
++#include "display.h"
++#include "shell.h"
++
++#define COM1      0x3F8
++#define COM1_DATA (COM1 + 0)   // RX/TX (DLAB=0), divisor low (DLAB=1)
++#define COM1_IER  (COM1 + 1)   // interrupt enable, divisor high (DLAB=1)
++#define COM1_FCR  (COM1 + 2)
++#define COM1_LCR  (COM1 + 3)
++#define COM1_MCR  (COM1 + 4)
++#define COM1_LSR  (COM1 + 5)
++
++extern void pic_send_eoi(unsigned char irq);
++
++void serial_init(void) {
++    outb(COM1_IER, 0x00);   // disable UART interrupts while configuring
++    outb(COM1_LCR, 0x80);   // DLAB on
++    outb(COM1_DATA, 0x01);  // divisor 1 = 115200 baud
++    outb(COM1_IER, 0x00);
++    outb(COM1_LCR, 0x03);   // 8 data bits, no parity, 1 stop bit
++    outb(COM1_FCR, 0xC7);   // enable + clear FIFOs, 14-byte threshold
++    outb(COM1_MCR, 0x0B);   // DTR, RTS, OUT2 (OUT2 gates the UART IRQ line)
++    outb(COM1_IER, 0x01);   // interrupt on received data
++}
++
++void serial_putc(char c) {
++    // Bounded wait so a missing UART can never hang the kernel
++    for (int i = 0; i < 100000 && !(inb(COM1_LSR) & 0x20); i++) { }
++    outb(COM1_DATA, (uint8_t)c);
++}
++
++void serial_puts(const char* str) {
++    for (int i = 0; str[i] != '\0'; i++) {
++        serial_putc(str[i]);
++    }
++}
++
++void serial_clear_screen(void) {
++    serial_puts("\x1b[2J\x1b[H");   // ANSI: clear screen, cursor home
++}
++
++// Called from irq4_serial_stub (kernel/interrupts.asm)
++void serial_handler(void) {
++    static int esc_state = 0;      // 0 = normal, 1 = after ESC, 2 = inside CSI
++
++    while (inb(COM1_LSR) & 0x01) {
++        uint8_t c = inb(COM1_DATA);
++
++        // Swallow escape sequences (arrow keys etc.) instead of typing them
++        if (esc_state == 0 && c == 0x1B) { esc_state = 1; continue; }
++        if (esc_state == 1) { esc_state = (c == '[' || c == 'O') ? 2 : 0; continue; }
++        if (esc_state == 2) { if (c >= 0x40 && c <= 0x7E) esc_state = 0; continue; }
++
++        if (c == '\r' || c == '\n') c = '\n';
++        else if (c == 0x7F || c == 0x08) c = '\b';
++
++        shell_input_char((char)c);
++    }
++
++    pic_send_eoi(4);
++}
+diff --git a/linker.ld b/linker.ld
+index 5b0a208..8cbfc07 100644
+--- a/linker.ld
++++ b/linker.ld
+@@ -4,26 +4,40 @@ SECTIONS
+ {
+     . = 0x7E00;
+ 
+-    .text : ALIGN(4K)
++    /* No ALIGN(4K) here: the bootloader loads the image at 0x7E00 and
++       jumps straight to it, so .text must start exactly at 0x7E00. */
++    .text :
+     {
+         /* Force kernel_entry.o (.text) to be placed first */
+         *kernel_entry.o(.text)
+-        *(.text)
++        *(.text*)
+     }
+ 
+-    .rodata : ALIGN(4K)
++    .rodata : ALIGN(4)
+     {
+-        *(.rodata)
++        *(.rodata*)
+     }
+ 
+-    .data : ALIGN(4K)
++    .data : ALIGN(4)
+     {
+-        *(.data)
++        *(.data*)
+     }
+ 
+-    .bss : ALIGN(4K)
++    .bss : ALIGN(4)
+     {
+         *(COMMON)
+-        *(.bss)
++        *(.bss*)
+     }
+-}
+\ No newline at end of file
++
++    /DISCARD/ :
++    {
++        *(.note*)
++        *(.comment)
++        *(.eh_frame*)
++        *(.dynamic)
++        *(.dynsym)
++        *(.dynstr)
++        *(.gnu.hash)
++        *(.hash)
++    }
++}
+diff --git a/scripts/smoke-test.sh b/scripts/smoke-test.sh
+old mode 100644
+new mode 100755
+index e69de29..81de359
+--- a/scripts/smoke-test.sh
++++ b/scripts/smoke-test.sh
+@@ -0,0 +1,17 @@
++#!/bin/sh
++# Boot the ISO headless, type "help" over the serial console, check the output.
++# Usage: scripts/smoke-test.sh [path/to/mini-os.iso]
++ISO="${1:-dist/mini-os.iso}"
++OUT="$(mktemp)"
++trap 'rm -f "$OUT"' EXIT
++
++( sleep 4; printf 'help\r'; sleep 2 ) | timeout 15 qemu-system-i386 \
++    -cdrom "$ISO" -boot d -display none -serial stdio -monitor none -no-reboot \
++    > "$OUT" 2>&1
++
++fail=0
++for pat in "System ready" "mini-os>" "Available commands"; do
++    if grep -q "$pat" "$OUT"; then echo "PASS: found '$pat'"; else echo "FAIL: missing '$pat'"; fail=1; fi
++done
++[ "$fail" -eq 0 ] || { echo "---- serial output ----"; cat -v "$OUT"; }
++exit "$fail"
