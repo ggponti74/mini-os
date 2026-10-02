@@ -1,142 +1,133 @@
-org 0x7c00
+[org 0x7c00]
 [bits 16]
 
 KERNEL_OFFSET equ 0x7e00
 
 start:
-    cli
-    cld
+    ; 1. Save boot drive passed by BIOS in DL
+    mov [BOOT_DRIVE], dl
+
+    ; 2. Reset segment registers and stack pointer
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
     mov sp, 0x7c00
-    sti
 
-    ; 1. Preserve BIOS boot drive passed in DL (0x00=Floppy, 0x80=HDD, 0xE0=CD-ROM)
-    mov [BOOT_DRIVE], dl
-
-    ; Debug marker 1: Real mode started
-    mov al, '1'
-    out 0xe9, al
-
+    ; 3. Load kernel sectors into memory
     call load_kernel
 
-    ; Debug marker 3: Kernel loaded, transitioning to 32-bit mode
-    mov al, '3'
-    out 0xe9, al
-
+    ; 4. Prepare transition to 32-bit Protected Mode
     cli
     lgdt [gdt_descriptor]
 
     mov eax, cr0
-    or eax, 0x1
+    or eax, 1
     mov cr0, eax
 
-    jmp dword CODE_SEG:init_pm
+    ; 5. Explicit 16-bit far jump to clear pipeline into 32-bit segment
+    jmp 0x08:init_pm
 
+; ------------------------------------------------------------------------------
+; Sector Loader Routine (Track-Safe CHS Read)
+; ------------------------------------------------------------------------------
 load_kernel:
-    ; Debug marker 2: Entered load_kernel
-    mov al, '2'
-    out 0xe9, al
-
-    ; Try LBA Extended Read (AH = 0x42)
-    mov ah, 0x41
-    mov bx, 0x55aa
-    mov dl, [BOOT_DRIVE]
-    int 0x13
-    jc .fallback_chs
-    cmp bx, 0xaa55
-    jne .fallback_chs
-
-    ; Execute LBA Read using DAP
-    mov ah, 0x42
-    mov dl, [BOOT_DRIVE]
-    mov si, dap
-    int 0x13
-    jnc .read_success
-
-.fallback_chs:
-    ; Reset Drive
-    xor ax, ax
-    mov dl, [BOOT_DRIVE]
-    int 0x13
-
-    ; Read 64 sectors in 16-sector track-safe chunks
     mov bx, KERNEL_OFFSET
-    mov cl, 2                   ; Start at Sector 2
-    mov ch, 0                   ; Cylinder 0
-    mov dh, 0                   ; Head 0
-    mov di, 4                   ; 4 chunks * 16 sectors = 64 sectors
+    mov cx, 0x0002          ; Sector 2, Cylinder 0
+    mov dh, 0               ; Head 0
+    mov di, 64              ; Read 64 sectors (32 KB)
 
 .read_loop:
-    mov ah, 0x02
-    mov al, 16                  ; 16 sectors at a time (prevents track overrun)
+    push cx
+    push dx
+    push di
+
+    xor ax, ax
+    mov dl, [BOOT_DRIVE]
+    int 0x13                ; Reset drive controller
+
+    mov ax, 0x0201          ; Read 1 sector
     mov dl, [BOOT_DRIVE]
     int 0x13
-    jc .disk_error              ; <--- Prints 'E' if this fails!
+    jnc .success
 
-    add bx, 512 * 16
-    inc dh                      ; Next head
+    ; Retry using hard disk drive index 0x80 if floppy 0x00 fails
+    mov ax, 0x0201
+    mov dl, 0x80
+    int 0x13
+    jc .disk_error
+
+.success:
+    add bx, 512
+    pop di
+    pop dx
+    pop cx
+
+    inc cl
+    cmp cl, 19
+    jne .next
+
+    mov cl, 1
+    inc dh
+    cmp dh, 2
+    jne .next
+
+    mov dh, 0
+    inc ch
+
+.next:
     dec di
     jnz .read_loop
-
-.read_success:
     ret
 
+; ------------------------------------------------------------------------------
+; Disk Error Handler (Displays Red 'E' on VGA Screen if INT 13h Fails)
+; ------------------------------------------------------------------------------
 .disk_error:
-    ; Print red 'E' to top-left of VGA screen
     mov ax, 0xb800
     mov es, ax
     mov byte [es:0], 'E'
     mov byte [es:1], 0x4f
-
-    ; Output 'E' to debug log
-    mov al, 'E'
-    out 0xe9, al
-
-.halt_loop:
+.halt:
     hlt
-    jmp .halt_loop
+    jmp .halt
 
 ; ------------------------------------------------------------------------------
-; LBA Disk Address Packet (DAP)
-; ------------------------------------------------------------------------------
-align 4
-dap:
-    db 0x10                     ; Packet size (16 bytes)
-    db 0x00                     ; Reserved
-    dw 64                       ; Sectors to read (32 KB)
-    dw KERNEL_OFFSET            ; Offset (0x7E00)
-    dw 0x0000                   ; Segment (0x0000)
-    dd 1                        ; Starting LBA Sector (Sector 1)
-    dd 0                        ; Upper 32-bits
-
-; ------------------------------------------------------------------------------
-; Global Descriptor Table & 32-bit Init
+; Global Descriptor Table (GDT)
 ; ------------------------------------------------------------------------------
 align 4
 gdt_start:
-    dd 0x0, 0x0
-    ; Code Segment (0x08)
-    dw 0xffff, 0x0
-    db 0x0, 10011010b, 11001111b, 0x0
-    ; Data Segment (0x10)
-    dw 0xffff, 0x0
-    db 0x0, 10010010b, 11001111b, 0x0
+    dd 0x0, 0x0             ; Null Descriptor
+
+gdt_code:
+    dw 0xffff
+    dw 0x0
+    db 0x0
+    db 10011010b
+    db 11001111b
+    db 0x0
+
+gdt_data:
+    dw 0xffff
+    dw 0x0
+    db 0x0
+    db 10010010b
+    db 11001111b
+    db 0x0
 gdt_end:
 
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd gdt_start
 
-CODE_SEG equ gdt_start + 8
-DATA_SEG equ gdt_end - 8
 BOOT_DRIVE: db 0
 
+; ------------------------------------------------------------------------------
+; 32-bit Protected Mode Initialization
+; ------------------------------------------------------------------------------
 [bits 32]
 init_pm:
-    mov ax, DATA_SEG
+    mov ax, 0x10            ; Data segment selector (gdt_data offset)
     mov ds, ax
     mov ss, ax
     mov es, ax
@@ -146,11 +137,7 @@ init_pm:
     mov ebp, 0x90000
     mov esp, ebp
 
-    ; Debug marker 4: Entering kernel
-    mov al, '4'
-    out 0xe9, al
-
-    jmp KERNEL_OFFSET
+    jmp KERNEL_OFFSET       ; Jump directly into stage2_entry
 
 times 510-($-$$) db 0
 dw 0xaa55

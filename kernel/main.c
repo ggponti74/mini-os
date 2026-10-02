@@ -1,21 +1,15 @@
 #include "display.h"
-#include "sound.h"
-#include "io.h"
 
 void kernel_main(void) {
-    __asm__ __volatile__("cli");
+    // 1. Wipe SeaBIOS and bootloader text from video memory
+    clear_screen();
 
-    // Debug output to log
-    outb(0xE9, 'K');
-
-    // Direct poke: Draw 'O' and 'K' in Bright White on Black at (0,0)
-    volatile unsigned short *vga = (volatile unsigned short *)0xB8000;
-    vga[0] = (0x0F << 8) | 'O';
-    vga[1] = (0x0F << 8) | 'K';
-
-    outb(0xE9, '1');
+    // 2. Print clean status messages at top-left
+    kprint("========================================\n");
+    kprint("  Mini-OS 32-bit Kernel Running (ISO)   \n");
+    kprint("========================================\n");
 
     while (1) {
-        __asm__ __volatile__("hlt");
+        __asm__ volatile ("hlt");
     }
 }

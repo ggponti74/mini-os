@@ -1,26 +1,28 @@
-ENTRY(_start)
+ENTRY(stage2_entry)
 
 SECTIONS
 {
-    . = 0x7E00;
+    . = 0x7E00;    /* MUST BE 0x7E00, NOT 0x7C00 */
 
-    .text : {
-        *(.entry)         /* Kernel entry assembly stub MUST be first */
+    .text : ALIGN(4)
+    {
+        *kernel_entry.o(.text)
         *(.text*)
-        *(.rodata*)       /* Read-only data (string literals) mapped here */
     }
 
-    .data : {
+    .rodata : ALIGN(4)
+    {
+        *(.rodata*)
+    }
+
+    .data : ALIGN(4)
+    {
         *(.data*)
     }
 
-    .bss : {
-        *(.bss*)
+    .bss : ALIGN(4)
+    {
         *(COMMON)
-    }
-
-    /DISCARD/ : {
-        *(.comment)
-        *(.eh_frame)
+        *(.bss*)
     }
 }
