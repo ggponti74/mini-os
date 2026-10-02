@@ -3,7 +3,7 @@
 
 global _start
 _start:
-    ; Set segment registers to 32-bit data segment selector (0x10)
+    ; Load Protected Mode Data Selectors
     mov ax, 0x10
     mov ds, ax
     mov es, ax
@@ -11,15 +11,13 @@ _start:
     mov gs, ax
     mov ss, ax
 
-    ; Set up stack pointer pointing to a safe physical address
-    mov esp, 0x90000
+    ; Stack grows down from 0x90000
+    mov ebp, 0x90000
+    mov esp, ebp
 
-    ; Call C entry point
     call kernel_main
 
-    ; Infinite halt if kernel returns
-.halt:
-    cli
+.hang:
     hlt
-    jmp .halt
+    jmp .hang
     

@@ -1,135 +1,156 @@
+org 0x7c00
 [bits 16]
-[org 0x7C00]
 
-KERNEL_OFFSET equ 0x7E00    ; Kernel load target address in memory
+KERNEL_OFFSET equ 0x7e00
 
 start:
-    ; 1. Clear interrupt flag during critical register setup
     cli
-
-    ; 2. Normalize segment registers (0x0000) and stack pointer
+    cld
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
-    mov sp, 0x7C00          ; Stack grows downward from bootloader origin
+    mov sp, 0x7c00
+    sti
 
-    sti                     ; Re-enable interrupts for BIOS disk reads
+    ; 1. Preserve BIOS boot drive passed in DL (0x00=Floppy, 0x80=HDD, 0xE0=CD-ROM)
+    mov [BOOT_DRIVE], dl
 
-    ; 3. Output boot sequence debug marker '1' to port 0xE9
+    ; Debug marker 1: Real mode started
     mov al, '1'
-    out 0xE9, al
+    out 0xe9, al
 
-    ; 4. Load kernel sectors from floppy disk
     call load_kernel
 
-    ; 5. Output boot sequence debug marker '2' to port 0xE9
-    mov al, '2'
-    out 0xE9, al
+    ; Debug marker 3: Kernel loaded, transitioning to 32-bit mode
+    mov al, '3'
+    out 0xe9, al
 
-    ; 6. Disable interrupts before entering Protected Mode
     cli
-
-    ; 7. Enable A20 Line via System Control Port A
-    in al, 0x92
-    or al, 0x02
-    out 0xE9, al            ; Safety fallback or debug write
-    out 0x92, al            ; Bit 1 enables physical address line 20
-
-    ; 8. Load Global Descriptor Table (GDT)
     lgdt [gdt_descriptor]
 
-    ; 9. Set Protection Enable (PE) bit in Control Register CR0
     mov eax, cr0
-    or eax, 0x01
+    or eax, 0x1
     mov cr0, eax
 
-    ; 10. Far jump to clear the instruction prefetch queue and set CS selector (0x08)
-    jmp 0x08:init_pm
+    jmp dword CODE_SEG:init_pm
 
-; ------------------------------------------------------------------------------
-; DISK READ ROUTINE
-; ------------------------------------------------------------------------------
 load_kernel:
-    ; Reset disk system (Drive 0x00 = Floppy Drive A:)
-    mov ah, 0x00
-    mov dl, 0x00
-    int 0x13
-    jc load_kernel          ; Retry on error
+    ; Debug marker 2: Entered load_kernel
+    mov al, '2'
+    out 0xe9, al
 
-    ; Read Kernel Sectors starting at Sector 2 (CHS: C=0, H=0, S=2)
-    mov ah, 0x02            ; BIOS Read Sectors function
-    mov al, 15              ; Number of sectors to read (adjust as kernel grows)
-    mov ch, 0               ; Cylinder 0
-    mov dh, 0               ; Head 0
-    mov cl, 2               ; Sector 2 (Sector 1 is boot.asm)
-    mov dl, 0               ; Drive 0 (Floppy A:)
-    mov bx, KERNEL_OFFSET   ; ES:BX buffer pointer (0x0000:0x7E00)
+    ; Try LBA Extended Read (AH = 0x42)
+    mov ah, 0x41
+    mov bx, 0x55aa
+    mov dl, [BOOT_DRIVE]
     int 0x13
-    jc load_kernel          ; Retry if read failed
+    jc .fallback_chs
+    cmp bx, 0xaa55
+    jne .fallback_chs
 
+    ; Execute LBA Read using DAP
+    mov ah, 0x42
+    mov dl, [BOOT_DRIVE]
+    mov si, dap
+    int 0x13
+    jnc .read_success
+
+.fallback_chs:
+    ; Reset Drive
+    xor ax, ax
+    mov dl, [BOOT_DRIVE]
+    int 0x13
+
+    ; Read 64 sectors in 16-sector track-safe chunks
+    mov bx, KERNEL_OFFSET
+    mov cl, 2                   ; Start at Sector 2
+    mov ch, 0                   ; Cylinder 0
+    mov dh, 0                   ; Head 0
+    mov di, 4                   ; 4 chunks * 16 sectors = 64 sectors
+
+.read_loop:
+    mov ah, 0x02
+    mov al, 16                  ; 16 sectors at a time (prevents track overrun)
+    mov dl, [BOOT_DRIVE]
+    int 0x13
+    jc .disk_error              ; <--- Prints 'E' if this fails!
+
+    add bx, 512 * 16
+    inc dh                      ; Next head
+    dec di
+    jnz .read_loop
+
+.read_success:
     ret
 
+.disk_error:
+    ; Print red 'E' to top-left of VGA screen
+    mov ax, 0xb800
+    mov es, ax
+    mov byte [es:0], 'E'
+    mov byte [es:1], 0x4f
+
+    ; Output 'E' to debug log
+    mov al, 'E'
+    out 0xe9, al
+
+.halt_loop:
+    hlt
+    jmp .halt_loop
+
 ; ------------------------------------------------------------------------------
-; GLOBAL DESCRIPTOR TABLE (GDT)
+; LBA Disk Address Packet (DAP)
 ; ------------------------------------------------------------------------------
+align 4
+dap:
+    db 0x10                     ; Packet size (16 bytes)
+    db 0x00                     ; Reserved
+    dw 64                       ; Sectors to read (32 KB)
+    dw KERNEL_OFFSET            ; Offset (0x7E00)
+    dw 0x0000                   ; Segment (0x0000)
+    dd 1                        ; Starting LBA Sector (Sector 1)
+    dd 0                        ; Upper 32-bits
+
+; ------------------------------------------------------------------------------
+; Global Descriptor Table & 32-bit Init
+; ------------------------------------------------------------------------------
+align 4
 gdt_start:
-
-gdt_null:                   ; Mandatory null descriptor (8 bytes)
-    dd 0x00000000
-    dd 0x00000000
-
-gdt_code:                   ; Kernel Code Segment: Base 0x0, Limit 4GB, Ring 0
-    dw 0xFFFF               ; Limit (bits 0-15)
-    dw 0x0000               ; Base (bits 0-15)
-    db 0x00                 ; Base (bits 16-23)
-    db 10011010b            ; Access Byte: Present, Ring 0, Code, Executable, Readable
-    db 11001111b            ; Flags (Granularity 4KB, 32-bit) + Limit (bits 16-19)
-    db 0x00                 ; Base (bits 24-31)
-
-gdt_data:                   ; Kernel Data Segment: Base 0x0, Limit 4GB, Ring 0
-    dw 0xFFFF               ; Limit (bits 0-15)
-    dw 0x0000               ; Base (bits 0-15)
-    db 0x00                 ; Base (bits 16-23)
-    db 10010010b            ; Access Byte: Present, Ring 0, Data, Writable
-    db 11001111b            ; Flags (Granularity 4KB, 32-bit) + Limit (bits 16-19)
-    db 0x00                 ; Base (bits 24-31)
-
+    dd 0x0, 0x0
+    ; Code Segment (0x08)
+    dw 0xffff, 0x0
+    db 0x0, 10011010b, 11001111b, 0x0
+    ; Data Segment (0x10)
+    dw 0xffff, 0x0
+    db 0x0, 10010010b, 11001111b, 0x0
 gdt_end:
 
 gdt_descriptor:
-    dw gdt_end - gdt_start - 1   ; GDT Size (Limit)
-    dd gdt_start                 ; GDT Address
+    dw gdt_end - gdt_start - 1
+    dd gdt_start
 
-; ------------------------------------------------------------------------------
-; 32-BIT PROTECTED MODE ENTRY POINT
-; ------------------------------------------------------------------------------
+CODE_SEG equ gdt_start + 8
+DATA_SEG equ gdt_end - 8
+BOOT_DRIVE: db 0
+
 [bits 32]
 init_pm:
-    ; Output debug marker '3' to port 0xE9
-    mov al, '3'
-    out 0xE9, al
-
-    ; Point 32-bit segment registers to Data Segment Selector (0x10)
-    mov ax, 0x10
+    mov ax, DATA_SEG
     mov ds, ax
+    mov ss, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    mov ss, ax
 
-    ; Initialize 32-bit stack pointer safely above loaded kernel
-    mov esp, 0x90000
+    mov ebp, 0x90000
+    mov esp, ebp
 
-    ; Output debug marker '4' to port 0xE9
+    ; Debug marker 4: Entering kernel
     mov al, '4'
-    out 0xE9, al
+    out 0xe9, al
 
-    ; Jump directly to kernel entry point
     jmp KERNEL_OFFSET
 
-; ------------------------------------------------------------------------------
-; BOOT SECTOR PADDING & SIGNATURE
-; ------------------------------------------------------------------------------
-times 510 - ($ - $$) db 0   ; Pad up to byte 510 with zeros
-dw 0xAA55                   ; Boot sector magic signature (2 bytes)
+times 510-($-$$) db 0
+dw 0xaa55
