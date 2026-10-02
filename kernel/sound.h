@@ -13,5 +13,8 @@ unsigned char get_master_switch(void);
 void set_master_volume(unsigned char left, unsigned char right);
 void set_input_switches(unsigned char left_mask, unsigned char right_mask);
 void set_master_gain(unsigned char gain_left, unsigned char gain_right);
+void play_sound(uint32_t nFreq);
+void nosound(void);
+void beep(uint32_t freq, uint32_t duration);
 
 #endif

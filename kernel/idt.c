@@ -1,31 +1,34 @@
-// kernel/idt.c
-#include "idt.h"
+// kernel/display.c
+#include <stdint.h>
+#include "display.h"
 
-#define IDT_ENTRIES 256
+static int cursor_offset = 0;
 
-struct idt_entry idt[IDT_ENTRIES];
-struct idt_ptr idtp;
+// void clear_screen(void) {
+//     volatile uint16_t *vga = (volatile uint16_t *)0xB8000;
+//     for (int i = 0; i < 80 * 25; i++) {
+//         // Bright white text on black background (0x0F)
+//         vga[i] = (0x0F << 8) | ' ';
+//     }
+//     cursor_offset = 0; // MUST reset cursor offset when screen clears!
+// }
 
-// Inline assembly wrapper for LIDT instruction
-extern void idt_load(uint32_t idt_ptr_addr);
+// void kprint(const char *str) {
+//     volatile uint16_t *vga = (volatile uint16_t *)0xB8000;
 
-void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
-    idt[num].base_low = base & 0xFFFF;
-    idt[num].base_high = (base >> 16) & 0xFFFF;
-    idt[num].sel = sel;
-    idt[num].always0 = 0;
-    idt[num].flags = flags;
-}
+//     for (int i = 0; str[i] != '\0'; i++) {
+//         if (str[i] == '\n') {
+//             // Move to start of next row (80 columns per row)
+//             cursor_offset = (cursor_offset / 80 + 1) * 80;
+//         } else {
+//             // Attribute byte 0x0F (White on Black) + Character
+//             vga[cursor_offset] = (0x0F << 8) | (uint8_t)str[i];
+//             cursor_offset++;
+//         }
 
-void idt_init(void) {
-    idtp.limit = (sizeof(struct idt_entry) * IDT_ENTRIES) - 1;
-    idtp.base = (uint32_t)&idt;
-
-    // Zero out all entries initially
-    for (int i = 0; i < IDT_ENTRIES; i++) {
-        idt_set_gate(i, 0, 0, 0);
-    }
-
-    // Load the IDT pointer into the CPU IDTR register
-    idt_load((uint32_t)&idtp);
-}
+//         // Wrap around at bottom of screen (80 * 25 = 2000 cells)
+//         if (cursor_offset >= 80 * 25) {
+//             cursor_offset = 0;
+//         }
+//     }
+// }

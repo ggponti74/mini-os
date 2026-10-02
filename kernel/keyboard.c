@@ -2,6 +2,7 @@
 #include "keyboard.h"
 #include "shell.h" // Add shell header
 #include "io.h"  
+#include "pic.h"
 
 extern void pic_send_eoi(unsigned char irq);
 

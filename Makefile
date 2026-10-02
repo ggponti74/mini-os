@@ -47,7 +47,7 @@ ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
-CFLAGS := -m32 -ffreestanding -fno-pie -c -O2 -Ikernel
+CFLAGS = -m32 -ffreestanding -fno-pic -fno-pie -fno-stack-protector -nostdlib -c
 
 .PHONY: all boot kernel image iso run run-iso clean
 
@@ -60,7 +60,7 @@ $(BUILD):
 $(DIST):
 	@$(call MKDIR,$(DIST))
 
-### 1. Assemble 16-bit bootloader
+### 1. Assemble 16-bit bootloader (force exact 512-byte size)
 boot: | $(BUILD)
 	$(NASM) -f bin $(BOOT_SRC) -o $(BOOT_BIN)
 
@@ -83,24 +83,25 @@ kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
 	$(CC) -m32 -nostdlib -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
-### 6. Concatenate boot sector and kernel binary
+### 6. Concatenate boot sector and kernel binary into floppy image
 image: boot kernel | $(DIST)
-	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
-	$(call PAD_IMAGE,$(IMAGE))
+	@$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
+	@$(call PAD_IMAGE,$(IMAGE))
 
-# Step to construct a bootable ISO image using xorriso (Floppy Emulation Mode)
+# Step to construct a bootable ISO image using xorriso
 iso: image | $(DIST)
 	@$(call MKDIR,$(BUILD)/iso_root)
 	$(COPY) $(call FIX_PATH,$(IMAGE)) $(call FIX_PATH,$(BUILD)/iso_root/mini-os.img)
-	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
+	xorriso -as mkisofs -b mini-os.img -boot-load-size 4 -o $(ISO) $(BUILD)/iso_root
 
+# Run raw floppy image explicitly with active VGA window and debug port output
 run: image
-	$(QEMU) -drive format=raw,file=$(IMAGE)
+	$(QEMU) -drive file=$(IMAGE),format=raw,if=floppy -boot a -vga std -debugcon file:qemu_img.log
 
+# Run CD-ROM ISO properly attached to QEMU
 run-iso: iso
-	$(QEMU) -drive format=raw,file=$(IMAGE) -nographic
+	$(QEMU) -cdrom $(ISO) -vga std -debugcon file:qemu_iso.log
 
 clean:
-	$(call RM,$(BUILD))
-	$(call RM,$(DIST))
-    
+	@$(call RM,$(BUILD))
+	@$(call RM,$(DIST))

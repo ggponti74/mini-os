@@ -1,56 +1,77 @@
-// kernel/pic.c
 #include <stdint.h>
-#include "io.h"
+#include "io.h"    /* Assumes outb / inb inline functions */
+#include "pic.h"
 
-#define PIC1_COMMAND 0x20
-#define PIC1_DATA    0x21
-#define PIC2_COMMAND 0xA0
-#define PIC2_DATA    0xA1
+void pic_remap(void) {
+    uint8_t a1, a2;
 
-#define ICW1_INIT    0x10
-#define ICW1_ICW4    0x01
-#define ICW4_8086    0x01
+    // Save current IRQ masks
+    a1 = inb(PIC1_DATA);
+    a2 = inb(PIC2_DATA);
 
-// Remap PIC offsets
-void pic_remap(int offset1, int offset2) {
-    uint8_t a1 = inb(PIC1_DATA); // Save current masks
-    uint8_t a2 = inb(PIC2_DATA);
+    // Start initialization sequence in cascade mode
+    outb(PIC1_COMMAND, ICW1_INIT | ICW4_8086);
+    io_wait();
+    outb(PIC2_COMMAND, ICW1_INIT | ICW4_8086);
+    io_wait();
 
-    // ICW1: Start initialization sequence
-    outb(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
-    outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
+    // Remap Master PIC vector offset to 0x20 (32) and Slave to 0x28 (40)
+    outb(PIC1_DATA, 0x20);
+    io_wait();
+    outb(PIC2_DATA, 0x28);
+    io_wait();
 
-    // ICW2: Vector offsets
-    outb(PIC1_DATA, offset1); // Master PIC offset (0x20)
-    outb(PIC2_DATA, offset2); // Slave PIC offset (0x28)
+    // Tell Master PIC that Slave PIC is at IRQ2 (0000 0100b)
+    outb(PIC1_DATA, 0x04);
+    io_wait();
+    // Tell Slave PIC its cascade identity (2)
+    outb(PIC2_DATA, 0x02);
+    io_wait();
 
-    // ICW3: Cascading setup
-    outb(PIC1_DATA, 4); // Tell Master PIC that Slave PIC is at IRQ2 (0000 0100b)
-    outb(PIC2_DATA, 2); // Tell Slave PIC its cascade identity (0000 0010b)
-
-    // ICW4: 8086/88 mode
+    // Use 8086/88 (MCS-80/85) mode
     outb(PIC1_DATA, ICW4_8086);
+    io_wait();
     outb(PIC2_DATA, ICW4_8086);
+    io_wait();
 
-    // Restore saved interrupt masks
-    outb(PIC1_DATA, a1);
-    outb(PIC2_DATA, a2);
-
-    // Read current Master PIC mask (port 0x21) and clear bit 1 (IRQ1)
-    uint8_t mask = inb(0x21);
-    outb(0x21, mask & ~(1 << 1));
+// MASK ALL IRQs (0xFF) to ensure no unhandled interrupts fire!
+    outb(PIC1_DATA, 0xFF);
+    outb(PIC2_DATA, 0xFF);
 }
 
-// Unmask IRQ1 (Keyboard) on Master PIC
-void pic_unmask_keyboard(void) {
-    uint8_t current_mask = inb(PIC1_DATA);
-    outb(PIC1_DATA, current_mask & ~(1 << 1)); // Clear bit 1 (IRQ1)
-}
+void irq_mask(uint8_t irq_line) {
+    uint16_t port;
+    uint8_t value;
 
-// Send End-of-Interrupt signal to PIC
-void pic_send_eoi(unsigned char irq) {
-    if (irq >= 8) {
-        outb(PIC2_COMMAND, 0x20);
+    if (irq_line < 8) {
+        port = PIC1_DATA;
+    } else {
+        port = PIC2_DATA;
+        irq_line -= 8;
     }
-    outb(PIC1_COMMAND, 0x20);
+    value = inb(port) | (1 << irq_line);
+    outb(port, value);
+}
+
+void irq_unmask(uint8_t irq_line) {
+    uint16_t port;
+    uint8_t value;
+
+    if (irq_line < 8) {
+        port = PIC1_DATA;
+    } else {
+        port = PIC2_DATA;
+        irq_line -= 8;
+    }
+    value = inb(port) & ~(1 << irq_line);
+    outb(port, value);
+}
+
+void pic_send_eoi(uint8_t irq) {
+    // If the interrupt came from the Slave PIC (IRQ 8–15), send EOI to Slave
+    if (irq >= 8) {
+        outb(PIC2_COMMAND, PIC_EOI);
+    }
+    // Always send EOI to Master PIC
+    outb(PIC1_COMMAND, PIC_EOI);
 }

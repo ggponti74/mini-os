@@ -1,22 +1,25 @@
 [bits 32]
+[extern kernel_main]
 
-; Handle symbol naming differences between Windows (COFF) and Linux (ELF)
-%ifidn __OUTPUT_FORMAT__, win32
-    %define KERNEL_MAIN _kernel_main
-    %define STAGE2_ENTRY _stage2_entry
-%else
-    %define KERNEL_MAIN kernel_main
-    %define STAGE2_ENTRY stage2_entry
-%endif
+global _start
+_start:
+    ; Set segment registers to 32-bit data segment selector (0x10)
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
 
-[global STAGE2_ENTRY]
-[extern KERNEL_MAIN]
+    ; Set up stack pointer pointing to a safe physical address
+    mov esp, 0x90000
 
-STAGE2_ENTRY:
-    call KERNEL_MAIN
+    ; Call C entry point
+    call kernel_main
+
+    ; Infinite halt if kernel returns
+.halt:
+    cli
     hlt
-
-; Explicitly declare a non-executable stack section for ELF targets
-%ifidn __OUTPUT_FORMAT__, elf32
-section .note.GNU-stack noexec alloc progbits
-%endif
+    jmp .halt
+    

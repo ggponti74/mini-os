@@ -26,10 +26,17 @@ IDT_LOAD:
     ret
 
 ; Default fallback ISR handler
-ISR_DEFAULT_STUB:
+isr_default_stub:
     pusha
+    
+    ; If you had E9 debug prints in here, this is where '>' / '<' came from!
+    mov al, '>'
+    out 0xe9, al
+    mov al, '<'
+    out 0xe9, al
+
     popa
-    iret
+    iretd    ; Must be iretd for 32-bit protected mode!
 
 ; IRQ1 Keyboard Interrupt Assembly Stub
 IRQ1_KEYBOARD_STUB:
