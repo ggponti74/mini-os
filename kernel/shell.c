@@ -31,6 +31,49 @@ static int strcmp(const char *s1, const char *s2) {
   return s1[i] - s2[i];
 }
 
+struct shell_command {
+  const char *name;
+  const char *description;
+  void (*function)(void);
+};
+
+static void command_help(void);
+static void command_clear(void);
+static void command_about(void);
+
+static const struct shell_command commands[] = {
+    {"help", "Display this help message", command_help},
+    {"clear", "Clear the screen", command_clear},
+    {"about", "Show operating system info", command_about},
+};
+
+static void command_help(void) {
+  kprint("Available commands:\n");
+
+  for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+    unsigned int name_length = 0;
+    kprint("  ");
+    kprint(commands[i].name);
+    while (commands[i].name[name_length] != '\0')
+      name_length++;
+    while (name_length++ < 5)
+      kprint(" ");
+    kprint(" - ");
+    kprint(commands[i].description);
+    if (i + 1 < sizeof(commands) / sizeof(commands[0]))
+      kprint("\n");
+  }
+}
+
+static void command_clear(void) {
+  clear_screen();
+  kprint("mini-os kernel 1.0\n------------------");
+}
+
+static void command_about(void) {
+  kprint("mini-os v1.0 - A lightweight 32-bit x86 kernel built from scratch.");
+}
+
 // Simple command processor
 static void execute_command(void) {
   command_buffer[buffer_index] = '\0'; // Null-terminate string
@@ -43,17 +86,15 @@ static void execute_command(void) {
     return;
   }
 
-  if (strcmp(command_buffer, "help") == 0) {
-    kprint("Available commands:\n");
-    kprint("  help  - Display this help message\n");
-    kprint("  clear - Clear the screen\n");
-    kprint("  about - Show operating system info");
-  } else if (strcmp(command_buffer, "clear") == 0) {
-    clear_screen();
-    kprint("mini-os kernel 0.1\n------------------");
-  } else if (strcmp(command_buffer, "about") == 0) {
-    kprint("mini-os v0.1 - A lightweight 32-bit x86 kernel built from scratch.");
-  } else {
+  unsigned int i;
+  for (i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+    if (strcmp(command_buffer, commands[i].name) == 0) {
+      commands[i].function();
+      break;
+    }
+  }
+
+  if (i == sizeof(commands) / sizeof(commands[0])) {
     kprint("Unknown command: ");
     kprint(command_buffer);
   }

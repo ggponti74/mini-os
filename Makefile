@@ -9,7 +9,7 @@ ifeq ($(OS),Windows_NT)
     CONCAT = copy /b $(call FIX_PATH,$(1)) + $(call FIX_PATH,$(2)) $(call FIX_PATH,$(3))
     PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
     QEMU = qemu-system-i386
-	QEMU_ISO_FLAGS := -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
+	QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
 else
     SHELL := /bin/sh
     MKDIR = mkdir -p $(1)
@@ -20,7 +20,7 @@ else
     CONCAT = cat $(1) $(2) > $(3)
     PAD_IMAGE = truncate -s 1474560 $(1)
     QEMU = qemu-system-i386
-	QEMU_ISO_FLAGS := -cdrom $(ISO) -nographic -serial stdio
+	QEMU_ISO_FLAGS = -cdrom $(ISO) -nographic
 endif
 
 BUILD := build
