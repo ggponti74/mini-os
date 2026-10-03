@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#define CMD_BUFFER_SIZE 128
+
 void keyboard_init(void);
 void keyboard_handler(void);
 

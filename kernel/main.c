@@ -38,7 +38,8 @@ void kernel_main(void) {
     keyboard_init();
  
     // Optional: Brief startup chime (440 Hz for 50 ms)
-    beep(440, 50);
+    kprint("Testing sound...\n");
+    beep(440, 25);
 
     // 8. Re-enable hardware interrupts to process keypress events safely
     __asm__ volatile ("sti");

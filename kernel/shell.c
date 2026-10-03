@@ -36,6 +36,31 @@ static void print_prompt(void) {
   kprint("mini-os> ");             // Uses default COLOR_DEFAULT
 }
 
+void process_command(const char *cmd) {
+    if (cmd[0] == '\0') {
+        return; // Empty command
+    }
+
+    if (strcmp(cmd, "help") == 0) {
+        kprint("Available commands:\n");
+        kprint("  help  - Display this menu\n");
+        kprint("  clear - Clear the VGA screen\n");
+        kprint("  beep  - Play a quick audio tone\n");
+        kprint("  test  - Run diagnostic test\n");
+    } else if (strcmp(cmd, "clear") == 0) {
+        clear_screen();
+    } else if (strcmp(cmd, "beep") == 0) {
+        beep(440, 50);
+        kprint("Beeped!\n");
+    } else if (strcmp(cmd, "test") == 0) {
+        kprint("System diagnostic OK.\n");
+    } else {
+        kprint("Unknown command: ");
+        kprint(cmd);
+        kprint("\nType 'help' for available commands.\n");
+    }
+}
+
 // Compare two strings for equality
 static int strcmp(const char *s1, const char *s2) {
   int i = 0;

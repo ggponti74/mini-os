@@ -6,6 +6,8 @@
 extern void irq1_keyboard_stub(void);
 extern void pic_send_eoi(unsigned char irq);
 
+static char cmd_buf[CMD_BUFFER_SIZE];
+static int cmd_len = 0;
 static int shift_pressed = 0;
 
 static const char scancode_ascii_lowercase[128] = {
@@ -23,29 +25,47 @@ static const char scancode_ascii_uppercase[128] = {
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' '};
 
 void keyboard_handler(void) {
-    uint8_t scancode = inb(0x60); // Read byte from PS/2 data port 0x60
+    uint8_t scancode = inb(0x60);
 
-    // Bit 7 set indicates key release (Break code)
-    if (scancode & 0x80) {
-        uint8_t released_code = scancode & 0x7F;
-        // Left Shift (0x2A) or Right Shift (0x36) released
-        if (released_code == 0x2A || released_code == 0x36) {
-            shift_pressed = 0;
-        }
-    } else {
-        // Key press (Make code)
-        if (scancode == 0x2A || scancode == 0x36) { // Left/Right Shift pressed
+    if (!(scancode & 0x80)) { // Key press
+        if (scancode == 0x2A || scancode == 0x36) {
             shift_pressed = 1;
         } else if (scancode < 128) {
             char ascii = shift_pressed ? scancode_ascii_uppercase[scancode] 
                                        : scancode_ascii_lowercase[scancode];
 
+<<<<<<< HEAD
             if (ascii != 0)
                 shell_input_char(ascii);
+=======
+            if (ascii == '\n') {
+                kputchar_color('\n',COLOR_DEFAULT);
+                cmd_buf[cmd_len] = '\0'; // Null-terminate command string
+                
+                // Execute command
+                process_command(cmd_buf);
+                
+                // Reset buffer and print new prompt
+                cmd_len = 0;
+                kprint("mini-os> ");
+            } else if (ascii == '\b') {
+                if (cmd_len > 0) {
+                    cmd_len--;
+                    kputchar_color('\b', COLOR_DEFAULT); // Erase character on screen
+                }
+            } else if (ascii != 0 && cmd_len < CMD_BUFFER_SIZE - 1) {
+                cmd_buf[cmd_len++] = ascii;
+                kputchar_color(ascii, COLOR_DEFAULT);
+            }
+>>>>>>> d7c89f2 (Fixed shell)
+        }
+    } else { // Key release
+        uint8_t released = scancode & 0x7F;
+        if (released == 0x2A || released == 0x36) {
+            shift_pressed = 0;
         }
     }
 
-    // MANDATORY: Send End-Of-Interrupt to Master PIC for IRQ1
     pic_send_eoi(1);
 }
 
