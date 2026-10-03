@@ -2,6 +2,8 @@
 #ifndef SHELL_H
 #define SHELL_H
 
+#include "string.h"
+
 #define MAX_BUFFER_SIZE 128
 
 void shell_init(void);

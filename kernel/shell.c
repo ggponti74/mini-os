@@ -1,6 +1,7 @@
 // kernel/shell.c
-#include "display.h"
 #include "shell.h"
+#include "string.h"
+#include "display.h"
 #include "sound.h"
 
 #define COLOR_PROMPT 0x0B // Light Cyan
@@ -21,6 +22,7 @@ static void command_clear(void);
 static void command_help(void);
 static void command_restart(void);
 static void command_shutdown(void);
+static void command_test(void);
 
 static const struct shell_command commands[] = {
     {"about", "Show operating system info", command_about},
@@ -29,6 +31,7 @@ static const struct shell_command commands[] = {
     {"help", "Display this help message", command_help},
     {"restart", "Restart the system", command_restart},
     {"shutdown", "Shut down the system", command_shutdown},
+    {"test", "Run diagnostic test", command_test},
 };
 
 static void print_prompt(void) {
@@ -41,40 +44,21 @@ void process_command(const char *cmd) {
         return; // Empty command
     }
 
-    if (strcmp(cmd, "help") == 0) {
-        kprint("Available commands:\n");
-        kprint("  help  - Display this menu\n");
-        kprint("  clear - Clear the VGA screen\n");
-        kprint("  beep  - Play a quick audio tone\n");
-        kprint("  test  - Run diagnostic test\n");
-    } else if (strcmp(cmd, "clear") == 0) {
-        clear_screen();
-    } else if (strcmp(cmd, "beep") == 0) {
-        beep(440, 50);
-        kprint("Beeped!\n");
-    } else if (strcmp(cmd, "test") == 0) {
-        kprint("System diagnostic OK.\n");
-    } else {
-        kprint("Unknown command: ");
-        kprint(cmd);
-        kprint("\nType 'help' for available commands.\n");
+    for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+        if (strcmp(cmd, commands[i].name) == 0) {
+            commands[i].function();
+            return;
+        }
     }
+
+    kprint("Unknown command: ");
+    kprint(cmd);
+    kprint("\nType 'help' for available commands.\n");
 }
 
-// Compare two strings for equality
-static int strcmp(const char *s1, const char *s2) {
-  int i = 0;
-  while (s1[i] != '\0' && s2[i] != '\0') {
-    if (s1[i] != s2[i])
-      return s1[i] - s2[i];
-    i++;
-  }
-  return s1[i] - s2[i];
-}
-
-static void command_beep(void)
-{
-  beep(800, 500);
+static void command_beep(void) {
+  beep(440, 50);
+  kprint("Beeped!\n");
 }
 
 static void command_help(void) {
@@ -86,7 +70,7 @@ static void command_help(void) {
     kprint(commands[i].name);
     while (commands[i].name[name_length] != '\0')
       name_length++;
-    while (name_length++ < 5)
+    while (name_length++ < 10)
       kprint(" ");
     kprint(" - ");
     kprint(commands[i].description);
@@ -96,21 +80,33 @@ static void command_help(void) {
 
 static void command_clear(void) {
   clear_screen();
-  kprint("mini-os kernel 1.0\n------------------");
 }
 
 static void command_about(void) {
-  kprint("mini-os v1.0 - A lightweight 32-bit x86 kernel built from scratch.");
+  kprint("mini-os v1.0 - A lightweight 32-bit x86 kernel built from scratch.\n");
+}
+
+static void command_test(void) {
+  kprint("System diagnostic OK.\n");
 }
 
 static void command_shutdown(void) {
-  kprint("Shutting down the system...");
-  // Implementation for shutdown command
+    // For newer QEMU versions (QEMU ACPI debug exit)
+    __asm__ volatile ("outw %0, %1" : : "a"((uint16_t)0x2000), "Nd"((uint16_t)0x604));
+    
+    // For older QEMU / Bochs
+    __asm__ volatile ("outw %0, %1" : : "a"((uint16_t)0x31), "Nd"((uint16_t)0xB004));
 }
 
 static void command_restart(void) {
-  kprint("Restarting the system...");
-  // Implementation for restart command
+    __asm__ volatile (
+        "movb $0xFE, %%al\n\t"
+        "outb %%al, $0x64\n\t" // Write 0xFE to the command port 0x64
+        : : : "al"
+    );
+    
+    // If that fails, halt the CPU
+    while(1) { __asm__ volatile("hlt"); }
 }
 
 // Simple command processor
@@ -118,25 +114,7 @@ static void execute_command(void) {
   command_buffer[buffer_index] = '\0'; // Null-terminate string
 
   kputchar_color('\n', COLOR_DEFAULT);
-
-  if (buffer_index == 0) {
-    // Empty command (user just hit enter)
-    print_prompt();
-    return;
-  }
-
-  unsigned int i;
-  for (i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-    if (strcmp(command_buffer, commands[i].name) == 0) {
-      commands[i].function();
-      break;
-    }
-  }
-
-  if (i == sizeof(commands) / sizeof(commands[0])) {
-    kprint("Unknown command: ");
-    kprint(command_buffer);
-  }
+  process_command(command_buffer);
 
   // Reset buffer for next command
   buffer_index = 0;
