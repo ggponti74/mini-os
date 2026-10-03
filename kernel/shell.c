@@ -35,7 +35,7 @@ static int strcmp(const char *s1, const char *s2) {
 static void execute_command(void) {
   command_buffer[buffer_index] = '\0'; // Null-terminate string
 
-  kputchar('\n', COLOR_DEFAULT);
+  kputchar_color('\n', COLOR_DEFAULT);
 
   if (buffer_index == 0) {
     // Empty command (user just hit enter)
@@ -74,12 +74,12 @@ void shell_input_char(char c) {
   } else if (c == '\b') {
     if (buffer_index > 0) {
       buffer_index--;
-      kputchar('\b', COLOR_DEFAULT); // Erase character on screen
+      kputchar_color('\b', COLOR_DEFAULT); // Erase character on screen
     }
   } else if (c >= ' ' && c <= '~') { // Printable ASCII characters
     if (buffer_index < MAX_BUFFER_SIZE - 1) {
       command_buffer[buffer_index++] = c;
-      kputchar(c, COLOR_DEFAULT);
+      kputchar_color(c, COLOR_DEFAULT);
     }
   }
 }
