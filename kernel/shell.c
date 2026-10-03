@@ -1,19 +1,35 @@
 // kernel/shell.c
 #include "display.h"
 #include "shell.h"
+#include "sound.h"
 
 #define COLOR_PROMPT 0x0B // Light Cyan
 #define COLOR_WHITE 0x0F
 
-// External VGA / Terminal functions from main.c
-// extern void kputchar(char c, char color);
-
-// void kprint(const char *str);
-// extern void kprint(const char *str, char color = COLOR_PROMPT);
-// extern void clear_screen(void);
-
 static char command_buffer[MAX_BUFFER_SIZE];
 static int buffer_index = 0;
+
+struct shell_command {
+  const char *name;
+  const char *description;
+  void (*function)(void);
+};
+
+static void command_about(void);
+static void command_beep(void);
+static void command_clear(void);
+static void command_help(void);
+static void command_restart(void);
+static void command_shutdown(void);
+
+static const struct shell_command commands[] = {
+    {"about", "Show operating system info", command_about},
+    {"beep", "Play a beep sound", command_beep},
+    {"clear", "Clear the screen", command_clear},
+    {"help", "Display this help message", command_help},
+    {"restart", "Restart the system", command_restart},
+    {"shutdown", "Shut down the system", command_shutdown},
+};
 
 static void print_prompt(void) {
   // CORRECT:
@@ -31,21 +47,10 @@ static int strcmp(const char *s1, const char *s2) {
   return s1[i] - s2[i];
 }
 
-struct shell_command {
-  const char *name;
-  const char *description;
-  void (*function)(void);
-};
-
-static void command_help(void);
-static void command_clear(void);
-static void command_about(void);
-
-static const struct shell_command commands[] = {
-    {"help", "Display this help message", command_help},
-    {"clear", "Clear the screen", command_clear},
-    {"about", "Show operating system info", command_about},
-};
+static void command_beep(void)
+{
+  beep(800, 500);
+}
 
 static void command_help(void) {
   kprint("Available commands:\n");
@@ -60,8 +65,7 @@ static void command_help(void) {
       kprint(" ");
     kprint(" - ");
     kprint(commands[i].description);
-    if (i + 1 < sizeof(commands) / sizeof(commands[0]))
-      kprint("\n");
+    kprint("\n");
   }
 }
 
@@ -72,6 +76,16 @@ static void command_clear(void) {
 
 static void command_about(void) {
   kprint("mini-os v1.0 - A lightweight 32-bit x86 kernel built from scratch.");
+}
+
+static void command_shutdown(void) {
+  kprint("Shutting down the system...");
+  // Implementation for shutdown command
+}
+
+static void command_restart(void) {
+  kprint("Restarting the system...");
+  // Implementation for restart command
 }
 
 // Simple command processor

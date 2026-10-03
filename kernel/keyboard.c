@@ -1,7 +1,7 @@
 #include "keyboard.h"
-#include "display.h"
 #include "io.h"       // for inb() and outb()
 #include "pic.h"      // for pic_send_eoi()
+#include "shell.h"
 
 extern void irq1_keyboard_stub(void);
 extern void pic_send_eoi(unsigned char irq);
@@ -40,12 +40,8 @@ void keyboard_handler(void) {
             char ascii = shift_pressed ? scancode_ascii_uppercase[scancode] 
                                        : scancode_ascii_lowercase[scancode];
 
-            if (ascii == '\n') {
-                kputchar_color('\n', COLOR_DEFAULT);
-                kprint("mini-os> ");
-            } else if (ascii != 0) {
-                kputchar_color(ascii, COLOR_DEFAULT);
-            }
+            if (ascii != 0)
+                shell_input_char(ascii);
         }
     }
 
