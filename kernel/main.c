@@ -4,6 +4,8 @@
 #include "keyboard.h"
 #include "sound.h"
 #include "shell.h"
+#include "fs/initrd.h"
+#include "fs/vfs.h"
 
 // Inline helper for serial port diagnostic logging
 static inline void serial_outb(unsigned short port, unsigned char val) {
@@ -43,7 +45,11 @@ void kernel_main(void) {
     kprint("Initializing sound...\n");
     beep(440, 10);
 
-    //-enable hardware interrupts to process keypress events safely
+    // Initialize VFS root from RAMDisk
+    kprint("Initializing virtual file system and RAM disk...\n");
+    vfs_node_t *fs_root = initrd_init();
+
+    // Re-enable hardware interrupts to process keypress events safely
     __asm__ volatile ("sti");
     kprint("System ready, starting shell...\n\n");
 

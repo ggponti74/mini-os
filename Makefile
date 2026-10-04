@@ -38,11 +38,18 @@ ISO := $(DIST)/mini-os.iso
 
 # Discover C and ASM sources in kernel/ and subfolders
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
-C_SRCS := $(call rwildcard,kernel,*.c)
-ASM_SRCS := $(call rwildcard,kernel,*.asm)
 
-C_OBJS := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
-ASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
+# Gather all objects
+C_SRCS    := $(wildcard kernel/*.c kernel/*/*.c)
+NASM_SRCS := $(wildcard kernel/*.asm kernel/*/*.asm)
+GAS_SRCS  := $(wildcard kernel/*.S kernel/*/*.S)
+
+C_OBJS    := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
+NASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(NASM_SRCS))
+GAS_OBJS  := $(patsubst kernel/%.S,$(BUILD)/%.o,$(GAS_SRCS))
+
+# Combine all kernel body objects (excluding stage 2 entry)
+ALL_OBJS  := $(NASM_OBJS) $(GAS_OBJS) $(C_OBJS)
 
 NASM := nasm
 CC := gcc
@@ -72,14 +79,32 @@ $(BUILD)/%.o: kernel/%.asm | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(NASM) -f $(NASM_FMT) $< -o $@
 
-# 4. Compile all kernel/*.c files
+# Make initrd_data.o depend on initrd.tar
+$(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(CFLAGS) $< -o $@
+
+initrd.tar:
+	@echo "Generating initrd.tar..."
+	@$(call MKDIR,initrd_root)
+	@echo "Hello from mini-os initrd!" > initrd_root/readme.txt
+	@echo "Kernel configuration file" > initrd_root/system.cfg
+	tar -cvf initrd.tar -C initrd_root .
+	@$(call RM,initrd_root)
+
+# GCC GNU assembly (.S)
+$(BUILD)/%.o: kernel/%.S | $(BUILD)
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(CFLAGS) $< -o $@
+
+# C source (.c)
 $(BUILD)/%.o: kernel/%.c | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(CFLAGS) $< -o $@
 
-# 5. Link kernel using linker script
-kernel: $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS) | $(BUILD)
-	$(CC) -m32 -nostdlib -ffreestanding -fno-pie -fno-pic -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ASM_OBJS) $(C_OBJS)
+# Explicitly place KERNEL_ENTRY_OBJ FIRST in the linker command line
+kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
+	$(CC) -m32 -nostdlib -ffreestanding -fno-pie -fno-pic -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
 # 6. Concatenate bootloader and kernel into 1.44MB image

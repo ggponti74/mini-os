@@ -4,6 +4,8 @@
 #include "sound.h"
 #include "string.h"
 #include "rtc.h"
+#include "fs/initrd.h"
+#include "fs/vfs.h"
 
 #define COLOR_PROMPT 0x0B // Light Cyan
 #define COLOR_WHITE 0x0F
@@ -29,6 +31,7 @@ static void command_clear(void);
 static void command_date(void);
 static void command_help(void);
 static void command_history(void);
+static void command_ls(void);
 static void command_restart(void);
 static void command_shutdown(void);
 static void command_timezone(void);
@@ -42,12 +45,18 @@ static const struct shell_command commands[] = {
     {"date", "Show current date and timestamp", command_date},
     {"help", "Display this help message", command_help},
     {"history", "Show command history", command_history},
+    {"ls", "List files in current directory", command_ls},
     {"restart", "Restart the system", command_restart},
     {"shutdown", "Shut down the system", command_shutdown},
     {"test", "Run diagnostic test", command_test},
     {"timezone", "Set or display time zone (+/- hours)", command_timezone},
     {"time", "Show current system time", command_time},
 };
+
+static void command_ls(void)
+{
+  initrd_list_files();
+}
 
 static void print_dec2(uint8_t val) {
   kputchar_color('0' + (val / 10), COLOR_DEFAULT);

@@ -9,6 +9,7 @@
 
 #define COLOR_DEFAULT 0x0F // White text on Black background
 
+void display_init(void);
 void clear_screen(void);
 void kputchar(char c);
 void kputchar_color(const char c, uint8_t color);
