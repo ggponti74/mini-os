@@ -2,27 +2,23 @@ ENTRY(stage2_entry)
 
 SECTIONS
 {
-    . = 0x7E00;    /* MUST BE 0x7E00, NOT 0x7C00 */
+    . = 0x7E00;
 
     .text : ALIGN(4)
     {
-        *kernel_entry.o(.text)
+        KEEP(*(.boot_entry))
+        *kernel_entry.o(.text*)
         *(.text*)
     }
 
-    .rodata : ALIGN(4)
-    {
-        *(.rodata*)
-    }
+    .rodata : ALIGN(4) { *(.rodata*) }
+    .data   : ALIGN(4) { *(.data*) }
+    .bss    : ALIGN(4) { *(COMMON) *(.bss*) }
 
-    .data : ALIGN(4)
+    /DISCARD/ :
     {
-        *(.data*)
-    }
-
-    .bss : ALIGN(4)
-    {
-        *(COMMON)
-        *(.bss*)
+        *(.note.gnu.build-id)
+        *(.comment)
+        *(.eh_frame*)
     }
 }

@@ -9,7 +9,7 @@ ifeq ($(OS),Windows_NT)
     CONCAT = copy /b $(call FIX_PATH,$(1)) + $(call FIX_PATH,$(2)) $(call FIX_PATH,$(3))
     PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
     QEMU = qemu-system-i386
-	QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
+    QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
 else
     SHELL := /bin/sh
     MKDIR = mkdir -p $(1)
@@ -20,7 +20,7 @@ else
     CONCAT = cat $(1) $(2) > $(3)
     PAD_IMAGE = truncate -s 1474560 $(1)
     QEMU = qemu-system-i386
-	QEMU_ISO_FLAGS = -cdrom $(ISO) -nographic
+    QEMU_ISO_FLAGS = -cdrom $(ISO) -nographic
 endif
 
 BUILD := build
@@ -39,18 +39,18 @@ ISO := $(DIST)/mini-os.iso
 # Discover C and ASM sources in kernel/ and subfolders
 rwildcard = $(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
-# Gather all objects
+# Discover ONLY kernel C and ASM files (excluding boot/ assembly files)
 C_SRCS    := $(wildcard kernel/*.c kernel/*/*.c)
-NASM_SRCS := $(wildcard kernel/*.asm kernel/*/*.asm)
+ASM_SRCS  := $(wildcard kernel/*.asm kernel/*/*.asm)
 GAS_SRCS  := $(wildcard kernel/*.S kernel/*/*.S)
 
+# Generate object paths inside $(BUILD)/
 C_OBJS    := $(patsubst kernel/%.c,$(BUILD)/%.o,$(C_SRCS))
-NASM_OBJS := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(NASM_SRCS))
+ASM_OBJS  := $(patsubst kernel/%.asm,$(BUILD)/%.o,$(ASM_SRCS))
 GAS_OBJS  := $(patsubst kernel/%.S,$(BUILD)/%.o,$(GAS_SRCS))
 
-# Combine all kernel body objects (excluding stage 2 entry)
-ALL_OBJS  := $(NASM_OBJS) $(GAS_OBJS) $(C_OBJS)
-
+# Combine all kernel objects
+ALL_OBJS  := $(ASM_OBJS) $(GAS_OBJS) $(C_OBJS)
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
@@ -104,9 +104,9 @@ $(BUILD)/%.o: kernel/%.c | $(BUILD)
 
 # Explicitly place KERNEL_ENTRY_OBJ FIRST in the linker command line
 kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
-	$(CC) -m32 -nostdlib -ffreestanding -fno-pie -fno-pic -Wl,-T,linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
+	$(CC) -m32 -nostdlib -no-pie -Wl,--build-id=none -Wl,-e,stage2_entry -Wl,-Map=build/linker.map -T linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
-
+	
 # 6. Concatenate bootloader and kernel into 1.44MB image
 image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))

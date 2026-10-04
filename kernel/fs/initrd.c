@@ -31,7 +31,7 @@ void initrd_list_files(void) {
         // Skip non-file directory entries like "." or "./"
         if (header->name[0] != '.' || header->name[1] != '\0') {
             kprint_color("  ", COLOR_DEFAULT);
-            kprint_color(header->name, 0x0F); // Print filename in high-white
+            kprint_color(header->name, COLOR_DEFAULT); // Print filename in high-white
             kprint_color("  \n", COLOR_DEFAULT);
         }
 
@@ -52,6 +52,55 @@ static uint32_t initrd_read_file(vfs_node_t *node, uint32_t offset, uint32_t siz
         buffer[i] = src[i];
     }
     return size;
+}
+
+void initrd_cat_file(const char *filename) {
+    const char *ptr = initrd_start;
+
+    while (ptr < initrd_end) {
+        tar_header_t *header = (tar_header_t *)ptr;
+
+        if (header->name[0] == '\0') {
+            break;
+        }
+
+        uint32_t file_size = oct2bin(header->size, 11);
+        const char *data = ptr + 512;
+
+        // Strip leading "./" if present for comparison flexibility
+        const char *entry_name = header->name;
+        if (entry_name[0] == '.' && entry_name[1] == '/') {
+            entry_name += 2;
+        }
+
+        // Compare target filename with archive entry name
+        int match = 1;
+        int i = 0;
+        while (filename[i] != '\0' || entry_name[i] != '\0') {
+            if (filename[i] != entry_name[i]) {
+                match = 0;
+                break;
+            }
+            i++;
+        }
+
+        if (match) {
+            // Print file content byte-by-byte
+            for (uint32_t j = 0; j < file_size; j++) {
+                kputchar_color(data[j], COLOR_DEFAULT);
+            }
+            if (file_size > 0 && data[file_size - 1] != '\n') {
+                kputchar_color('\n', COLOR_DEFAULT);
+            }
+            return;
+        }
+
+        ptr += 512 + ((file_size + 511) & ~511);
+    }
+
+    kprint_color("cat: file not found: ", COLOR_DEFAULT);
+    kprint_color(filename, COLOR_DEFAULT);
+    kprint_color("\n", COLOR_DEFAULT);
 }
 
 vfs_node_t *initrd_init(void) {

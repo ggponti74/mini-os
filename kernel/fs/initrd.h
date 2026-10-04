@@ -19,7 +19,13 @@ typedef struct {
     char version[2];
 } __attribute__((packed)) tar_header_t;
 
+extern void idt_load(uint32_t idt_ptr_addr);
+extern void isr_default_stub(void);
+extern void irq1_keyboard_stub(void);
+
 vfs_node_t *initrd_init(void);
 void initrd_list_files(void) ;
+
+void initrd_cat_file(const char *);
 
 #endif
