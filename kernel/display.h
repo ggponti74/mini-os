@@ -15,7 +15,9 @@ void kputchar_color(const char c, uint8_t color);
 void kprint_color(const char *str, uint8_t color);
 void draw_status_bar(const char* datetime_str, int sound_enabled);
 void update_status_bar(void);
-
+void draw_cursor(void);
+void disable_hardware_cursor(void);
+void update_hardware_cursor(int, int);
 
 // Single-argument kprint wrapper
 static inline void kprint(const char *str) {

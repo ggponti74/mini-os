@@ -12,7 +12,8 @@
 static uint8_t cursor_x = 0;
 static uint8_t cursor_y = 0;
 
-void clear_screen(void) {
+void clear_screen(void)
+{
     uint16_t blank = ' ' | (COLOR_DEFAULT << 8);
     // Clear rows 0 to 23
     for (int i = 0; i < VGA_WIDTH * MAIN_SCREEN_HEIGHT; i++) {
@@ -46,6 +47,9 @@ void kputchar_color(const char c, uint8_t color) {
     if (cursor_y >= MAIN_SCREEN_HEIGHT) {
         clear_screen();
     }
+
+    // Sync physical hardware cursor to current (cursor_x, cursor_y)
+    update_hardware_cursor(cursor_x, cursor_y);
 }
 
 void kputchar(char c) {
@@ -71,28 +75,28 @@ void update_status_bar(void) {
         }
     }
 
-    char dt[20];
+    char dt[17];
     uint32_t year = rtc.year;
-    dt[0] = '0' + ((year / 1000) % 10);
-    dt[1] = '0' + ((year / 100) % 10);
-    dt[2] = '0' + ((year / 10) % 10);
-    dt[3] = '0' + (year % 10);
-    dt[4] = '-';
-    dt[5] = '0' + (rtc.month / 10);
-    dt[6] = '0' + (rtc.month % 10);
-    dt[7] = '-';
-    dt[8] = '0' + (rtc.day / 10);
-    dt[9] = '0' + (rtc.day % 10);
+    dt[0] = '0' + (rtc.month / 10);
+    dt[1] = '0' + (rtc.month % 10);
+    dt[2] = '-';
+    dt[3] = '0' + (rtc.day / 10);
+    dt[4] = '0' + (rtc.day % 10);
+    dt[5] = '-';
+    dt[6] = '0' + ((year / 1000) % 10);
+    dt[7] = '0' + ((year / 100) % 10);
+    dt[8] = '0' + ((year / 10) % 10);
+    dt[9] = '0' + (year % 10);
     dt[10] = ' ';
     dt[11] = '0' + (rtc.hour / 10);
     dt[12] = '0' + (rtc.hour % 10);
     dt[13] = ':';
     dt[14] = '0' + (rtc.minute / 10);
     dt[15] = '0' + (rtc.minute % 10);
-    dt[16] = ':';
-    dt[17] = '0' + (rtc.second / 10);
-    dt[18] = '0' + (rtc.second % 10);
-    dt[19] = '\0';
+    // dt[16] = ':';
+    // dt[17] = '0' + (rtc.second / 10);
+    // dt[18] = '0' + (rtc.second % 10);
+    dt[16] = '\0';
 
     draw_status_bar(dt, 1);
 }
@@ -120,10 +124,10 @@ void draw_status_bar(const char* datetime_str, int sound_enabled) {
     // Right-hand side status: Date, Time, Sound Indicator
     // Calculate start position to right-align
     // Example string length: "YYYY-MM-DD HH:MM:SS | Sound: [♪]" (~32 chars)
-    int pos = 50; 
+    int pos = 59; 
     
     // Render Date and Time String
-    for (int i = 0; datetime_str[i] != '\0' && pos < 72; i++, pos++) {
+    for (int i = 0; datetime_str[i] != '\0' && pos < 75; i++, pos++) {
         status_row[pos] = (uint16_t)datetime_str[i] | (COLOR_STATUSBAR << 8);
     }
 
@@ -133,12 +137,56 @@ void draw_status_bar(const char* datetime_str, int sound_enabled) {
     status_row[pos++] = ' ' | (COLOR_STATUSBAR << 8);
 
     // Render Sound Indicator
-    const char *snd_prefix = "SND:[";
-    for (int i = 0; snd_prefix[i] != '\0'; i++, pos++) {
-        status_row[pos] = (uint16_t)snd_prefix[i] | (COLOR_STATUSBAR << 8);
-    }
+    // const char *snd_prefix = "SND:[";
+    // for (int i = 0; snd_prefix[i] != '\0'; i++, pos++) {
+    //     status_row[pos] = (uint16_t)snd_prefix[i] | (COLOR_STATUSBAR << 8);
+    // }
     
     // Icon character
     status_row[pos++] = (uint16_t)sound_icon | (COLOR_STATUSBAR << 8);
-    status_row[pos++] = ']' | (COLOR_STATUSBAR << 8);
+    // status_row[pos++] = ']' | (COLOR_STATUSBAR << 8);
+}
+
+// 1. Set cursor scanline height (Block vs Underscore)
+void set_hardware_cursor_shape(int is_block) {
+    outb(0x3D4, 0x0A); // Cursor Start Register
+    if (is_block) {
+        outb(0x3D5, 0x00); // Scanline 0 (Top of cell -> Solid Block)
+    } else {
+        outb(0x3D5, 0x0E); // Scanline 14 (Bottom -> Underscore)
+    }
+
+    outb(0x3D4, 0x0B); // Cursor End Register
+    outb(0x3D5, 0x0F); // Scanline 15 (Bottom edge)
+}
+
+// 2. Send current cursor position to VGA CRT controller
+void update_hardware_cursor(int x, int y) {
+    uint16_t pos = y * VGA_WIDTH + x;
+
+    // Send low byte (Register 0x0F)
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (uint8_t)(pos & 0xFF));
+
+    // Send high byte (Register 0x0E)
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+}
+
+void draw_cursor(void) {
+    int index = cursor_y * VGA_WIDTH + cursor_x;
+    uint16_t current_cell = VGA_MEMORY[index];
+    char c = (char)(current_cell & 0xFF);
+    if (c == ' ' || c == 0) c = ' '; // Standard blank cell
+
+    // Invert attribute (0x70 = Black text on White background)
+    uint8_t cursor_color = 0x70;
+    VGA_MEMORY[index] = ((uint16_t)cursor_color << 8) | (uint8_t)c;
+}
+
+void display_init(void)
+{
+    // Choose 1 for Block or 0 for Underscore
+    set_hardware_cursor_shape(1);
+    clear_screen();
 }

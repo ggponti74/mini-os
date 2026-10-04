@@ -24,24 +24,26 @@ void kernel_main(void) {
     clear_screen();
     kprint("Screen cleaned...\n");
 
-    
-    // 4. Remap 8259 PIC vectors to 0x20-0x28 (avoids CPU exception conflicts)
-    kprint("Remapping 8259 PIC...\n");
+    // initializing display
+    display_init();
+
+    // Remap 8259 PIC vectors to 0x20-0x28 (avoids CPU exception conflicts)
+    kprint("Initializing PIC...\n");
     pic_remap();
 
-    // 5. Load Interrupt Descriptor Table (IDT)
+    // Load Interrupt Descriptor Table (IDT)
     kprint("Initializing interrupt descriptor table...\n");
     idt_init();
  
-    // 6. Initialize Keyboard Driver (IRQ1)
+    // Initialize Keyboard Driver (IRQ1)
     kprint("Initializing keyboard...\n");
     keyboard_init();
  
     // Optional: Brief startup chime (440 Hz for 50 ms)
-    kprint("Testing sound...\n");
-    beep(440, 25);
+    kprint("Initializing sound...\n");
+    beep(440, 10);
 
-    // 8. Re-enable hardware interrupts to process keypress events safely
+    //-enable hardware interrupts to process keypress events safely
     __asm__ volatile ("sti");
     kprint("System ready, starting shell...\n\n");
 
