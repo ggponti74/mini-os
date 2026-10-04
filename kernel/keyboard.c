@@ -4,10 +4,7 @@
 #include "io.h"
 #include "pic.h"
 
-#define CMD_BUFFER_SIZE 128
-
-static char cmd_buf[CMD_BUFFER_SIZE];
-static int cmd_len = 0;
+static int extended_scancode = 0;
 static int shift_pressed = 0;
 
 static const char scancode_ascii_lowercase[128] = {
@@ -41,36 +38,42 @@ void keyboard_handler(void) {
     // MUST read data port to notify PS/2 controller
     uint8_t scancode = inb(0x60); 
 
+    if (scancode == 0xE0) {
+        extended_scancode = 1;
+        pic_send_eoi(1);
+        return;
+    }
+
     if (!(scancode & 0x80)) { // Key press
+        if (extended_scancode) {
+            extended_scancode = 0;
+            if (scancode == 0x48) {
+                shell_handle_key_up();
+            } else if (scancode == 0x50) {
+                shell_handle_key_down();
+            }
+        } else if (scancode == 0x48) {
+            shell_handle_key_up();
+        } else if (scancode == 0x50) {
+            shell_handle_key_down();
+        } else
         if (scancode == 0x2A || scancode == 0x36) {
             shift_pressed = 1;
         } else if (scancode < 128) {
-            char ascii = shift_pressed ? scancode_ascii_uppercase[scancode] 
+            char ascii = shift_pressed ? scancode_ascii_uppercase[scancode]
                                        : scancode_ascii_lowercase[scancode];
-
-            if (ascii == '\n') {
-                kputchar_color('\n',COLOR_DEFAULT);
-                cmd_buf[cmd_len] = '\0';
-                
-                process_command(cmd_buf);
-                
-                cmd_len = 0;
-                kprint("mini-os> ");
-            } else if (ascii == '\b') {
-                if (cmd_len > 0) {
-                    cmd_len--;
-                    kputchar_color('\b', COLOR_DEFAULT);
-                    kputchar_color(' ', COLOR_DEFAULT);
-                }
-            } else if (ascii != 0 && cmd_len < CMD_BUFFER_SIZE - 1) {
-                cmd_buf[cmd_len++] = ascii;
-                kputchar_color(ascii, COLOR_DEFAULT);
+            if (ascii != 0) {
+                shell_input_char(ascii);
             }
         }
     } else { // Key release
-        uint8_t released = scancode & 0x7F;
-        if (released == 0x2A || released == 0x36) {
-            shift_pressed = 0;
+        if (extended_scancode) {
+            extended_scancode = 0;
+        } else {
+            uint8_t released = scancode & 0x7F;
+            if (released == 0x2A || released == 0x36) {
+                shift_pressed = 0;
+            }
         }
     }
 

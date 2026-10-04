@@ -30,7 +30,7 @@ void kernel_main(void) {
     pic_remap();
 
     // 5. Load Interrupt Descriptor Table (IDT)
-    kprint("Initializing IDT...\n");
+    kprint("Initializing interrupt descriptor table...\n");
     idt_init();
  
     // 6. Initialize Keyboard Driver (IRQ1)
@@ -47,8 +47,11 @@ void kernel_main(void) {
 
     shell_init();
 
+    update_status_bar();
+    
     // 9. Main kernel event loop
     while (1) {
+        update_status_bar();
         __asm__ volatile ("hlt");
     }
 }

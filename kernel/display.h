@@ -10,8 +10,12 @@
 #define COLOR_DEFAULT 0x0F // White text on Black background
 
 void clear_screen(void);
+void kputchar(char c);
 void kputchar_color(const char c, uint8_t color);
 void kprint_color(const char *str, uint8_t color);
+void draw_status_bar(const char* datetime_str, int sound_enabled);
+void update_status_bar(void);
+
 
 // Single-argument kprint wrapper
 static inline void kprint(const char *str) {

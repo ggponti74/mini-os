@@ -8,6 +8,9 @@
 
 void shell_init(void);
 void shell_input_char(char c);
+void shell_handle_key_up(void);
+void shell_handle_key_down(void);
 void process_command(const char *cmd);
+int shell_get_timezone(void);
 
 #endif
