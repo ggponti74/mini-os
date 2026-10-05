@@ -19,6 +19,8 @@ static int history_count = 0;
 static int history_index = -1;
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
 
+const char *initrd_find_file(const char *filename, uint32_t *out_size);
+
 struct shell_command {
   const char *name;
   const char *description;
@@ -33,6 +35,7 @@ static void command_clear(const char *args);
 static void command_date(const char *args);
 static void command_help(const char *args);
 static void command_history(const char *args);
+static void command_exec(const char *args);
 static void command_ls(const char *args);
 static void command_restart(const char *args);
 static void command_shutdown(const char *args);
@@ -46,6 +49,7 @@ static const struct shell_command commands[] = {
     {"cat",      "Display file contents (Usage: cat <file>)", command_cat},
     {"clear",    "Clear the screen",                          command_clear},
     {"date",     "Show current date and timestamp",           command_date},
+    {"exec",     "Execute commands from script (e.g. system.cfg)", command_exec},
     {"help",     "Display this help message",                 command_help},
     {"history",  "Show command history",                      command_history},
     {"ls",       "List files in current directory",           command_ls},
@@ -332,6 +336,56 @@ void process_command(const char *cmd) {
   kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
 }
 
+static void execute_script(const char *filename) {
+  uint32_t size = 0;
+  const char *data = initrd_find_file(filename, &size);
+  if (!data || size == 0) {
+    return;
+  }
+
+  char line[MAX_BUFFER_SIZE];
+  uint32_t line_len = 0;
+
+  for (uint32_t i = 0; i < size; i++) {
+    char c = data[i];
+    if (c == '\r') {
+      continue;
+    }
+    if (c == '\n') {
+      line[line_len] = '\0';
+      char *cmd = line;
+      while (*cmd == ' ') {
+        cmd++;
+      }
+      if (*cmd != '\0' && *cmd != '#') {
+        process_command(cmd);
+      }
+      line_len = 0;
+    } else if (line_len < MAX_BUFFER_SIZE - 1) {
+      line[line_len++] = c;
+    }
+  }
+
+  if (line_len > 0) {
+    line[line_len] = '\0';
+    char *cmd = line;
+    while (*cmd == ' ') {
+      cmd++;
+    }
+    if (*cmd != '\0' && *cmd != '#') {
+      process_command(cmd);
+    }
+  }
+}
+
+static void command_exec(const char *args) {
+  if (!args || *args == '\0') {
+    kprint_color("Usage: exec <filename>\n", COLOR_DEFAULT);
+    return;
+  }
+  execute_script(args);
+}
+
 static void command_beep(const char *args) {
   (void)args;
   beep(440, 50);
@@ -409,6 +463,7 @@ static void execute_command(void) {
 void shell_init(void) {
   buffer_index = 0;
   history_index = -1;
+  execute_script("system.cfg");
   update_status_bar();
   print_prompt();
 }

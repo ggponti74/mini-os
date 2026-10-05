@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 mkdir -p initrd_root
 echo "Hello from mini-os initrd!" > initrd_root/readme.txt
-echo "Kernel config placeholder" > initrd_root/system.cfg
+echo "timezone -4" > initrd_root/system.cfg
 
 # Create uncompressed tar archive
 tar -cvf initrd.tar -C initrd_root .

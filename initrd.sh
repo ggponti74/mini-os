@@ -3,7 +3,7 @@ mkdir initrd_root
 
 # 2. Add placeholder files
 echo "Hello from mini-os initrd!" > initrd_root/hello.txt
-echo "Kernel configuration placeholder" > initrd_root/system.cfg
+echo "timezone -4" > initrd_root/system.cfg
 
 # 3. Create an UNCOMPRESSED tar file (POSIX standard header)
 tar -cvf initrd.tar -C initrd_root .

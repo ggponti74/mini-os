@@ -54,7 +54,7 @@ static uint32_t initrd_read_file(vfs_node_t *node, uint32_t offset, uint32_t siz
     return size;
 }
 
-void initrd_cat_file(const char *filename) {
+const char *initrd_find_file(const char *filename, uint32_t *out_size) {
     const char *ptr = initrd_start;
 
     while (ptr < initrd_end) {
