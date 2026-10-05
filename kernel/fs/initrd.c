@@ -55,6 +55,13 @@ static uint32_t initrd_read_file(vfs_node_t *node, uint32_t offset, uint32_t siz
 }
 
 const char *initrd_find_file(const char *filename, uint32_t *out_size) {
+    if (out_size) {
+        *out_size = 0;
+    }
+    if (!filename) {
+        return NULL;
+    }
+
     const char *ptr = initrd_start;
 
     while (ptr < initrd_end) {
@@ -68,39 +75,48 @@ const char *initrd_find_file(const char *filename, uint32_t *out_size) {
         const char *data = ptr + 512;
 
         // Strip leading "./" if present for comparison flexibility
-        const char *entry_name = header->name;
-        if (entry_name[0] == '.' && entry_name[1] == '/') {
-            entry_name += 2;
+        uint32_t name_offset = 0;
+        if (header->name[0] == '.' && header->name[1] == '/') {
+            name_offset = 2;
         }
 
-        // Compare target filename with archive entry name
-        int match = 1;
-        int i = 0;
-        while (filename[i] != '\0' || entry_name[i] != '\0') {
-            if (filename[i] != entry_name[i]) {
-                match = 0;
-                break;
-            }
+        uint32_t name_length = sizeof(header->name) - name_offset;
+        uint32_t i = 0;
+        while (i < name_length && filename[i] != '\0' &&
+               filename[i] == header->name[name_offset + i]) {
             i++;
         }
 
-        if (match) {
-            // Print file content byte-by-byte
-            for (uint32_t j = 0; j < file_size; j++) {
-                kputchar_color(data[j], COLOR_DEFAULT);
+        if (filename[i] == '\0' &&
+            (i == name_length || header->name[name_offset + i] == '\0')) {
+            if (out_size) {
+                *out_size = file_size;
             }
-            if (file_size > 0 && data[file_size - 1] != '\n') {
-                kputchar_color('\n', COLOR_DEFAULT);
-            }
-            return;
+            return data;
         }
 
         ptr += 512 + ((file_size + 511) & ~511);
     }
 
+    return NULL;
+}
+
+void initrd_cat_file(const char *filename) {
+    uint32_t file_size = 0;
+    const char *data = initrd_find_file(filename, &file_size);
+    if (!data) {
     kprint_color("cat: file not found: ", COLOR_DEFAULT);
     kprint_color(filename, COLOR_DEFAULT);
     kprint_color("\n", COLOR_DEFAULT);
+        return;
+    }
+
+    for (uint32_t i = 0; i < file_size; i++) {
+        kputchar_color(data[i], COLOR_DEFAULT);
+    }
+    if (file_size > 0 && data[file_size - 1] != '\n') {
+        kputchar_color('\n', COLOR_DEFAULT);
+    }
 }
 
 vfs_node_t *initrd_init(void) {

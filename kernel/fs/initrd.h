@@ -25,6 +25,7 @@ extern void irq1_keyboard_stub(void);
 
 vfs_node_t *initrd_init(void);
 void initrd_list_files(void) ;
+const char *initrd_find_file(const char *filename, uint32_t *out_size);
 
 void initrd_cat_file(const char *);
 

@@ -19,8 +19,6 @@ static int history_count = 0;
 static int history_index = -1;
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
 
-const char *initrd_find_file(const char *filename, uint32_t *out_size);
-
 struct shell_command {
   const char *name;
   const char *description;
