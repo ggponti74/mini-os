@@ -8,7 +8,7 @@
 #include "string.h"
 
 #define COLOR_PROMPT 0x0B // Light Cyan
-#define COLOR_WHITE  0x0F
+#define COLOR_WHITE 0x0F
 
 #define MAX_HISTORY 10
 
@@ -26,7 +26,6 @@ struct shell_command {
 };
 
 // Forward declarations
-static void command_version(const char *args);
 static void command_beep(const char *args);
 static void command_cat(const char *args);
 static void command_clear(const char *args);
@@ -37,9 +36,12 @@ static void command_exec(const char *args);
 static void command_ls(const char *args);
 static void command_restart(const char *args);
 static void command_shutdown(const char *args);
+static void command_sound(const char *args);
 static void command_timezone(const char *args);
 static void command_test(const char *args);
 static void command_time(const char *args);
+static void command_touch(const char *args);
+static void command_version(const char *args);
 
 static const struct shell_command commands[] = {
     {"beep", "Play a beep sound", command_beep},
@@ -52,9 +54,11 @@ static const struct shell_command commands[] = {
     {"ls", "List files in current directory", command_ls},
     {"restart", "Restart the system", command_restart},
     {"shutdown", "Shut down the system", command_shutdown},
+    {"sound", "Toggle the sound on or off", command_sound},
     {"test", "Run diagnostic test", command_test},
     {"timezone", "Set or display time zone (+/- hours)", command_timezone},
     {"time", "Show current system time", command_time},
+    {"touch", "Show current system time", command_touch},
     {"version", "Show operating system version", command_version},
 };
 
@@ -106,15 +110,54 @@ static void get_local_time(rtc_time_t *local) {
   }
 }
 
-static void command_cat(const char *args) {
+static void command_sound(const char *args) {
+  if (!args || *args == '\0') {
+    kprint_color("Usage: sound on|off\n", COLOR_DEFAULT);
+    return;
+  }
+  if (strcmp(args, "on") == 0) {
+    sound_set_enabled(1);
+    kprint_color("Sound enabled.\n", COLOR_DEFAULT);
+  } else if (strcmp(args, "off") == 0) {
+    sound_set_enabled(0);
+    kprint_color("Sound disabled.\n", COLOR_DEFAULT);
+  } else {
+    kprint_color("Invalid argument. Usage: sound on|off\n", COLOR_DEFAULT);
+  }
+  update_status_bar();
+}
+
+void command_cat(const char *args) {
   if (!args || *args == '\0') {
     kprint_color("Usage: cat <filename>\n", COLOR_DEFAULT);
     return;
   }
-  initrd_cat_file(args);
+
+  // 1. Fetch file node from VFS/RAMDisk
+  vfs_node_t *file = initrd_find_file(args);
+  if (!file) {
+    kprint_color("cat: file not found: ", COLOR_DEFAULT);
+    kprint_color(args, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+    return;
+  }
+
+  // 2. Point data to the node's memory buffer
+  const char *data = (const char *)file->device_data;
+  uint32_t size = file->length;
+
+  // 3. Print file content
+  if (data && size > 0) {
+    for (uint32_t i = 0; i < size; i++) {
+      kputchar_color(data[i], COLOR_DEFAULT);
+    }
+    if (data[size - 1] != '\n') {
+      kputchar_color('\n', COLOR_DEFAULT);
+    }
+  }
 }
 
-static void command_ls(const char *args) {
+void command_ls(const char *args) {
   (void)args;
   initrd_list_files();
 }
@@ -176,12 +219,15 @@ static void handle_set_timezone(const char *arg) {
   } else if (*arg >= '0' && *arg <= '9') {
     sign = 1;
   } else {
-    kprint_color("Invalid format. Usage: timezone +/- hours (e.g., timezone +2)\n", COLOR_DEFAULT);
+    kprint_color(
+        "Invalid format. Usage: timezone +/- hours (e.g., timezone +2)\n",
+        COLOR_DEFAULT);
     return;
   }
 
   if (*arg < '0' || *arg > '9') {
-    kprint_color("Expected hour digits. Usage: timezone +/- hours\n", COLOR_DEFAULT);
+    kprint_color("Expected hour digits. Usage: timezone +/- hours\n",
+                 COLOR_DEFAULT);
     return;
   }
 
@@ -193,7 +239,8 @@ static void handle_set_timezone(const char *arg) {
 
   int offset = sign * hours;
   if (offset < -12 || offset > 14) {
-    kprint_color("Invalid offset. Valid range is -12 to +14 hours.\n", COLOR_DEFAULT);
+    kprint_color("Invalid offset. Valid range is -12 to +14 hours.\n",
+                 COLOR_DEFAULT);
     return;
   }
 
@@ -209,7 +256,8 @@ static void command_timezone(const char *args) {
   } else {
     kprint_color("Current time zone: ", COLOR_DEFAULT);
     print_tz_suffix();
-    kprint_color("Usage: timezone +/- hours (e.g. timezone +2, timezone -5)\n", COLOR_DEFAULT);
+    kprint_color("Usage: timezone +/- hours (e.g. timezone +2, timezone -5)\n",
+                 COLOR_DEFAULT);
   }
 }
 
@@ -299,9 +347,7 @@ static void command_history(const char *args) {
   }
 }
 
-static void print_prompt(void) {
-  kprint_color("mini-os> ", COLOR_PROMPT);
-}
+static void print_prompt(void) { kprint_color("mini-os> ", COLOR_PROMPT); }
 
 void process_command(const char *cmd) {
   if (cmd[0] == '\0') {
@@ -335,45 +381,27 @@ void process_command(const char *cmd) {
 }
 
 static void execute_script(const char *filename) {
-  uint32_t size = 0;
-  const char *data = initrd_find_file(filename, &size);
-  if (!data || size == 0) {
-    return;
-  }
+    vfs_node_t *file = initrd_find_file(filename);
 
-  char line[MAX_BUFFER_SIZE];
-  uint32_t line_len = 0;
+    if (!file) {
+        kprint_color("Script not found: ", COLOR_DEFAULT);
+        kprint_color(filename, COLOR_DEFAULT);
+        kputchar_color('\n', COLOR_DEFAULT);
+        return;
+    }
 
-  for (uint32_t i = 0; i < size; i++) {
-    char c = data[i];
-    if (c == '\r') {
-      continue;
-    }
-    if (c == '\n') {
-      line[line_len] = '\0';
-      char *cmd = line;
-      while (*cmd == ' ') {
-        cmd++;
-      }
-      if (*cmd != '\0' && *cmd != '#') {
-        process_command(cmd);
-      }
-      line_len = 0;
-    } else if (line_len < MAX_BUFFER_SIZE - 1) {
-      line[line_len++] = c;
-    }
-  }
+    const char *data = (const char *)file->device_data;
+    uint32_t size = file->length;
 
-  if (line_len > 0) {
-    line[line_len] = '\0';
-    char *cmd = line;
-    while (*cmd == ' ') {
-      cmd++;
+    if (!data || size == 0) {
+        kprint_color("Script is empty.\n", COLOR_DEFAULT);
+        return;
     }
-    if (*cmd != '\0' && *cmd != '#') {
-      process_command(cmd);
+
+    // Execute script line by line...
+    for (uint32_t i = 0; i < size; i++) {
+        shell_input_char(data[i]);
     }
-  }
 }
 
 static void command_exec(const char *args) {
@@ -386,7 +414,9 @@ static void command_exec(const char *args) {
 
 static void command_beep(const char *args) {
   (void)args;
-  beep(440, 50);
+  if (sound_is_enabled()) {
+    beep(440, 50);
+  }
 }
 
 static void command_help(const char *args) {
@@ -413,9 +443,9 @@ static void command_clear(const char *args) {
 }
 
 static void command_version(const char *args) {
+static void command_version(const char *args) {
   (void)args;
-  kprint_color("mini-os v1.0 - A lightweight 32-bit x86 kernel built from scratch.\n", COLOR_DEFAULT);
-
+  kprint_color("mini-os version 1.0\n", COLOR_DEFAULT);
 }
 
 static void command_test(const char *args) {
@@ -446,6 +476,29 @@ static void command_restart(const char *args) {
   while (1) {
     __asm__ volatile("hlt");
   }
+}
+
+void command_touch(const char *args) {
+  if (!args || *args == '\0') {
+    kprint_color("Usage: touch <filename>\n", COLOR_DEFAULT);
+    return;
+  }
+  // 1. Check if the file already exists
+  vfs_node_t *file = vfs_lookup(fs_root, args);
+  if (file) {
+    // File exists: update timestamp / touch operation
+    kprint_color("File already exists.\n", COLOR_DEFAULT);
+    return;
+  }
+
+  // 2. Create a new empty file entry
+  vfs_node_t *new_node = vfs_create(fs_root, args, FS_FILE);
+  if (!new_node) {
+    kprint_color("Failed to create file.\n", COLOR_DEFAULT);
+    return;
+  }
+
+  kprint_color("File created successfully.\n", COLOR_DEFAULT);
 }
 
 static void execute_command(void) {

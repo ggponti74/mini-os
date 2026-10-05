@@ -61,9 +61,15 @@ CC := gcc
 OBJCOPY := objcopy
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel
 
-.PHONY: all boot kernel image iso run run-iso clean
+.PHONY: all clean run iso initrd.tar
 
 all: image
+
+$(BOOT_BIN): $(BOOT_SRC) | $(BUILD)
+	$(NASM) -f bin $(BOOT_SRC) -o $(BOOT_BIN)
+
+# Alias for manual 'make boot' calls
+boot: $(BOOT_BIN)
 
 $(BUILD):
 	@$(call MKDIR,$(BUILD))
@@ -89,9 +95,15 @@ $(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(CFLAGS) $< -o $@
 
-initrd.tar: $(INITRD_SOURCE)
-	$(INITRD_COMMAND)
-
+initrd.tar:
+	@echo "Generating initrd.tar..."
+	@$(call MKDIR,initrd_root)
+	@echo "Hello from mini-os initrd!" > initrd_root/readme.txt
+	@echo "timezone -4" > initrd_root/system.cfg
+	@echo "sound off" >> initrd_root/system.cfg
+	tar -cvf initrd.tar -C initrd_root .
+	@$(call RM,initrd_root)
+	
 # GCC GNU assembly (.S)
 $(BUILD)/%.o: kernel/%.S | $(BUILD)
 	@$(call MKDIR,$(dir $@))
@@ -107,11 +119,11 @@ kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
 	$(CC) -m32 -nostdlib -no-pie -Wl,--build-id=none -Wl,-e,stage2_entry -Wl,-Map=build/linker.map -T linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 	
-# 6. Concatenate bootloader and kernel into 1.44MB image
-image: boot kernel | $(DIST)
+# Make image depend on the actual binary file, not the phony target name
+image: $(BOOT_BIN) kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
-
+	
 # 7. Generate bootable ISO using xorriso
 iso: image | $(DIST)
 	@$(call MKDIR,$(BUILD)/iso_root)
@@ -129,3 +141,5 @@ run-iso: iso
 clean:
 	$(call RM,$(BUILD))
 	$(call RM,$(DIST))
+	$(call RM,initrd.tar)
+	$(call RM,initrd_root)
