@@ -147,7 +147,7 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
   int idx = 0;
 
   // Header prefix
-  const char *title = " mini-os | CPU: ";
+  const char *title = " CPU: ";
   while (*title) {
     status_row[idx++] = (uint16_t)*title++ | bg_attr;
   }
@@ -177,7 +177,7 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
 
   // 6. Render Right-Hand Side Status: Date, Time, Sound Indicator
   // Start at column 48 to leave enough room for full datetime string
-  int pos = 48;
+  int pos = 55;
 
   // Sound Symbol: ASCII 14 ('♪') when ON, 'x' when MUTED/OFF
   char sound_icon = sound_enabled ? 14 : 'x';
@@ -189,17 +189,9 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
 
   // Divider
   status_row[pos++] = ' ' | bg_attr;
-  status_row[pos++] = '|' | bg_attr;
-  status_row[pos++] = ' ' | bg_attr;
 
   // Sound Indicator
-  status_row[pos++] = 'S' | bg_attr;
-  status_row[pos++] = 'N' | bg_attr;
-  status_row[pos++] = 'D' | bg_attr;
-  status_row[pos++] = ':' | bg_attr;
-  status_row[pos++] = '[' | bg_attr;
   status_row[pos++] = (uint16_t)sound_icon | bg_attr;
-  status_row[pos++] = ']' | bg_attr;
 }
 
 // 1. Set cursor scanline height (Block vs Underscore)
