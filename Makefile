@@ -10,6 +10,8 @@ ifeq ($(OS),Windows_NT)
     PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
     QEMU = qemu-system-i386
     QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
+	INITRD_SOURCE = build_initrd.ps1
+	INITRD_COMMAND = powershell -ExecutionPolicy Bypass -File build_initrd.ps1
 else
     SHELL := /bin/sh
     MKDIR = mkdir -p $(1)
@@ -21,6 +23,8 @@ else
     PAD_IMAGE = truncate -s 1474560 $(1)
     QEMU = qemu-system-i386
     QEMU_ISO_FLAGS = -cdrom $(ISO) -nographic
+	INITRD_SOURCE = build_initrd.sh
+	INITRD_COMMAND = bash build_initrd.sh
 endif
 
 BUILD := build
@@ -85,13 +89,8 @@ $(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(CFLAGS) $< -o $@
 
-initrd.tar:
-	@echo "Generating initrd.tar..."
-	@$(call MKDIR,initrd_root)
-	@echo "Hello from mini-os initrd!" > initrd_root/readme.txt
-	@echo "Kernel configuration file" > initrd_root/system.cfg
-	tar -cvf initrd.tar -C initrd_root .
-	@$(call RM,initrd_root)
+initrd.tar: $(INITRD_SOURCE)
+	$(INITRD_COMMAND)
 
 # GCC GNU assembly (.S)
 $(BUILD)/%.o: kernel/%.S | $(BUILD)
