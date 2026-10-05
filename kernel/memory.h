@@ -7,6 +7,9 @@
 
 #define PAGE_SIZE 4096
 
+extern uint32_t total_memory_pages;
+extern uint32_t free_memory_pages;
+
 /* --- Physical Page Frame Allocator --- */
 
 /**
