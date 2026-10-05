@@ -177,13 +177,13 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
 
   // 6. Render Right-Hand Side Status: Date, Time, Sound Indicator
   // Start at column 48 to leave enough room for full datetime string
-  int pos = 60;
+  int pos = 61;
 
   // Sound Symbol: ASCII 14 ('♪') when ON, 'x' when MUTED/OFF
   char sound_icon = sound_enabled ? 14 : 'x';
 
   // Render Date and Time String
-  for (int i = 0; datetime_str[i] != '\0' && pos < 72; i++, pos++) {
+  for (int i = 0; datetime_str[i] != '\0' && pos < 80; i++, pos++) {
     status_row[pos] = (uint16_t)datetime_str[i] | bg_attr;
   }
 

@@ -26,7 +26,7 @@ struct shell_command {
 };
 
 // Forward declarations
-static void command_about(const char *args);
+static void command_version(const char *args);
 static void command_beep(const char *args);
 static void command_cat(const char *args);
 static void command_clear(const char *args);
@@ -42,20 +42,20 @@ static void command_test(const char *args);
 static void command_time(const char *args);
 
 static const struct shell_command commands[] = {
-    {"about",    "Show operating system info",                 command_about},
-    {"beep",     "Play a beep sound",                         command_beep},
-    {"cat",      "Display file contents (Usage: cat <file>)", command_cat},
-    {"clear",    "Clear the screen",                          command_clear},
-    {"date",     "Show current date and timestamp",           command_date},
-    {"exec",     "Execute commands from script (e.g. system.cfg)", command_exec},
-    {"help",     "Display this help message",                 command_help},
-    {"history",  "Show command history",                      command_history},
-    {"ls",       "List files in current directory",           command_ls},
-    {"restart",  "Restart the system",                        command_restart},
-    {"shutdown", "Shut down the system",                      command_shutdown},
-    {"test",     "Run diagnostic test",                       command_test},
-    {"timezone", "Set or display time zone (+/- hours)",      command_timezone},
-    {"time",     "Show current system time",                  command_time},
+    {"beep", "Play a beep sound", command_beep},
+    {"cat", "Display file contents (Usage: cat <file>)", command_cat},
+    {"clear", "Clear the screen", command_clear},
+    {"date", "Show current date and timestamp", command_date},
+    {"exec", "Execute commands from script (e.g. system.cfg)", command_exec},
+    {"help", "Display this help message", command_help},
+    {"history", "Show command history", command_history},
+    {"ls", "List files in current directory", command_ls},
+    {"restart", "Restart the system", command_restart},
+    {"shutdown", "Shut down the system", command_shutdown},
+    {"test", "Run diagnostic test", command_test},
+    {"timezone", "Set or display time zone (+/- hours)", command_timezone},
+    {"time", "Show current system time", command_time},
+    {"version", "Show operating system version", command_version},
 };
 
 static void print_dec2(uint8_t val) {
@@ -412,7 +412,7 @@ static void command_clear(const char *args) {
   clear_screen();
 }
 
-static void command_about(const char *args) {
+static void command_version(const char *args) {
   (void)args;
   kprint_color("mini-os v1.0 - A lightweight 32-bit x86 kernel built from scratch.\n", COLOR_DEFAULT);
 
@@ -427,7 +427,12 @@ static void command_shutdown(const char *args) {
   (void)args;
   __asm__ volatile("outw %0, %1"
                    :
-                   : "a"((uint16_t)0x00), "Nd"((uint16_t)0x501));
+                   : "a"((uint16_t)0x2000), "Nd"((uint16_t)0x604));
+
+  __asm__ volatile("cli");
+  for (;;) {
+    __asm__ volatile("hlt");
+  }
 }
 
 static void command_restart(const char *args) {

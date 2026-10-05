@@ -29,7 +29,7 @@ endif
 
 BUILD := build
 DIST := dist
-QEMU_DEBUG_FLAGS = -d int,guest_errors,cpu_reset -D $(call FIX_PATH,$(BUILD)/qemu.log) -debugcon file:$(call FIX_PATH,$(BUILD)/guest.log) -global isa-debugcon.iobase=0xe9 -no-reboot -no-shutdown
+QEMU_DEBUG_FLAGS = -d int,guest_errors,cpu_reset -D $(call FIX_PATH,$(BUILD)/qemu.log) -debugcon file:$(call FIX_PATH,$(BUILD)/guest.log) -global isa-debugcon.iobase=0xe9 -no-reboot
 
 BOOT_SRC := boot/boot.asm
 KERNEL_ENTRY_SRC := boot/kernel.asm
