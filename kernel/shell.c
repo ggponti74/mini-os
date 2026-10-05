@@ -6,6 +6,7 @@
 #include "rtc.h"
 #include "sound.h"
 #include "string.h"
+#include <stdint.h>
 
 #define COLOR_PROMPT 0x0B // Light Cyan
 #define COLOR_WHITE 0x0F
@@ -30,6 +31,8 @@ static void command_beep(const char *args);
 static void command_cat(const char *args);
 static void command_clear(const char *args);
 static void command_date(const char *args);
+// static void command_hexdump(const char *args);
+static void command_echo(const char *args);
 static void command_help(const char *args);
 static void command_history(const char *args);
 static void command_exec(const char *args);
@@ -48,6 +51,8 @@ static const struct shell_command commands[] = {
     {"cat", "Display file contents (Usage: cat <file>)", command_cat},
     {"clear", "Clear the screen", command_clear},
     {"date", "Show current date and timestamp", command_date},
+    // {"hexdump", "Hexadecimal dump", command_hexdump},
+    {"echo", "Print text to output (Usage: echo <text>)", command_echo},
     {"exec", "Execute commands from script (e.g. system.cfg)", command_exec},
     {"help", "Display this help message", command_help},
     {"history", "Show command history", command_history},
@@ -155,6 +160,16 @@ void command_cat(const char *args) {
       kputchar_color('\n', COLOR_DEFAULT);
     }
   }
+}
+
+void command_echo(const char *args)
+{
+if (!args || *args == '\0') {
+        kputchar_color('\n', COLOR_DEFAULT);
+        return;
+    }
+    kprint_color(args, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
 }
 
 void command_ls(const char *args) {
@@ -437,12 +452,51 @@ static void command_help(const char *args) {
   }
 }
 
+// void command_hexdump(const char *args) {
+//     if (!args || *args == '\0') {
+//         kprint("Usage: hexdump <filename>\n", COLOR_DEFAULT);
+//         return;
+//     }
+    
+//     uint8_t *file_data;
+//     uint32_t file_size;
+//     if (initrd_get_file(args, &file_data, &file_size) != 0) {
+//         kprint_color("File not found: ", COLOR_DEFAULT);
+//         kprint_color(args, COLOR_DEFAULT);
+//         kputchar_color('\n', COLOR_DEFAULT);
+//         return;
+//     }
+
+//     for (uint32_t i = 0; i < file_size; i += 16) {
+//         print_hex32(i); // Prints offset like 0x00000010
+//         kprint(": ", COLOR_DEFAULT);
+        
+//         // Print Hex values
+//         for (uint32_t j = 0; j < 16; j++) {
+//             if (i + j < file_size) {
+//                 print_hex8(file_data[i + j]);
+//                 kputchar_color(' ', COLOR_DEFAULT);
+//             } else {
+//                 kprint("   ", COLOR_DEFAULT);
+//             }
+//         }
+        
+//         kprint(" | ", COLOR_DEFAULT);
+        
+//         // Print ASCII printable representation
+//         for (uint32_t j = 0; j < 16 && (i + j) < file_size; j++) {
+//             char c = file_data[i + j];
+//             kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_WHITE);
+//         }
+//         kputchar_color('\n', COLOR_DEFAULT);
+//     }
+// }
+
 static void command_clear(const char *args) {
   (void)args;
   clear_screen();
 }
 
-static void command_version(const char *args) {
 static void command_version(const char *args) {
   (void)args;
   kprint_color("mini-os version 1.0\n", COLOR_DEFAULT);
@@ -454,31 +508,29 @@ static void command_test(const char *args) {
 }
 
 static void command_shutdown(const char *args) {
-  (void)args;
-  __asm__ volatile("outw %0, %1"
-                   :
-                   : "a"((uint16_t)0x2000), "Nd"((uint16_t)0x604));
-
-  __asm__ volatile("cli");
-  for (;;) {
-    __asm__ volatile("hlt");
-  }
+(void)args;
+    kprint_color("Shutting down...\n", COLOR_DEFAULT);
+    
+    // QEMU ISA debug exit device (port 0x501)
+    __asm__ volatile ("outw %0, %1" : : "a"((uint16_t)0x00), "Nd"((uint16_t)0x501));
+    
+    // Fallback ACPI shutdown for older QEMU / Bochs
+    __asm__ volatile ("outw %0, %1" : : "a"((uint16_t)0x2000), "Nd"((uint16_t)0xB004));
+    
+    while(1) { __asm__ volatile ("hlt"); }
 }
 
 static void command_restart(const char *args) {
-  (void)args;
-  __asm__ volatile("movb $0xFE, %%al\n\t"
-                   "outb %%al, $0x64\n\t"
-                   :
-                   :
-                   : "al");
-
-  while (1) {
-    __asm__ volatile("hlt");
-  }
+(void)args;
+    kprint_color("Resetting CPU...\n", COLOR_DEFAULT);
+    // Pulse line 2 on the PS/2 keyboard controller
+    __asm__ volatile ("outb %%al, $0x64" : : "a"((uint8_t)0xFE));
+    
+    // Triple fault fallback if controller reset fails
+    __asm__ volatile ("cli; hlt");
 }
 
-void command_touch(const char *args) {
+static void command_touch(const char *args) {
   if (!args || *args == '\0') {
     kprint_color("Usage: touch <filename>\n", COLOR_DEFAULT);
     return;

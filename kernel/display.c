@@ -45,70 +45,69 @@ void clear_screen(void) {
 }
 
 void scroll_screen(uint8_t current_color) {
-    // 1. Shift lines 1..22 up to lines 0..21
-    for (int y = 0; y < MAIN_SCREEN_HEIGHT - 1; y++) {
-        for (int x = 0; x < VGA_WIDTH; x++) {
-            VGA_MEMORY[y * VGA_WIDTH + x] = VGA_MEMORY[(y + 1) * VGA_WIDTH + x];
-        }
-    }
-
-    // 2. Clear row 23 with blank spaces
-    uint16_t blank = ((uint16_t)current_color << 8) | ' ';
+  // 1. Shift lines 1..22 up to lines 0..21
+  for (int y = 0; y < MAIN_SCREEN_HEIGHT - 1; y++) {
     for (int x = 0; x < VGA_WIDTH; x++) {
-        VGA_MEMORY[(MAIN_SCREEN_HEIGHT - 1) * VGA_WIDTH + x] = blank;
+      VGA_MEMORY[y * VGA_WIDTH + x] = VGA_MEMORY[(y + 1) * VGA_WIDTH + x];
     }
+  }
 
-    // 3. Keep cursor locked to row 23 (the bottom line of the printable screen area)
-    cursor_y = MAIN_SCREEN_HEIGHT - 1;
+  // 2. Clear row 23 with blank spaces
+  uint16_t blank = ((uint16_t)current_color << 8) | ' ';
+  for (int x = 0; x < VGA_WIDTH; x++) {
+    VGA_MEMORY[(MAIN_SCREEN_HEIGHT - 1) * VGA_WIDTH + x] = blank;
+  }
+
+  // 3. Keep cursor locked to row 23 (the bottom line of the printable screen
+  // area)
+  cursor_y = MAIN_SCREEN_HEIGHT - 1;
 }
 
 void kputchar_color(const char c, uint8_t color) {
-    if (color == 0) {
-        color = COLOR_DEFAULT;
+  if (color == 0) {
+    color = COLOR_DEFAULT;
+  }
+
+  // 2. Process character
+  if (c == '\n') {
+    cursor_x = 0;
+    cursor_y++;
+  } else if (c == '\r') {
+    cursor_x = 0;
+  } else if (c == '\t') {
+    cursor_x = (cursor_x + 4) & ~3;
+  } else if (c == '\b') {
+    if (cursor_x > 0) {
+      cursor_x--;
+      int index = cursor_y * VGA_WIDTH + cursor_x;
+      VGA_MEMORY[index] = ((uint16_t)color << 8) | ' ';
+    } else if (cursor_y > 0) {
+      cursor_y--;
+      cursor_x = VGA_WIDTH - 1;
+      int index = cursor_y * VGA_WIDTH + cursor_x;
+      VGA_MEMORY[index] = ((uint16_t)color << 8) | ' ';
     }
+  } else {
+    int index = cursor_y * VGA_WIDTH + cursor_x;
+    VGA_MEMORY[index] = ((uint16_t)color << 8) | (uint8_t)c;
+    cursor_x++;
 
-    // 2. Process character
-    if (c == '\n') {
-        cursor_x = 0;
-        cursor_y++;
-    } else if (c == '\r') {
-        cursor_x = 0;
-    } else if (c == '\t') {
-        cursor_x = (cursor_x + 4) & ~3;
-    } else if (c == '\b') {
-        if (cursor_x > 0) {
-            cursor_x--;
-            int index = cursor_y * VGA_WIDTH + cursor_x;
-            VGA_MEMORY[index] = ((uint16_t)color << 8) | ' ';
-        } else if (cursor_y > 0) {
-            cursor_y--;
-            cursor_x = VGA_WIDTH - 1;
-            int index = cursor_y * VGA_WIDTH + cursor_x;
-            VGA_MEMORY[index] = ((uint16_t)color << 8) | ' ';
-        }
-    } else {
-        int index = cursor_y * VGA_WIDTH + cursor_x;
-        VGA_MEMORY[index] = ((uint16_t)color << 8) | (uint8_t)c;
-        cursor_x++;
-
-        // Line wrap
-        if (cursor_x >= VGA_WIDTH) {
-            cursor_x = 0;
-            cursor_y++;
-        }
+    // Line wrap
+    if (cursor_x >= VGA_WIDTH) {
+      cursor_x = 0;
+      cursor_y++;
     }
+  }
 
-    // 3. Keep cursor within usable screen area (0-23) BEFORE drawing cursor
-    while (cursor_y >= MAIN_SCREEN_HEIGHT) {
-        scroll_screen(color);
-    }
+  // 3. Keep cursor within usable screen area (0-23) BEFORE drawing cursor
+  while (cursor_y >= MAIN_SCREEN_HEIGHT) {
+    scroll_screen(color);
+  }
 
-    set_hardware_cursor_shape(1);
+  set_hardware_cursor_shape(1);
 }
 
-void kputchar(char c) {
-  kputchar_color(c, COLOR_DEFAULT);
-}
+void kputchar(char c) { kputchar_color(c, COLOR_DEFAULT); }
 
 void kprint_color(const char *str, uint8_t color) {
   for (int i = 0; str[i] != '\0'; i++) {
@@ -116,13 +115,9 @@ void kprint_color(const char *str, uint8_t color) {
   }
 }
 
-void sound_set_enabled(int state) {
-    sound_enabled = state;
-}
+void sound_set_enabled(int state) { sound_enabled = state; }
 
-int sound_is_enabled(void) {
-    return sound_enabled;
-}
+int sound_is_enabled(void) { return sound_enabled; }
 
 void update_status_bar(void) {
   rtc_time_t rtc;
@@ -228,15 +223,18 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
 
   // Render Date and Time String
   for (int i = 0; datetime_str[i] != '\0' && pos < 80; i++, pos++) {
-  for (int i = 0; datetime_str[i] != '\0' && pos < 80; i++, pos++) {
     status_row[pos] = (uint16_t)datetime_str[i] | bg_attr;
   }
 
   // Divider
-  status_row[pos++] = ' ' | bg_attr;
+  if (pos < 80) {
+    status_row[pos++] = ' ' | bg_attr;
+  }
 
   // Sound Indicator
-  status_row[pos++] = (uint16_t)sound_icon | bg_attr;
+  if (pos < 80) {
+    status_row[pos++] = (uint16_t)sound_icon | bg_attr;
+  }
 }
 
 // 1. Set cursor scanline height (Block vs Underscore)
