@@ -148,6 +148,7 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
 
   // Header prefix
   const char *title = " CPU: ";
+  const char *title = " CPU: ";
   while (*title) {
     status_row[idx++] = (uint16_t)*title++ | bg_attr;
   }

@@ -7,9 +7,6 @@
 #include "shell.h"
 #include "sound.h"
 
-uint32_t total_memory_pages = 0;
-uint32_t free_memory_pages = 0;
-
 static inline void serial_outb(unsigned short port, unsigned char val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }

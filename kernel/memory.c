@@ -5,6 +5,10 @@ static uint32_t *pmm_bitmap = NULL;
 static size_t pmm_total_frames = 0;
 static size_t pmm_bitmap_size = 0;
 
+/* Global metrics counters */
+uint32_t total_memory_pages = 0;
+uint32_t free_memory_pages = 0;
+
 /* Helper macros for bitmap manipulation */
 #define BITMAP_INDEX(frame) ((frame) / 32)
 #define BITMAP_OFFSET(frame) ((frame) % 32)
@@ -13,6 +17,8 @@ void pmm_init(uintptr_t ram_size, uintptr_t kernel_end)
 {
     pmm_total_frames = ram_size / PAGE_SIZE;
     pmm_bitmap_size = pmm_total_frames / 32;
+    total_memory_pages = (uint32_t)pmm_total_frames;
+    free_memory_pages = 0;
 
     /* Place the bitmap immediately after the kernel image */
     pmm_bitmap = (uint32_t *)kernel_end;
@@ -48,6 +54,10 @@ uintptr_t pmm_alloc_frame(void)
                 {
                     size_t frame = (i * 32) + bit;
                     pmm_bitmap[i] |= (1 << bit); /* Mark as used */
+                    if (free_memory_pages > 0)
+                    {
+                        free_memory_pages--;
+                    }
                     return frame * PAGE_SIZE;
                 }
             }
@@ -64,7 +74,11 @@ void pmm_free_frame(uintptr_t frame_addr)
 
     if (idx < pmm_bitmap_size)
     {
-        pmm_bitmap[idx] &= ~(1 << off); /* Mark as free (0) */
+        if (pmm_bitmap[idx] & (1 << off))
+        {
+            pmm_bitmap[idx] &= ~(1 << off); /* Mark as free (0) */
+            free_memory_pages++;
+        }
     }
 }
 
