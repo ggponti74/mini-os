@@ -50,7 +50,7 @@ void kernel_main(void) {
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);
   shell_init();
   update_status_bar();
-  display_set_fs_indicator(FS_IND_IDLE);
+  display_set_fs_indicator(FS_IND_IDLE, FS_IND_IDLE);
 
   while (1) {
     update_status_bar();

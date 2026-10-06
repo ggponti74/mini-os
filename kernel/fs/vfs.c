@@ -11,7 +11,7 @@
 vfs_node_t *fs_root = NULL;
 
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer) {
-    display_set_fs_indicator(FS_IND_READ);
+    display_set_fs_indicator(FS_IND_READ,FS_IND_IDLE);
     if (!node || !buffer || size == 0) {
         return 0;
     }
@@ -22,7 +22,7 @@ uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buf
 }
 
 uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size, const uint8_t *buffer) {
-    display_set_fs_indicator(FS_IND_WRITE);
+    display_set_fs_indicator(FS_IND_IDLE,FS_IND_WRITE);
     if (!node || !buffer || size == 0) {
         return 0;
     }
@@ -52,7 +52,7 @@ vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
 }
 
 vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
-    display_set_fs_indicator(FS_IND_WRITE);
+    display_set_fs_indicator(FS_IND_WRITE, FS_IND_IDLE);
     if (!parent) {
         parent = fs_root;
     }

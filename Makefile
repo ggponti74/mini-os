@@ -118,7 +118,10 @@ $(BUILD)/%.o: kernel/%.c | $(BUILD)
 kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
 	$(CC) -m32 -nostdlib -no-pie -Wl,--build-id=none -Wl,-e,stage2_entry -Wl,-Map=build/linker.map -T linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
-	
+
+libsys:
+	$(MAKE) -C userland/libsys
+
 # Make image depend on the actual binary file, not the phony target name
 image: $(BOOT_BIN) kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
@@ -143,3 +146,4 @@ clean:
 	$(call RM,$(DIST))
 	$(call RM,initrd.tar)
 	$(call RM,initrd_root)
+	$(MAKE) -C userland clean

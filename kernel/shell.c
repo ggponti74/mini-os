@@ -33,7 +33,6 @@ static void command_test(const char *args);
 static void command_time(const char *args);
 static void command_timezone(const char *args);
 static void command_touch(const char *args);
-
 static void command_version(const char *args);
 
 /* Helper forward declarations */
@@ -55,7 +54,8 @@ static const struct shell_command commands[] = {
     {"cat", "Display file contents (Usage: cat <file>)", command_cat},
     {"clear", "Clear the screen", command_clear},
     {"date", "Show current date and timestamp", command_date},
-    {"hexdump", "Hex dump file contents (Usage: hexdump <file>)", command_hexdump},
+    {"hexdump", "Hex dump file contents (Usage: hexdump <file>)",
+     command_hexdump},
     {"echo", "Print text to output (Usage: echo <text>)", command_echo},
     {"exec", "Execute commands from script (e.g. system.cfg)", command_exec},
     {"help", "Display this help message", command_help},
@@ -128,61 +128,61 @@ void process_command(const char *cmd) {
 }
 
 static void execute_script(const char *filename, int silent) {
-    vfs_node_t *file = vfs_lookup(fs_root, filename);
+  vfs_node_t *file = vfs_lookup(fs_root, filename);
 
-    if (!file) {
-        if (!silent) {
-            kprint_color("Script not found: ", COLOR_DEFAULT);
-            kprint_color(filename, COLOR_DEFAULT);
-            kputchar_color('\n', COLOR_DEFAULT);
-        }
-        return;
+  if (!file) {
+    if (!silent) {
+      kprint_color("Script not found: ", COLOR_DEFAULT);
+      kprint_color(filename, COLOR_DEFAULT);
+      kputchar_color('\n', COLOR_DEFAULT);
     }
+    return;
+  }
 
-    uint32_t size = file->length;
-    if (size == 0) {
-        if (!silent) {
-            kprint_color("Script is empty.\n", COLOR_DEFAULT);
-        }
-        return;
+  uint32_t size = file->length;
+  if (size == 0) {
+    if (!silent) {
+      kprint_color("Script is empty.\n", COLOR_DEFAULT);
     }
+    return;
+  }
 
-    if (silent) {
-        display_set_silent(1);
+  if (silent) {
+    display_set_silent(1);
+  }
+
+  char line[MAX_BUFFER_SIZE];
+  uint32_t line_len = 0;
+  uint8_t ch = 0;
+
+  for (uint32_t i = 0; i < size; i++) {
+    if (vfs_read(file, i, 1, &ch) == 0) {
+      break;
     }
-
-    char line[MAX_BUFFER_SIZE];
-    uint32_t line_len = 0;
-    uint8_t ch = 0;
-
-    for (uint32_t i = 0; i < size; i++) {
-        if (vfs_read(file, i, 1, &ch) == 0) {
-            break;
-        }
-        if (ch == '\r') {
-            continue;
-        }
-        if (ch == '\n') {
-            line[line_len] = '\0';
-            if (line_len > 0) {
-                process_command(line);
-            }
-            line_len = 0;
-        } else {
-            if (line_len < MAX_BUFFER_SIZE - 1) {
-                line[line_len++] = (char)ch;
-            }
-        }
+    if (ch == '\r') {
+      continue;
     }
-
-    if (line_len > 0) {
-        line[line_len] = '\0';
+    if (ch == '\n') {
+      line[line_len] = '\0';
+      if (line_len > 0) {
         process_command(line);
+      }
+      line_len = 0;
+    } else {
+      if (line_len < MAX_BUFFER_SIZE - 1) {
+        line[line_len++] = (char)ch;
+      }
     }
+  }
 
-    if (silent) {
-        display_set_silent(0);
-    }
+  if (line_len > 0) {
+    line[line_len] = '\0';
+    process_command(line);
+  }
+
+  if (silent) {
+    display_set_silent(0);
+  }
 }
 
 static void command_exec(const char *args) {
@@ -223,7 +223,7 @@ static void command_help(const char *args) {
 //         kprint_color("Usage: hexdump <filename>\n", COLOR_DEFAULT);
 //         return;
 //     }
-    
+
 //     uint8_t *file_data;
 //     uint32_t file_size;
 //     if (initrd_get_file(args, &file_data, &file_size) != 0) {
@@ -236,7 +236,7 @@ static void command_help(const char *args) {
 //     for (uint32_t i = 0; i < file_size; i += 16) {
 //         print_hex32(i); // Prints offset like 0x00000010
 //         kprint_color(": ", COLOR_DEFAULT);
-        
+
 //         // Print Hex values
 //         for (uint32_t j = 0; j < 16; j++) {
 //             if (i + j < file_size) {
@@ -246,9 +246,9 @@ static void command_help(const char *args) {
 //                 kprint_color("   ", COLOR_DEFAULT);
 //             }
 //         }
-        
+
 //         kprint_color(" | ", COLOR_DEFAULT);
-        
+
 //         // Print ASCII printable representation
 //         for (uint32_t j = 0; j < 16 && (i + j) < file_size; j++) {
 //             char c = file_data[i + j];
@@ -265,35 +265,52 @@ static void command_clear(const char *args) {
 
 static void command_version(const char *args) {
   (void)args;
+
   kprint_color("mini-os version 1.0\n", COLOR_DEFAULT);
+
+#ifdef _NEWLIB_VERSION
+  kprint_color("C Library : Newlib v", COLOR_DEFAULT);
+  kprint_color(_NEWLIB_VERSION,COLOR_DEFAULT);
+  kprint_color("\n",COLOR_DEFAULT);
+#else
+  kprint("C Library : Standalone / Bare-metal\n");
+#endif
+
 }
 
 static void command_test(const char *args) {
   (void)args;
-  kprint_color("System diagnostic OK.\n", COLOR_DEFAULT);
+  kprint_color("Setting FS I/O indicators...\n", COLOR_DEFAULT);
+  display_set_fs_indicator(FS_IND_READ, FS_IND_WRITE);
 }
 
 static void command_shutdown(const char *args) {
-(void)args;
-    kprint_color("Shutting down...\n", COLOR_DEFAULT);
-    
-    // QEMU ISA debug exit device (port 0x501)
-    __asm__ volatile ("outw %0, %1" : : "a"((uint16_t)0x00), "Nd"((uint16_t)0x501));
-    
-    // Fallback ACPI shutdown for older QEMU / Bochs
-    __asm__ volatile ("outw %0, %1" : : "a"((uint16_t)0x2000), "Nd"((uint16_t)0xB004));
-    
-    while(1) { __asm__ volatile ("hlt"); }
+  (void)args;
+  kprint_color("Shutting down...\n", COLOR_DEFAULT);
+
+  // QEMU ISA debug exit device (port 0x501)
+  __asm__ volatile("outw %0, %1"
+                   :
+                   : "a"((uint16_t)0x00), "Nd"((uint16_t)0x501));
+
+  // Fallback ACPI shutdown for older QEMU / Bochs
+  __asm__ volatile("outw %0, %1"
+                   :
+                   : "a"((uint16_t)0x2000), "Nd"((uint16_t)0xB004));
+
+  while (1) {
+    __asm__ volatile("hlt");
+  }
 }
 
 static void command_restart(const char *args) {
-(void)args;
-    kprint_color("Resetting CPU...\n", COLOR_DEFAULT);
-    // Pulse line 2 on the PS/2 keyboard controller
-    __asm__ volatile ("outb %%al, $0x64" : : "a"((uint8_t)0xFE));
-    
-    // Triple fault fallback if controller reset fails
-    __asm__ volatile ("cli; hlt");
+  (void)args;
+  kprint_color("Resetting CPU...\n", COLOR_DEFAULT);
+  // Pulse line 2 on the PS/2 keyboard controller
+  __asm__ volatile("outb %%al, $0x64" : : "a"((uint8_t)0xFE));
+
+  // Triple fault fallback if controller reset fails
+  __asm__ volatile("cli; hlt");
 }
 
 static void command_touch(const char *args) {
@@ -322,7 +339,7 @@ static void command_touch(const char *args) {
 static void execute_command(void) {
   command_buffer[buffer_index] = '\0';
 
-  display_set_fs_indicator(FS_IND_IDLE);
+  display_set_fs_indicator(FS_IND_IDLE, FS_IND_IDLE);
   kputchar_color('\n', COLOR_DEFAULT);
   if (buffer_index > 0) {
     add_to_history(command_buffer);
@@ -408,48 +425,48 @@ static void get_local_time(rtc_time_t *local) {
 }
 
 static void command_hexdump(const char *args) {
-    if (!args || *args == '\0') {
-        kprint_color("Usage: hexdump <filename>\n", COLOR_WHITE);
-        return;
+  if (!args || *args == '\0') {
+    kprint_color("Usage: hexdump <filename>\n", COLOR_WHITE);
+    return;
+  }
+
+  vfs_node_t *file = vfs_lookup(fs_root, args);
+  if (!file) {
+    kprint_color("File not found: ", COLOR_DEFAULT);
+    kprint_color(args, COLOR_WHITE);
+    kputchar_color('\n', COLOR_DEFAULT);
+    return;
+  }
+
+  uint8_t chunk[16];
+  for (uint32_t i = 0; i < file->length; i += 16) {
+    uint32_t to_read = (file->length - i >= 16) ? 16 : (file->length - i);
+    uint32_t bytes_read = vfs_read(file, i, to_read, chunk);
+    if (bytes_read == 0) {
+      break;
     }
-    
-    vfs_node_t *file = vfs_lookup(fs_root, args);
-    if (!file) {
-        kprint_color("File not found: ", COLOR_DEFAULT);
-        kprint_color(args, COLOR_WHITE);
-        kputchar_color('\n', COLOR_DEFAULT);
-        return;
+    print_hex32(i); // Prints offset like 0x00000010
+    kprint_color(": ", COLOR_DEFAULT);
+
+    // Print Hex values
+    for (uint32_t j = 0; j < 16; j++) {
+      if (j < bytes_read) {
+        print_hex8(chunk[j]);
+        kputchar_color(' ', COLOR_DEFAULT);
+      } else {
+        kprint_color("   ", COLOR_DEFAULT);
+      }
     }
 
-    uint8_t chunk[16];
-    for (uint32_t i = 0; i < file->length; i += 16) {
-        uint32_t to_read = (file->length - i >= 16) ? 16 : (file->length - i);
-        uint32_t bytes_read = vfs_read(file, i, to_read, chunk);
-        if (bytes_read == 0) {
-            break;
-        }
-        print_hex32(i); // Prints offset like 0x00000010
-        kprint_color(": ", COLOR_DEFAULT);
-        
-        // Print Hex values
-        for (uint32_t j = 0; j < 16; j++) {
-            if (j < bytes_read) {
-                print_hex8(chunk[j]);
-                kputchar_color(' ', COLOR_DEFAULT);
-            } else {
-                kprint_color("   ", COLOR_DEFAULT);
-            }
-        }
-        
-        kprint_color(" | ", COLOR_DEFAULT);
-        
-        // Print ASCII printable representation
-        for (uint32_t j = 0; j < bytes_read; j++) {
-            char c = (char)chunk[j];
-            kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_WHITE);
-        }
-        kputchar_color('\n', COLOR_DEFAULT);
+    kprint_color(" | ", COLOR_DEFAULT);
+
+    // Print ASCII printable representation
+    for (uint32_t j = 0; j < bytes_read; j++) {
+      char c = (char)chunk[j];
+      kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_WHITE);
     }
+    kputchar_color('\n', COLOR_DEFAULT);
+  }
 }
 
 static void command_sound(const char *args) {
@@ -492,9 +509,12 @@ static void command_cat(const char *args) {
   char buf[64];
   uint32_t offset = 0;
   while (offset < file->length) {
-    uint32_t chunk = (file->length - offset > sizeof(buf)) ? sizeof(buf) : (file->length - offset);
+    uint32_t chunk = (file->length - offset > sizeof(buf))
+                         ? sizeof(buf)
+                         : (file->length - offset);
     uint32_t bytes = vfs_read(file, offset, chunk, (uint8_t *)buf);
-    if (bytes == 0) break;
+    if (bytes == 0)
+      break;
     for (uint32_t i = 0; i < bytes; i++) {
       kputchar_color(buf[i], COLOR_DEFAULT);
     }
