@@ -273,10 +273,12 @@ static void command_version(const char *args) {
   kprint_color(_NEWLIB_VERSION,COLOR_DEFAULT);
   kprint_color("\n",COLOR_DEFAULT);
 #else
-  kprint("C Library : Standalone / Bare-metal\n");
+  kprint_color("C Library : Standalone / Bare-metal\n", COLOR_DEFAULT);
 #endif
 
+  kprint_color("Built with Google Gemini (yeah, but you still need to know what to build ;-))\n", COLOR_DEFAULT);
 }
+
 
 static void command_test(const char *args) {
   (void)args;
