@@ -6,6 +6,11 @@ extern uint32_t total_memory_pages;
 extern uint32_t free_memory_pages;
 
 mem_stats_t sys_get_mem_stats(void) {
+    
+    // placeholder
+    total_memory_pages = 4096 * 1024 * 1024;
+    free_memory_pages = 1 * 1024 * 1024;
+
     mem_stats_t stats;
     // Assuming 4KB pages
     stats.total_kb = total_memory_pages * 4;

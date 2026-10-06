@@ -7,7 +7,8 @@
 #define VGA_HEIGHT 25
 #define VGA_MEMORY ((volatile uint16_t *)0xB8000)
 
-#define COLOR_DEFAULT 0x0F // White text on Black background
+#define COLOR_DEFAULT 0x0F  // white text on Black background
+#define COLOR_GRAY 0x0A     // gray text on Black background
 
 typedef enum {
     FS_IND_IDLE = 0,
@@ -15,7 +16,7 @@ typedef enum {
     FS_IND_WRITE
 } fs_indicator_t;
 
-void display_set_fs_indicator(fs_indicator_t state);
+void display_set_fs_indicator(fs_indicator_t read_state, fs_indicator_t write_state);
 void display_set_silent(int silent);
 int display_is_silent(void);
 void display_init(void);

@@ -31,11 +31,47 @@ void print_hex32(uint32_t value) {
   }
 }
 
-void display_set_fs_indicator(fs_indicator_t state) {
-  current_fs_indicator = state;
-  char fs_icon = (state == FS_IND_READ) ? 'R' : (state == FS_IND_WRITE ? 'W' : ' ');
-  uint16_t attr = (state == FS_IND_IDLE) ? (COLOR_STATUSBAR << 8) : (0x1E << 8);
-  ((uint16_t *)(0xB8000 + (24 * 80 * 2)))[79] = (uint16_t)fs_icon | attr;
+void display_set_fs_indicator(fs_indicator_t read_state, fs_indicator_t write_state) {
+    // ALL declarations at the very top
+    uint16_t attr_idle;
+    uint16_t attr_read;
+    uint16_t attr_write;
+    char fs_read_icon;
+    uint16_t read_attr;
+    char fs_write_icon;
+    uint16_t write_attr;
+    uint16_t *status_row;
+
+    // Initialization & logic afterwards
+    attr_idle  = (COLOR_STATUSBAR << 8);
+    attr_read  = (0x2F << 8);
+    attr_write = (0x4F << 8);
+
+    fs_read_icon = ' ';
+    read_attr = attr_idle;
+
+    if (read_state == FS_IND_READ) {
+        fs_read_icon = 'R';
+        read_attr = attr_read;
+    } else if (read_state == FS_IND_WRITE) {
+        fs_read_icon = 'W';
+        read_attr = attr_write;
+    }
+
+    fs_write_icon = ' ';
+    write_attr = attr_idle;
+
+    if (write_state == FS_IND_WRITE) {
+        fs_write_icon = 'W';
+        write_attr = attr_write;
+    } else if (write_state == FS_IND_READ) {
+        fs_write_icon = 'R';
+        write_attr = attr_read;
+    }
+
+    status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
+    status_row[0] = (uint16_t)fs_read_icon | read_attr;
+    status_row[1] = (uint16_t)fs_write_icon | write_attr;
 }
 
 void display_set_silent(int silent) {
@@ -87,7 +123,7 @@ void scroll_screen(uint8_t current_color) {
 
   // 2. Clear row 23 with blank spaces
   uint16_t blank = ((uint16_t)current_color << 8) | ' ';
-  for (int x = 0; x < VGA_WIDTH; x++) {
+  for (int x = 3; x < VGA_WIDTH; x++) {
     VGA_MEMORY[(MAIN_SCREEN_HEIGHT - 1) * VGA_WIDTH + x] = blank;
   }
 
@@ -194,90 +230,88 @@ void update_status_bar(void) {
 
 // Helper to write formatted text to a specific VGA line
 void draw_status_bar(const char *datetime_str, int sound_enabled) {
-  uint16_t *status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
-  uint16_t bg_attr = (COLOR_STATUSBAR << 8);
+    uint16_t *status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
+    uint16_t bg_attr = (COLOR_STATUSBAR << 8);
 
-  // Fill entire row 24 with background color
-  uint16_t blank = ' ' | bg_attr;
-  for (int col = 0; col < VGA_WIDTH; col++) {
-    status_row[col] = blank;
-  }
+    // 1. Fill row 24 with background color, SKIPPING columns 0 and 1
+    uint16_t blank = ' ' | bg_attr;
+    for (int col = 2; col < VGA_WIDTH; col++) { // Clears background from col 2 to 79
+        status_row[col] = blank;
+    }
 
-  // Query system metrics
-  mem_stats_t mem = sys_get_mem_stats();
-  uint32_t cpu_pct = sys_get_cpu_usage();
+    // 2. Query system metrics
+    mem_stats_t mem = sys_get_mem_stats();
+    uint32_t cpu_pct = sys_get_cpu_usage();
 
-  // 3. Format Memory String (KB or MB)
-  char mem_buf[16];
-  if (mem.free_kb >= 1024) {
-    itoa(mem.free_kb / 1024, mem_buf);
-  } else {
-    itoa(mem.free_kb, mem_buf);
-  }
+    // 3. Format Memory String (KB or MB)
+    char mem_buf[16];
+    if (mem.free_kb >= 1024) {
+        itoa(mem.free_kb / 1024, mem_buf);
+    } else {
+        itoa(mem.free_kb, mem_buf);
+    }
 
-  // Format CPU String
-  char cpu_buf[8];
-  itoa(cpu_pct, cpu_buf);
+    // Format CPU String
+    char cpu_buf[8];
+    itoa(cpu_pct, cpu_buf);
 
-  // Render Left Section: " mini-os | CPU: X% | Free RAM: XMB "
-  int idx = 3;
+    // 4. Render Left Section (Start at col 4 to leave col 2 and 3 as margin)
+    int idx = 4;
 
-  // Header prefix
-  const char *title = "CPU: ";
-  while (*title) {
-    status_row[idx++] = (uint16_t)*title++ | bg_attr;
-  }
+    const char *title = "CPU: ";
+    while (*title) {
+        status_row[idx++] = (uint16_t)*title++ | bg_attr;
+    }
 
-  // CPU % value
-  char *c_ptr = cpu_buf;
-  while (*c_ptr) {
-    status_row[idx++] = (uint16_t)*c_ptr++ | bg_attr;
-  }
-  status_row[idx++] = '%' | bg_attr;
+    char *c_ptr = cpu_buf;
+    while (*c_ptr) {
+        status_row[idx++] = (uint16_t)*c_ptr++ | bg_attr;
+    }
+    status_row[idx++] = '%' | bg_attr;
 
-  // Free RAM label & value
-  const char *ram_label = " RAM: ";
-  while (*ram_label) {
-    status_row[idx++] = (uint16_t)*ram_label++ | bg_attr;
-  }
+    const char *ram_label = " RAM: ";
+    while (*ram_label) {
+        status_row[idx++] = (uint16_t)*ram_label++ | bg_attr;
+    }
 
-  char *m_ptr = mem_buf;
-  while (*m_ptr) {
-    status_row[idx++] = (uint16_t)*m_ptr++ | bg_attr;
-  }
+    const char *unit = " KB";
 
-  const char *unit = (mem.free_kb >= 1024) ? "MB" : "KB";
-  while (*unit) {
-    status_row[idx++] = (uint16_t)*unit++ | bg_attr;
-  }
+    if (mem.free_kb >= 1048576) {        // >= 1 GB (1024 * 1024 KB)
+        itoa(mem.free_kb / 1048576, mem_buf);
+        unit = " GB";
+    } else if (mem.free_kb >= 1024) {   // >= 1 MB (1024 KB)
+        itoa(mem.free_kb / 1024, mem_buf);
+        unit = " MB";
+    } else {
+        itoa(mem.free_kb, mem_buf);
+        unit = " KB";
+    }
 
-  // Render Right-Hand Side Status: Date, Time, Sound Indicator
-  // Start at pos column  to leave enough room for full datetime string
-  int pos = 61;
+    char *m_ptr = mem_buf;
+    while (*m_ptr) {
+        status_row[idx++] = (uint16_t)*m_ptr++ | bg_attr;
+    }
 
-  // Sound Symbol: ASCII 14 ('♪') when ON, 'x' when MUTED/OFF
-  char sound_icon = sound_enabled ? 14 : 'x';
+    // Unit string (GB / MB / KB)
+    while (*unit) {
+        status_row[idx++] = (uint16_t)*unit++ | bg_attr;
+    }
 
-  // Render Date and Time String
-  for (int i = 0; datetime_str[i] != '\0' && pos < 80; i++, pos++) {
-    status_row[pos] = (uint16_t)datetime_str[i] | bg_attr;
-  }
+    // 5. Render Right-Hand Side Status: Date, Time, Sound Indicator
+    int pos = 61;
+    char sound_icon = sound_enabled ? 14 : 'x';
 
-  // Divider
-  if (pos < 80) {
-    status_row[pos++] = ' ' | bg_attr;
-  }
+    for (int i = 0; datetime_str[i] != '\0' && pos < 80; i++, pos++) {
+        status_row[pos] = (uint16_t)datetime_str[i] | bg_attr;
+    }
 
-  // Sound Indicator
-  if (pos < 80) {
-    status_row[pos++] = (uint16_t)sound_icon | bg_attr;
-  }
+    if (pos < 80) {
+        status_row[pos++] = ' ' | bg_attr;
+    }
 
-  // FS Indicator (at the far right corner)
-  if (pos < 80) {
-    char fs_icon = (current_fs_indicator == FS_IND_READ) ? 'R' : (current_fs_indicator == FS_IND_WRITE ? 'W' : ' ');
-    status_row[79] = (uint16_t)fs_icon | bg_attr;
-  }
+    if (pos < 80) {
+        status_row[pos++] = (uint16_t)sound_icon | bg_attr;
+    }
 }
 
 // 1. Set cursor scanline height (Block vs Underscore)

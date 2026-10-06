@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define FS_IDLE      0x00
 #define FS_FILE      0x01
 #define FS_DIRECTORY 0x02
 
