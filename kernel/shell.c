@@ -1,15 +1,17 @@
-#define COLOR_PROMPT 0x0B // Light Cyan
-#define COLOR_WHITE 0x0F
-
 #include <stdint.h>
 
 #include "display.h"
 #include "fs/initrd.h"
 #include "fs/vfs.h"
+#include "memory.h"
 #include "rtc.h"
 #include "shell.h"
 #include "sound.h"
 #include "string.h"
+
+#define COLOR_PROMPT 0x0B // Light Cyan
+#define COLOR_WHITE 0x0F
+#define BUILD_NUM 20261006
 
 #define MAX_HISTORY 10
 
@@ -263,27 +265,54 @@ static void command_clear(const char *args) {
   clear_screen();
 }
 
+void print_dec(uint32_t val) {
+  if (val == 0) {
+    kputchar_color('0', COLOR_DEFAULT);
+    return;
+  }
+  char buf[10];
+  int i = 0;
+  while (val > 0) {
+    buf[i++] = '0' + (val % 10);
+    val /= 10;
+  }
+  while (i > 0) {
+    kputchar_color(buf[--i], COLOR_DEFAULT);
+  }
+}
+
 static void command_version(const char *args) {
   (void)args;
 
-  kprint_color("mini-os version 1.0\n", COLOR_DEFAULT);
+  kprint_color("mini-os version 1.0 (build ", COLOR_DEFAULT);
+  char buf[12];
+  (void)itoa(BUILD_NUM, buf); // Uses existing itoa in display.c
+  kprint_color(buf, COLOR_DEFAULT);
+  kprint_color(")\n", COLOR_DEFAULT);
 
 #ifdef _NEWLIB_VERSION
   kprint_color("C Library : Newlib v", COLOR_DEFAULT);
-  kprint_color(_NEWLIB_VERSION,COLOR_DEFAULT);
-  kprint_color("\n",COLOR_DEFAULT);
+  kprint_color(_NEWLIB_VERSION, COLOR_DEFAULT);
+  kprint_color("\n", COLOR_DEFAULT);
 #else
   kprint_color("C Library : Standalone / Bare-metal\n", COLOR_DEFAULT);
 #endif
 
-  kprint_color("Built with Google Gemini (yeah, but you still need to know what to build ;-))\n", COLOR_DEFAULT);
+  kprint_color("Built with Google Gemini (yeah, but you still need to know "
+               "what to build ;-))\n",
+               COLOR_DEFAULT);
 }
-
 
 static void command_test(const char *args) {
   (void)args;
   kprint_color("Setting FS I/O indicators...\n", COLOR_DEFAULT);
   display_set_fs_indicator(FS_IND_READ, FS_IND_WRITE);
+
+  kprint_color("Testing malloc()/free()...\n", COLOR_DEFAULT);
+  char *buffer = (char *)kmalloc(128);
+  if (buffer != NULL) {
+    kfree(buffer);
+  }
 }
 
 static void command_shutdown(const char *args) {

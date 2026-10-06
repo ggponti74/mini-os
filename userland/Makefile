@@ -6,7 +6,7 @@ AR := ar
 
 # Add GCC's internal header directory to CFLAGS
 GCC_INC := $(shell $(CC) -print-file-name=include)
-CFLAGS := -m32 -ffreestanding -nostdinc -O2 -isystem $(GCC_INC) -I../kernel
+CFLAGS := -m32 -ffreestanding -nostdinc -O2 -isystem $(GCC_INC) -I/path/to/newlib/include
 
 SRCS := libsys/stubs.c
 OBJS := $(SRCS:.c=.o)

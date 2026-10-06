@@ -30,9 +30,20 @@ struct stat {
 #define S_IFCHR 0020000
 #endif
 
-// System Call Stubs
+// 64 KB static buffer reserved for userland heap (or point to kernel heap end)
+static char user_heap[64 * 1024]; 
+static char *heap_ptr = user_heap;
+
 void *_sbrk(int incr) {
-    return (void *)-1;
+    char *prev_heap_ptr = heap_ptr;
+
+    // Check if allocation exceeds available buffer
+    if (heap_ptr + incr > user_heap + sizeof(user_heap)) {
+        return (void *)-1; // Out of memory
+    }
+
+    heap_ptr += incr;
+    return (void *)prev_heap_ptr;
 }
 
 int _write(int file, char *ptr, int len) {
