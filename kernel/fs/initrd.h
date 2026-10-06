@@ -30,19 +30,12 @@ typedef struct {
     char version[2];
 } __attribute__((packed)) tar_header_t;
 
-typedef vfs_node_t *(*vfs_create_t)(vfs_node_t *parent, const char *name, uint32_t flags);
-vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags);
-
-extern void idt_load(uint32_t idt_ptr_addr);
-extern void isr_default_stub(void);
-extern void irq1_keyboard_stub(void);
-extern vfs_node_t *fs_root;
-
 vfs_node_t *initrd_find_file(const char *filename);
 vfs_node_t *initrd_init(void);
 void initrd_cat_file(const char *filename);
 void initrd_list_files(void);
+int initrd_get_file(const char *filename, uint8_t **out_data, uint32_t *out_size);
 
-void initrd_cat_file(const char *);
+uint32_t oct2bin(const char *str, int size) ;
 
 #endif

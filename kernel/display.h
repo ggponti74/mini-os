@@ -9,6 +9,15 @@
 
 #define COLOR_DEFAULT 0x0F // White text on Black background
 
+typedef enum {
+    FS_IND_IDLE = 0,
+    FS_IND_READ,
+    FS_IND_WRITE
+} fs_indicator_t;
+
+void display_set_fs_indicator(fs_indicator_t state);
+void display_set_silent(int silent);
+int display_is_silent(void);
 void display_init(void);
 void clear_screen(void);
 void kputchar(char c);
@@ -23,6 +32,9 @@ void update_hardware_cursor(int, int);
 void scroll_screen(uint8_t color);
 void sound_set_enabled(int );
 int sound_is_enabled(void);
+
+void print_hex8(uint8_t value);
+void print_hex32(uint32_t value);
 
 // Single-argument kprint wrapper
 static inline void kprint(const char *str) { kprint_color(str, COLOR_DEFAULT); }

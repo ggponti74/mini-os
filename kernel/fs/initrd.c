@@ -1,10 +1,9 @@
 // src/fs/initrd.c
+#include <stddef.h>
+#include <stdint.h>
 #include "initrd.h"
 #include "vfs.h"
 #include "../display.h"
-
-extern const char initrd_start[];
-extern const char initrd_end[];
 
 #define MAX_NODES 32
 #define MAX_FILE_SIZE 1024
@@ -14,9 +13,57 @@ typedef struct {
     uint8_t data[MAX_FILE_SIZE];
 } initrd_file_t;
 
-initrd_file_t file_pool[MAX_NODES];
-uint32_t node_count = 0;
-vfs_node_t initrd_root;
+static initrd_file_t file_pool[MAX_NODES];
+static uint32_t node_count = 0;
+static vfs_node_t initrd_root;
+
+// Internal helper: Compare string up to max length
+static int string_equals(const char *s1, const char *s2) {
+    while (*s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+    }
+    return *(const unsigned char*)s1 - *(const unsigned char*)s2;
+}
+
+int initrd_get_file(const char *filename, uint8_t **out_data, uint32_t *out_size) {
+    const char *ptr = initrd_start;
+
+    while (ptr < initrd_end) {
+        tar_header_t *header = (tar_header_t *)ptr;
+
+        // End of TAR archive marker
+        if (header->name[0] == '\0') {
+            break;
+        }
+
+        uint32_t file_size = oct2bin(header->size, 11);
+
+        // Strip leading "./" if present before matching
+        const char *hn = header->name;
+        if (hn[0] == '.' && hn[1] == '/') {
+            hn += 2;
+        }
+        const char *fn = filename;
+        if (fn[0] == '.' && fn[1] == '/') {
+            fn += 2;
+        }
+        if (string_equals(hn, fn) == 0) {
+            if (out_data) {
+                *out_data = (uint8_t *)(ptr + 512); // File payload starts right after header block
+            }
+            if (out_size) {
+                *out_size = file_size;
+            }
+            return 0; // Success
+        }
+
+        // Advance pointer past header (512 bytes) + file payload (rounded to 512-byte block boundaries)
+        ptr += 512 + ((file_size + 511) & ~511);
+    }
+
+    return -1; // File not found
+}
 
 uint32_t oct2bin(const char *str, int size) {
     uint32_t n = 0;
@@ -62,6 +109,8 @@ vfs_node_t *initrd_find_file(const char *filename) {
 
 // 2. List all files currently residing in the RAMDisk pool (including newly touched files)
 void initrd_list_files(void) {
+    kprint_color("  .\n", COLOR_DEFAULT);
+    kprint_color("  ..\n", COLOR_DEFAULT);
     for (uint32_t i = 0; i < node_count; i++) {
         kprint_color("  ", COLOR_DEFAULT);
         kprint_color(file_pool[i].node.name, COLOR_DEFAULT);
@@ -92,7 +141,7 @@ void initrd_cat_file(const char *filename) {
     }
 }
 
-uint32_t initrd_read_file(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer) {
+static uint32_t initrd_read_file(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer) {
     if (!node || !node->device_data || offset >= node->length) return 0;
     if (offset + size > node->length) size = node->length - offset;
 
@@ -101,8 +150,9 @@ uint32_t initrd_read_file(vfs_node_t *node, uint32_t offset, uint32_t size, uint
     return size;
 }
 
-uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset, uint32_t size, const uint8_t *buffer) {
-    if (!node || !node->device_data) return 0;
+static uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset, uint32_t size, const uint8_t *buffer) {
+    if (!node || !node->device_data || !buffer) return 0;
+    if (offset >= MAX_FILE_SIZE) return 0;
     uint8_t *dest = (uint8_t *)node->device_data;
 
     if (offset + size > MAX_FILE_SIZE) size = MAX_FILE_SIZE - offset;
@@ -112,14 +162,20 @@ uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset, uint32_t size, con
     return size;
 }
 
-vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name, uint32_t flags) {
+static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name, uint32_t flags) {
+    (void)parent;
     if (node_count >= MAX_NODES) return NULL;
 
     initrd_file_t *item = &file_pool[node_count++];
+
+    // Strip leading "./" if present
+    if (name[0] == '.' && name[1] == '/') {
+        name += 2;
+    }
     
     // Copy filename
     int i = 0;
-    while (name[i] != '\0' && i < 127) {
+    while (name[i] != '\0' && i < 127 && name[i] != '/') {
         item->node.name[i] = name[i];
         i++;
     }
@@ -133,24 +189,6 @@ vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name, uint32_t fl
 
     return &item->node;
 }
-
-// vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
-//     if (!root || !path) return NULL;
-
-//     for (uint32_t i = 0; i < node_count; i++) {
-//         // Compare filenames
-//         int match = 1;
-//         for (int j = 0; path[j] != '\0' || file_pool[i].node.name[j] != '\0'; j++) {
-//             if (path[j] != file_pool[i].node.name[j]) {
-//                 match = 0;
-//                 break;
-//             }
-//         }
-//         if (match) return &file_pool[i].node;
-//     }
-
-//     return NULL;
-// }
 
 vfs_node_t *initrd_init(void) {
     // 1. Setup Root Directory Node
@@ -166,8 +204,9 @@ vfs_node_t *initrd_init(void) {
 
         uint32_t file_size = oct2bin(header->size, 11);
 
-        // Skip '.' root entry if present
-        if (header->name[0] != '.' || header->name[1] != '\0') {
+        // Skip directory headers and '.' / './' archive entries
+        if (header->typeflag != '5' &&
+            !(header->name[0] == '.' && (header->name[1] == '\0' || (header->name[1] == '/' && header->name[2] == '\0')))) {
             vfs_node_t *node = initrd_create_file(&initrd_root, header->name, FS_FILE);
             if (node) {
                 const uint8_t *file_data = (const uint8_t *)(ptr + 512);

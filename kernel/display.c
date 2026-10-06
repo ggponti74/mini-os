@@ -1,5 +1,6 @@
 // kernel/display.c
 #include "display.h"
+#include "io.h"
 #include "rtc.h"
 #include "shell.h"
 #include "sys/metrics.h"
@@ -13,6 +14,37 @@
 static uint8_t cursor_x = 0;
 static uint8_t cursor_y = 0;
 static int sound_enabled = 1;
+static fs_indicator_t current_fs_indicator = FS_IND_IDLE;
+static int display_silent = 0;
+
+static const char hex_chars[] = "0123456789ABCDEF";
+
+void print_hex8(uint8_t value) {
+  kputchar_color(hex_chars[(value >> 4) & 0x0F], COLOR_DEFAULT);
+  kputchar_color(hex_chars[value & 0x0F], COLOR_DEFAULT);
+}
+
+void print_hex32(uint32_t value) {
+  kprint_color("0x", COLOR_DEFAULT);
+  for (int i = 3; i >= 0; i--) {
+    print_hex8((uint8_t)((value >> (i * 8)) & 0xFF));
+  }
+}
+
+void display_set_fs_indicator(fs_indicator_t state) {
+  current_fs_indicator = state;
+  char fs_icon = (state == FS_IND_READ) ? 'R' : (state == FS_IND_WRITE ? 'W' : ' ');
+  uint16_t attr = (state == FS_IND_IDLE) ? (COLOR_STATUSBAR << 8) : (0x1E << 8);
+  ((uint16_t *)(0xB8000 + (24 * 80 * 2)))[79] = (uint16_t)fs_icon | attr;
+}
+
+void display_set_silent(int silent) {
+  display_silent = silent;
+}
+
+int display_is_silent(void) {
+  return display_silent;
+}
 
 // Simple integer to ASCII string converter
 void itoa(uint32_t val, char *buf) {
@@ -42,6 +74,7 @@ void clear_screen(void) {
   }
   cursor_x = 0;
   cursor_y = 0;
+  update_hardware_cursor(cursor_x, cursor_y);
 }
 
 void scroll_screen(uint8_t current_color) {
@@ -64,6 +97,10 @@ void scroll_screen(uint8_t current_color) {
 }
 
 void kputchar_color(const char c, uint8_t color) {
+  if (display_silent) {
+    return;
+  }
+
   if (color == 0) {
     color = COLOR_DEFAULT;
   }
@@ -104,7 +141,7 @@ void kputchar_color(const char c, uint8_t color) {
     scroll_screen(color);
   }
 
-  set_hardware_cursor_shape(1);
+  update_hardware_cursor(cursor_x, cursor_y);
 }
 
 void kputchar(char c) { kputchar_color(c, COLOR_DEFAULT); }
@@ -183,10 +220,10 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
   itoa(cpu_pct, cpu_buf);
 
   // Render Left Section: " mini-os | CPU: X% | Free RAM: XMB "
-  int idx = 0;
+  int idx = 3;
 
   // Header prefix
-  const char *title = " CPU: ";
+  const char *title = "CPU: ";
   while (*title) {
     status_row[idx++] = (uint16_t)*title++ | bg_attr;
   }
@@ -235,6 +272,12 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
   if (pos < 80) {
     status_row[pos++] = (uint16_t)sound_icon | bg_attr;
   }
+
+  // FS Indicator (at the far right corner)
+  if (pos < 80) {
+    char fs_icon = (current_fs_indicator == FS_IND_READ) ? 'R' : (current_fs_indicator == FS_IND_WRITE ? 'W' : ' ');
+    status_row[79] = (uint16_t)fs_icon | bg_attr;
+  }
 }
 
 // 1. Set cursor scanline height (Block vs Underscore)
@@ -248,6 +291,12 @@ void set_hardware_cursor_shape(int is_block) {
 
   outb(0x3D4, 0x0B); // Cursor End Register
   outb(0x3D5, 0x0F); // Scanline 15 (Bottom edge)
+}
+
+// Disable hardware cursor
+void disable_hardware_cursor(void) {
+  outb(0x3D4, 0x0A);
+  outb(0x3D5, 0x20);
 }
 
 // 2. Send current cursor position to VGA CRT controller
