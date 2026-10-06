@@ -25,7 +25,7 @@ Discarded input sections
  .comment       0x00000000       0x2e build/vga.o
  .eh_frame      0x00000000       0x40 build/vga.o
  .comment       0x00000000       0x2e build/fs/initrd.o
- .eh_frame      0x00000000      0x314 build/fs/initrd.o
+ .eh_frame      0x00000000      0x374 build/fs/initrd.o
  .comment       0x00000000       0x2e build/fs/vfs.o
  .eh_frame      0x00000000      0x124 build/fs/vfs.o
  .comment       0x00000000       0x2e build/hal/memory.o
@@ -64,7 +64,7 @@ LOAD build/network/network.o
 LOAD build/sys/metrics.o
                 0x00007e00                        . = 0x7e00
 
-.text           0x00007e00     0x39d6
+.text           0x00007e00     0x3b76
  *(.boot_entry)
  .boot_entry    0x00007e00       0x1d build/kernel_entry.o
                 0x00007e00                stage2_entry
@@ -159,127 +159,127 @@ LOAD build/sys/metrics.o
                 0x0000ae00                vga_clear_screen
                 0x0000ae30                vga_print_at
  *fill*         0x0000ae6e        0x2 
- .text          0x0000ae70      0x645 build/fs/initrd.o
+ .text          0x0000ae70      0x7e5 build/fs/initrd.o
                 0x0000b100                initrd_get_file
                 0x0000b220                oct2bin
                 0x0000b260                initrd_find_file
                 0x0000b270                initrd_list_files
-                0x0000b2f0                initrd_cat_file
-                0x0000b3d0                initrd_init
- *fill*         0x0000b4b5        0xb 
- .text          0x0000b4c0      0x1d1 build/fs/vfs.o
-                0x0000b4c0                vfs_read
-                0x0000b530                vfs_write
-                0x0000b5a0                vfs_lookup
-                0x0000b610                vfs_create
- *fill*         0x0000b691        0xf 
- .text          0x0000b6a0       0x11 build/hal/memory.o
-                0x0000b6a0                malloc
-                0x0000b6b0                free
- *fill*         0x0000b6b1        0xf 
- .text          0x0000b6c0       0x61 build/network/network.o
-                0x0000b6c0                hal_net_init
-                0x0000b6d0                hal_net_register_device
-                0x0000b6f0                hal_net_send
-                0x0000b720                hal_net_receive_callback
- *fill*         0x0000b721        0xf 
- .text          0x0000b730       0xa6 build/sys/metrics.o
-                0x0000b730                sys_get_mem_stats
-                0x0000b760                cpu_idle_hook
-                0x0000b770                sys_timer_tick
-                0x0000b7d0                sys_get_cpu_usage
+                0x0000b490                initrd_cat_file
+                0x0000b570                initrd_init
+ *fill*         0x0000b655        0xb 
+ .text          0x0000b660      0x1d1 build/fs/vfs.o
+                0x0000b660                vfs_read
+                0x0000b6d0                vfs_write
+                0x0000b740                vfs_lookup
+                0x0000b7b0                vfs_create
+ *fill*         0x0000b831        0xf 
+ .text          0x0000b840       0x11 build/hal/memory.o
+                0x0000b840                malloc
+                0x0000b850                free
+ *fill*         0x0000b851        0xf 
+ .text          0x0000b860       0x61 build/network/network.o
+                0x0000b860                hal_net_init
+                0x0000b870                hal_net_register_device
+                0x0000b890                hal_net_send
+                0x0000b8c0                hal_net_receive_callback
+ *fill*         0x0000b8c1        0xf 
+ .text          0x0000b8d0       0xa6 build/sys/metrics.o
+                0x0000b8d0                sys_get_mem_stats
+                0x0000b900                cpu_idle_hook
+                0x0000b910                sys_timer_tick
+                0x0000b970                sys_get_cpu_usage
 
-.iplt           0x0000b7d6        0x0
- .iplt          0x0000b7d6        0x0 build/kernel_entry.o
+.iplt           0x0000b976        0x0
+ .iplt          0x0000b976        0x0 build/kernel_entry.o
 
-.rodata         0x0000b7e0      0x998
+.rodata         0x0000b980      0x998
  *(.rodata*)
  .rodata.str1.1
-                0x0000b7e0      0x414 build/display.o
+                0x0000b980      0x40c build/display.o
                                  0x1c (size before relaxing)
- .rodata        0x0000bbf4       0x39 build/display.o
- *fill*         0x0000bc2d        0x1 
- .rodata.cst2   0x0000bc2e        0x2 build/idt.o
- *fill*         0x0000bc30       0x10 
- .rodata        0x0000bc40      0x100 build/keyboard.o
+ .rodata        0x0000bd8c       0x39 build/display.o
+ *fill*         0x0000bdc5        0x1 
+ .rodata.cst2   0x0000bdc6        0x2 build/idt.o
+ *fill*         0x0000bdc8       0x18 
+ .rodata        0x0000bde0      0x100 build/keyboard.o
  .rodata.str1.1
-                0x0000bd40       0x59 build/main.o
+                0x0000bee0       0x59 build/main.o
  .rodata.str1.4
-                0x0000bd40      0x303 build/main.o
+                0x0000bee0      0x303 build/main.o
                                  0x82 (size before relaxing)
  .rodata.str1.1
-                0x0000c043      0x3c9 build/shell.o
+                0x0000c1e3      0x3c9 build/shell.o
  .rodata.str1.4
-                0x0000c043      0x27f build/shell.o
- *fill*         0x0000c043       0x1d 
- .rodata        0x0000c060      0x118 build/shell.o
+                0x0000c1e3      0x27f build/shell.o
+ *fill*         0x0000c1e3       0x1d 
+ .rodata        0x0000c200      0x118 build/shell.o
  .rodata.str1.1
-                0x0000c178       0x24 build/fs/initrd.o
+                0x0000c318       0x1f build/fs/initrd.o
 
-.rel.dyn        0x0000c178        0x0
- .rel.got       0x0000c178        0x0 build/kernel_entry.o
- .rel.iplt      0x0000c178        0x0 build/kernel_entry.o
+.rel.dyn        0x0000c318        0x0
+ .rel.got       0x0000c318        0x0 build/kernel_entry.o
+ .rel.iplt      0x0000c318        0x0 build/kernel_entry.o
 
-.data           0x0000c178     0x2808
+.data           0x0000c318     0x2808
  *(.data*)
- .data          0x0000c178     0x2800 build/fs/initrd_data.o
-                0x0000c178                initrd_start
-                0x0000e978                initrd_end
- .data          0x0000e978        0x4 build/display.o
- .data          0x0000e97c        0x0 build/idt.o
- .data          0x0000e97c        0x0 build/keyboard.o
- .data          0x0000e97c        0x0 build/main.o
- .data          0x0000e97c        0x0 build/memory.o
- .data          0x0000e97c        0x0 build/pic.o
- .data          0x0000e97c        0x0 build/pmm.o
- .data          0x0000e97c        0x0 build/posix.o
- .data          0x0000e97c        0x4 build/shell.o
- .data          0x0000e980        0x0 build/sound.o
- .data          0x0000e980        0x0 build/string.o
- .data          0x0000e980        0x0 build/vga.o
- .data          0x0000e980        0x0 build/fs/initrd.o
- .data          0x0000e980        0x0 build/fs/vfs.o
- .data          0x0000e980        0x0 build/hal/memory.o
- .data          0x0000e980        0x0 build/network/network.o
- .data          0x0000e980        0x0 build/sys/metrics.o
+ .data          0x0000c318     0x2800 build/fs/initrd_data.o
+                0x0000c318                initrd_start
+                0x0000eb18                initrd_end
+ .data          0x0000eb18        0x4 build/display.o
+ .data          0x0000eb1c        0x0 build/idt.o
+ .data          0x0000eb1c        0x0 build/keyboard.o
+ .data          0x0000eb1c        0x0 build/main.o
+ .data          0x0000eb1c        0x0 build/memory.o
+ .data          0x0000eb1c        0x0 build/pic.o
+ .data          0x0000eb1c        0x0 build/pmm.o
+ .data          0x0000eb1c        0x0 build/posix.o
+ .data          0x0000eb1c        0x4 build/shell.o
+ .data          0x0000eb20        0x0 build/sound.o
+ .data          0x0000eb20        0x0 build/string.o
+ .data          0x0000eb20        0x0 build/vga.o
+ .data          0x0000eb20        0x0 build/fs/initrd.o
+ .data          0x0000eb20        0x0 build/fs/vfs.o
+ .data          0x0000eb20        0x0 build/hal/memory.o
+ .data          0x0000eb20        0x0 build/network/network.o
+ .data          0x0000eb20        0x0 build/sys/metrics.o
 
-.got            0x0000e980        0x0
- .got           0x0000e980        0x0 build/kernel_entry.o
+.got            0x0000eb20        0x0
+ .got           0x0000eb20        0x0 build/kernel_entry.o
 
-.got.plt        0x0000e980        0x0
- .got.plt       0x0000e980        0x0 build/kernel_entry.o
+.got.plt        0x0000eb20        0x0
+ .got.plt       0x0000eb20        0x0 build/kernel_entry.o
 
-.igot.plt       0x0000e980        0x0
- .igot.plt      0x0000e980        0x0 build/kernel_entry.o
+.igot.plt       0x0000eb20        0x0
+ .igot.plt      0x0000eb20        0x0 build/kernel_entry.o
 
-.bss            0x0000e980     0xa374
+.bss            0x0000eb20     0xa374
  *(COMMON)
  *(.bss*)
- .bss           0x0000e980        0x0 build/fs/initrd_data.o
- .bss           0x0000e980        0x6 build/display.o
- *fill*         0x0000e986       0x1a 
- .bss           0x0000e9a0      0x820 build/idt.o
-                0x0000e9a0                idtp
-                0x0000e9c0                idt
- .bss           0x0000f1c0        0x8 build/keyboard.o
- .bss           0x0000f1c8        0x0 build/main.o
- .bss           0x0000f1c8       0x1c build/memory.o
-                0x0000f1c8                free_memory_pages
-                0x0000f1cc                total_memory_pages
- .bss           0x0000f1e4        0x0 build/pic.o
- .bss           0x0000f1e4        0x0 build/pmm.o
- .bss           0x0000f1e4        0x8 build/posix.o
- *fill*         0x0000f1ec       0x14 
- .bss           0x0000f200      0x5a0 build/shell.o
- .bss           0x0000f7a0        0x0 build/sound.o
- .bss           0x0000f7a0        0x0 build/string.o
- .bss           0x0000f7a0        0x0 build/vga.o
- .bss           0x0000f7a0     0x9540 build/fs/initrd.o
- .bss           0x00018ce0        0x4 build/fs/vfs.o
-                0x00018ce0                fs_root
- .bss           0x00018ce4        0x0 build/hal/memory.o
- .bss           0x00018ce4        0x4 build/network/network.o
- .bss           0x00018ce8        0xc build/sys/metrics.o
+ .bss           0x0000eb20        0x0 build/fs/initrd_data.o
+ .bss           0x0000eb20        0x6 build/display.o
+ *fill*         0x0000eb26       0x1a 
+ .bss           0x0000eb40      0x820 build/idt.o
+                0x0000eb40                idtp
+                0x0000eb60                idt
+ .bss           0x0000f360        0x8 build/keyboard.o
+ .bss           0x0000f368        0x0 build/main.o
+ .bss           0x0000f368       0x1c build/memory.o
+                0x0000f368                free_memory_pages
+                0x0000f36c                total_memory_pages
+ .bss           0x0000f384        0x0 build/pic.o
+ .bss           0x0000f384        0x0 build/pmm.o
+ .bss           0x0000f384        0x8 build/posix.o
+ *fill*         0x0000f38c       0x14 
+ .bss           0x0000f3a0      0x5a0 build/shell.o
+ .bss           0x0000f940        0x0 build/sound.o
+ .bss           0x0000f940        0x0 build/string.o
+ .bss           0x0000f940        0x0 build/vga.o
+ .bss           0x0000f940     0x9540 build/fs/initrd.o
+ .bss           0x00018e80        0x4 build/fs/vfs.o
+                0x00018e80                fs_root
+ .bss           0x00018e84        0x0 build/hal/memory.o
+ .bss           0x00018e84        0x4 build/network/network.o
+ .bss           0x00018e88        0xc build/sys/metrics.o
 
 /DISCARD/
  *(.note.gnu.build-id)
