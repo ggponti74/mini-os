@@ -11,7 +11,7 @@
 
 #define COLOR_PROMPT 0x0B // Light Cyan
 #define COLOR_WHITE 0x0F
-#define BUILD_NUM 20261006
+#define BUILD_NUM 1
 
 #define MAX_HISTORY 10
 

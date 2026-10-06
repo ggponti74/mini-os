@@ -196,9 +196,9 @@ LOAD build/sys/metrics.o
 .rodata         0x0000baa0      0xa18
  *(.rodata*)
  .rodata.str1.1
-                0x0000baa0      0x437 build/display.o
+                0x0000baa0      0x436 build/display.o
                                  0x1c (size before relaxing)
- *fill*         0x0000bed7        0x1 
+ *fill*         0x0000bed6        0x2 
  .rodata        0x0000bed8       0x39 build/display.o
  *fill*         0x0000bf11        0x1 
  .rodata.cst2   0x0000bf12        0x2 build/idt.o
@@ -210,7 +210,7 @@ LOAD build/sys/metrics.o
                 0x0000c020      0x37b build/main.o
                                  0x82 (size before relaxing)
  .rodata.str1.1
-                0x0000c39b      0x3f7 build/shell.o
+                0x0000c39b      0x3f6 build/shell.o
  .rodata.str1.4
                 0x0000c39b      0x2f7 build/shell.o
  *fill*         0x0000c39b        0x5 
