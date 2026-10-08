@@ -16,6 +16,13 @@ typedef enum {
     FS_IND_WRITE
 } fs_indicator_t;
 
+// ANSI Parser State Machine States
+typedef enum {
+    ANSI_STATE_NORMAL,
+    ANSI_STATE_ESC,
+    ANSI_STATE_CSI
+} ansi_state_t;
+
 void display_set_fs_indicator(fs_indicator_t read_state, fs_indicator_t write_state);
 void display_set_silent(int silent);
 int display_is_silent(void);
@@ -33,6 +40,7 @@ void update_hardware_cursor(int, int);
 void scroll_screen(uint8_t color);
 void sound_set_enabled(int );
 int sound_is_enabled(void);
+void set_text_color(uint8_t color);
 
 void print_hex8(uint8_t value);
 void print_hex32(uint32_t value);

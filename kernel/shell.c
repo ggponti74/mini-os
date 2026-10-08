@@ -96,7 +96,11 @@ static void command_history(const char *args) {
   }
 }
 
-static void print_prompt(void) { kprint_color("mini-os> ", COLOR_PROMPT); }
+static void print_prompt(void) {
+  set_text_color(COLOR_PROMPT);
+  kprint("mini-os> ");
+  set_text_color(COLOR_DEFAULT);
+}
 
 void process_command(const char *cmd) {
   if (cmd[0] == '\0') {
@@ -313,6 +317,13 @@ static void command_test(const char *args) {
   if (buffer != NULL) {
     kfree(buffer);
   }
+
+  kprint_color("Testing ANSI escape codes\n", COLOR_DEFAULT);
+
+  kprint("\033[31mRed Text\033[0m ");
+  kprint("\033[32mGreen Text\033[0m ");
+  kprint("\033[33mYellow Text\033[0m ");
+  kprint("\033[34mBlue Text\033[0m\n");
 }
 
 static void command_shutdown(const char *args) {
