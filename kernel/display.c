@@ -278,7 +278,14 @@ void update_status_bar(void) {
     }
   }
 
-  char dt[17];
+  char am_pm = 'A';
+  if(rtc.hour>12)
+  {
+    rtc.hour -= 12;
+    am_pm = 'P';
+  }
+
+  char dt[20];
   uint32_t year = rtc.year;
   dt[0] = '0' + (rtc.month / 10);
   dt[1] = '0' + (rtc.month % 10);
@@ -296,7 +303,10 @@ void update_status_bar(void) {
   dt[13] = ':';
   dt[14] = '0' + (rtc.minute / 10);
   dt[15] = '0' + (rtc.minute % 10);
-  dt[16] = '\0';
+  dt[16] = ' ';
+  dt[17] = am_pm;
+  dt[18] = 'M';
+  dt[19] = '\0';
 
   draw_status_bar(dt, sound_is_enabled());
 }
@@ -372,7 +382,7 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
   }
 
   // 5. Render Right-Hand Side Status: Date, Time, Sound Indicator
-  int pos = 61;
+  int pos = 58;
   char sound_icon = sound_enabled ? 14 : 'x';
 
   for (int i = 0; datetime_str[i] != '\0' && pos < 80; i++, pos++) {
