@@ -8,8 +8,8 @@
 #include "shell.h"
 #include "sound.h"
 #include "string.h"
+//#include "minivi.h"
 
-#define COLOR_PROMPT 0x0B // Light Cyan
 #define COLOR_WHITE 0x0F
 #define BUILD_NUM 1
 
@@ -28,6 +28,7 @@ static void command_help(const char *args);
 static void command_hexdump(const char *args);
 static void command_history(const char *args);
 static void command_ls(const char *args);
+//static void command_minivi(const char *args);
 static void command_restart(const char *args);
 static void command_shutdown(const char *args);
 static void command_sound(const char *args);
@@ -56,19 +57,19 @@ static const struct shell_command commands[] = {
     {"cat", "Display file contents (Usage: cat <file>)", command_cat},
     {"clear", "Clear the screen", command_clear},
     {"date", "Show current date and timestamp", command_date},
-    {"hexdump", "Hex dump file contents (Usage: hexdump <file>)",
-     command_hexdump},
     {"echo", "Print text to output (Usage: echo <text>)", command_echo},
     {"exec", "Execute commands from script (e.g. system.cfg)", command_exec},
     {"help", "Display this help message", command_help},
+    {"hexdump", "Hex dump file contents (Usage: hexdump <file>)",command_hexdump},
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
+    //{"minivi", "minivi text editor", command_minivi},
     {"restart", "Restart the system", command_restart},
     {"shutdown", "Shut down the system", command_shutdown},
     {"sound", "Toggle the sound on or off", command_sound},
     {"test", "Run diagnostic test", command_test},
-    {"timezone", "Set or display time zone (+/- hours)", command_timezone},
     {"time", "Show current system time", command_time},
+    {"timezone", "Set or display time zone (+/- hours)", command_timezone},
     {"touch", "Create an empty file (Usage: touch <file>)", command_touch},
     {"version", "Show operating system version", command_version},
 };
@@ -98,7 +99,7 @@ static void command_history(const char *args) {
 
 static void print_prompt(void) {
   set_text_color(COLOR_PROMPT);
-  kprint("mini-os> ");
+  kprint_color("mini-os> ", COLOR_PROMPT);
   set_text_color(COLOR_DEFAULT);
 }
 
@@ -581,6 +582,11 @@ static void command_echo(const char *args) {
 static void command_ls(const char *args) {
   (void)args;
   initrd_list_files();
+}
+
+static void command_mini(const char *args) {
+  (void)args;
+  kprint_color(args, COLOR_DEFAULT);
 }
 
 static void command_date(const char *args) {

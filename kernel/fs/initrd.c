@@ -19,6 +19,8 @@ static initrd_file_t file_pool[MAX_NODES];
 static uint32_t node_count = 0;
 static vfs_node_t initrd_root;
 
+extern void itoa(uint32_t val, char *buf);
+
 // Internal helper: Compare string up to max length
 static int string_equals(const char *s1, const char *s2) {
     while (*s1 && (*s1 == *s2)) {
@@ -124,49 +126,28 @@ vfs_node_t *initrd_find_file(const char *filename) {
 }
 
 // 2. List all files currently residing in the RAMDisk pool (including newly touched files)
+// kernel/fs/initrd.c
+
 void initrd_list_files(void) {
-    // Collect valid, non-dot node indices
-    uint32_t valid_indices[64]; // Match max node_count
-    uint32_t count = 0;
+    for (uint32_t i = 0; i < node_count; i++) {
+        vfs_node_t *node = &file_pool[i].node;
 
-    for (uint32_t i = 0; i < node_count && count < 64; i++) {
-        const char *name = file_pool[i].node.name;
-        if (!is_dot_entry(name)) {
-            valid_indices[count++] = i;
-        }
-    }
-
-    // Sort valid entry indices alphabetically by node name (Bubble Sort)
-    for (uint32_t i = 0; i < count; i++) {
-        for (uint32_t j = i + 1; j < count; j++) {
-            const char *name_i = file_pool[valid_indices[i]].node.name;
-            const char *name_j = file_pool[valid_indices[j]].node.name;
-
-            // Strip leading "./" if present for comparison
-            if (name_i[0] == '.' && name_i[1] == '/') name_i += 2;
-            if (name_j[0] == '.' && name_j[1] == '/') name_j += 2;
-
-            if (strcmp(name_i, name_j) > 0) {
-                // Swap indices
-                uint32_t temp = valid_indices[i];
-                valid_indices[i] = valid_indices[j];
-                valid_indices[j] = temp;
-            }
-        }
-    }
-
-    // Print sorted files
-    for (uint32_t i = 0; i < count; i++) {
-        uint32_t idx = valid_indices[i];
-        const char *display_name = file_pool[idx].node.name;
-        
-        if (display_name[0] == '.' && display_name[1] == '/') {
-            display_name += 2;
+        // 1. Display attributes / type tag
+        if (node->flags == FS_DIRECTORY) { // Adjust flag check based on your VFS flags definition (e.g., FS_DIRECTORY)
+            kprint_color("  <DIR>  ", COLOR_PROMPT);
+        } else {
+            kprint_color("  <FILE> ", COLOR_DEFAULT);
         }
 
-        kprint("  ");
-        kprint_color(display_name, COLOR_DEFAULT);
-        kputchar_color('\n', COLOR_DEFAULT);
+        // 2. Display file name
+        kprint_color(node->name, COLOR_DEFAULT);
+
+        // 3. Display size in bytes
+        kprint_color("  [", COLOR_DEFAULT);
+        char size_buf[12];
+        itoa(node->length, size_buf);
+        kprint_color(size_buf, COLOR_DEFAULT);
+        kprint_color(" bytes]\n", COLOR_DEFAULT);
     }
 }
 

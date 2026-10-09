@@ -37,7 +37,7 @@ void keyboard_init(void) {
 void keyboard_handler(void) {
     // MUST read data port to notify PS/2 controller
     uint8_t scancode = inb(0x60); 
-
+outb(0xE9, scancode);
     if (scancode == 0xE0) {
         extended_scancode = 1;
         pic_send_eoi(1);

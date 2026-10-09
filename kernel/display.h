@@ -9,6 +9,7 @@
 
 #define COLOR_DEFAULT 0x0F  // white text on Black background
 #define COLOR_GRAY 0x0A     // gray text on Black background
+#define COLOR_PROMPT 0x02
 
 typedef enum {
     FS_IND_IDLE = 0,
