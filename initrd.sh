@@ -3,7 +3,7 @@ mkdir initrd_root
 
 # 2. Add placeholder files
 echo "Hello from mini-os initrd!" > initrd_root/hello.txt
-echo "timezone -4\nsound off\n" > initrd_root/system.cfg
+echo "timezone -4\n" > initrd_root/system.cfg
 
 cat initrd_root/system.cfg
 
