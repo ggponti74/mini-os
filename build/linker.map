@@ -206,13 +206,13 @@ LOAD build/sys/metrics.o
  .rodata.str1.1
                 0x0000c2e0       0x59 build/main.o
  .rodata.str1.4
-                0x0000c2e0      0x353 build/main.o
+                0x0000c2e0      0x34f build/main.o
                                  0x82 (size before relaxing)
  .rodata.str1.1
-                0x0000c633      0x479 build/shell.o
+                0x0000c62f      0x479 build/shell.o
  .rodata.str1.4
-                0x0000c633      0x2cf build/shell.o
- *fill*         0x0000c633        0xd 
+                0x0000c62f      0x2cb build/shell.o
+ *fill*         0x0000c62f       0x11 
  .rodata        0x0000c640      0x118 build/shell.o
  .rodata.str1.1
                 0x0000c758       0x37 build/fs/initrd.o

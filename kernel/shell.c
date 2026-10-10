@@ -15,6 +15,8 @@
 
 #define MAX_HISTORY 10
 
+//extern int kilo_main(int argc, char **argv) ;
+
 static char command_buffer[MAX_BUFFER_SIZE];
 
 // Forward declarations
@@ -28,7 +30,7 @@ static void command_help(const char *args);
 static void command_hexdump(const char *args);
 static void command_history(const char *args);
 static void command_ls(const char *args);
-//static void command_minivi(const char *args);
+//static void command_kilo(const char *args);
 static void command_restart(const char *args);
 static void command_shutdown(const char *args);
 static void command_sound(const char *args);
@@ -63,7 +65,7 @@ static const struct shell_command commands[] = {
     {"hexdump", "Hex dump file contents (Usage: hexdump <file>)",command_hexdump},
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
-    //{"minivi", "minivi text editor", command_minivi},
+//    {"kilo", "minivi text editor", command_kilo},
     {"restart", "Restart the system", command_restart},
     {"shutdown", "Shut down the system", command_shutdown},
     {"sound", "Toggle the sound on or off", command_sound},
@@ -303,7 +305,7 @@ static void command_version(const char *args) {
   kprint_color("Standalone C Library\n", COLOR_DEFAULT);
 #endif
 
-  kprint_color("Built with Google Gemini (yeah, but you still need to know "
+  kprint_color("Built with Google Gemini (yeah, you still need to know "
                "what to build ;-))\n",
                COLOR_DEFAULT);
 }
@@ -584,10 +586,12 @@ static void command_ls(const char *args) {
   initrd_list_files();
 }
 
-static void command_mini(const char *args) {
-  (void)args;
-  kprint_color(args, COLOR_DEFAULT);
-}
+// static void command_kilo(const char *args) {
+//   (void)args;
+//   char *argv[2];
+//   kprint_color(args, COLOR_DEFAULT);
+//   //kilo_main(2, argv);
+// }
 
 static void command_date(const char *args) {
   (void)args;
