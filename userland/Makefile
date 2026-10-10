@@ -1,29 +1,23 @@
-# userland/libsys/Makefile
-
 CC := gcc
 AR := ar
-# userland/libsys/Makefile
 
-# Add GCC's internal header directory to CFLAGS
 GCC_INC := $(shell $(CC) -print-file-name=include)
 CFLAGS := -m32 -ffreestanding -nostdinc -O2 -isystem $(GCC_INC) -I/path/to/newlib/include
 
 SRCS := libsys/stubs.c
 OBJS := $(SRCS:.c=.o)
-TARGET := libsys.a
+TARGET := libsys/libsys.a
+
+.PHONY: all clean
 
 all: $(TARGET)
 
-$(BUILD)/%.o: %.c
-	$(CC) $(CFLAGS) $< -o $@
-
-%.o: %.c
+libsys/%.o: libsys/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
 clean:
-	rm -f *.o *.a
-
-.PHONY: all clean
+	rm -f libsys/*.o libsys/*.a
+	
