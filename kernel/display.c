@@ -344,12 +344,13 @@ void update_status_bar(void) {
 
 // Helper to write formatted text to a specific VGA line
 void draw_status_bar(const char *datetime_str, int sound_enabled) {
-  
+
   uint16_t *status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
   uint16_t bg_attr = (COLOR_STATUSBAR << 8);
 
   // 1. Fill row 24 with background color, SKIPPING columns 0 and 1
   uint16_t blank = ' ' | bg_attr;
+  status_row[0] = blank;
   for (int col = 3; col < VGA_WIDTH;
        col++) { // Clears background from col 3 to 79
     status_row[col] = blank;
