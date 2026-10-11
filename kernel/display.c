@@ -152,8 +152,6 @@ void display_set_fs_indicator(fs_indicator_t read_state,
   status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
   status_row[1] = read_attr | (uint8_t)fs_read_icon;
   status_row[2] = write_attr | (uint8_t)fs_write_icon;
- status_row[0] = (uint8_t)(COLOR_STATUSBAR << 8);
-
 }
 
 void display_set_silent(int silent) { display_silent = silent; }
@@ -346,6 +344,7 @@ void update_status_bar(void) {
 
 // Helper to write formatted text to a specific VGA line
 void draw_status_bar(const char *datetime_str, int sound_enabled) {
+  
   uint16_t *status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
   uint16_t bg_attr = (COLOR_STATUSBAR << 8);
 
