@@ -15,7 +15,7 @@
 
 #define MAX_HISTORY 10
 
-//extern int kilo_main(int argc, char **argv) ;
+// extern int kilo_main(int argc, char **argv) ;
 
 static char command_buffer[MAX_BUFFER_SIZE];
 
@@ -30,8 +30,9 @@ static void command_help(const char *args);
 static void command_hexdump(const char *args);
 static void command_history(const char *args);
 static void command_ls(const char *args);
-//static void command_kilo(const char *args);
+// static void command_kilo(const char *args);
 static void command_restart(const char *args);
+static void command_screenshot(const char *args);
 static void command_shutdown(const char *args);
 static void command_sound(const char *args);
 static void command_test(const char *args);
@@ -62,11 +63,13 @@ static const struct shell_command commands[] = {
     {"echo", "Print text to output (Usage: echo <text>)", command_echo},
     {"exec", "Execute commands from script (e.g. system.cfg)", command_exec},
     {"help", "Display this help message", command_help},
-    {"hexdump", "Hex dump file contents (Usage: hexdump <file>)",command_hexdump},
+    {"hexdump", "Hex dump file contents (Usage: hexdump <file>)",
+     command_hexdump},
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
-//    {"kilo", "minivi text editor", command_kilo},
+    //    {"kilo", "minivi text editor", command_kilo},
     {"restart", "Restart the system", command_restart},
+    {"screenshot", "Take and restore a screenshot", command_screenshot},
     {"shutdown", "Shut down the system", command_shutdown},
     {"sound", "Toggle the sound on or off", command_sound},
     {"test", "Run diagnostic test", command_test},
@@ -80,6 +83,22 @@ static int history_count = 0;
 static int history_index = -1;
 
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
+
+screen_snapshot_t saved_screen;
+
+void command_screenshot(const char *args) {
+  (void)args;
+
+  if (args && *args != '\0') {
+    if (strcmp(args, "take") == 0) {
+      display_save_screenshot(&saved_screen);
+    } else {
+      display_restore_screenshot(&saved_screen);
+    }
+  } else {
+    kprint_color("Usage: screenshot take|restore\n", COLOR_DEFAULT);
+  }
+}
 
 static void command_history(const char *args) {
   (void)args;

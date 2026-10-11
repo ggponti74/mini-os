@@ -24,6 +24,14 @@ typedef enum {
     ANSI_STATE_CSI
 } ansi_state_t;
 
+// Structure to hold the screen snapshot
+typedef struct {
+    uint16_t buffer[VGA_WIDTH * VGA_HEIGHT];
+    int cursor_x;
+    int cursor_y;
+    uint8_t current_color;
+} screen_snapshot_t;
+
 void display_set_fs_indicator(fs_indicator_t read_state, fs_indicator_t write_state);
 void display_set_silent(int silent);
 int display_is_silent(void);
@@ -42,6 +50,8 @@ void scroll_screen(uint8_t color);
 void sound_set_enabled(int );
 int sound_is_enabled(void);
 void set_text_color(uint8_t color);
+void display_save_screenshot(screen_snapshot_t *snapshot);
+void display_restore_screenshot(const screen_snapshot_t *snapshot);
 
 void print_hex8(uint8_t value);
 void print_hex32(uint32_t value);

@@ -23,6 +23,37 @@ static const char hex_chars[] = "0123456789ABCDEF";
 static ansi_state_t ansi_state = ANSI_STATE_NORMAL;
 static int ansi_param = 0;
 
+/**
+ * Saves the current VGA screen memory, cursor position, and color state.
+ */
+void display_save_screenshot(screen_snapshot_t *snapshot) {
+  if (!snapshot)
+    return;
+
+  for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+    snapshot->buffer[i] = VGA_MEMORY[i];
+  }
+  snapshot->cursor_x = cursor_x;
+  snapshot->cursor_y = cursor_y;
+  snapshot->current_color = current_color;
+}
+
+/**
+ * Restores the VGA screen memory, cursor position, and color state from a
+ * snapshot.
+ */
+void display_restore_screenshot(const screen_snapshot_t *snapshot) {
+  if (!snapshot)
+    return;
+
+  for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+    VGA_MEMORY[i] = snapshot->buffer[i];
+  }
+  cursor_x = snapshot->cursor_x;
+  cursor_y = snapshot->cursor_y;
+  current_color = snapshot->current_color;
+}
+
 void set_text_color(uint8_t color) { current_color = color; }
 
 // Map ANSI SGR codes (30-37, 90-97) to VGA attribute bytes
@@ -119,8 +150,10 @@ void display_set_fs_indicator(fs_indicator_t read_state,
   }
 
   status_row = (uint16_t *)(0xB8000 + (24 * 80 * 2));
-  status_row[0] = (uint16_t)fs_read_icon | read_attr;
-  status_row[1] = (uint16_t)fs_write_icon | write_attr;
+  status_row[1] = read_attr | (uint8_t)fs_read_icon;
+  status_row[2] = write_attr | (uint8_t)fs_write_icon;
+ status_row[0] = (uint8_t)(COLOR_STATUSBAR << 8);
+
 }
 
 void display_set_silent(int silent) { display_silent = silent; }
@@ -177,88 +210,89 @@ void scroll_screen(uint8_t override_color) {
 }
 
 void kputchar(char c) {
-    kputchar_color(c, 0); // Delegate single-argument calls to the color renderer
+  kputchar_color(c, 0); // Delegate single-argument calls to the color renderer
 }
 
 void kputchar_color(char c, uint8_t color) {
-    if (display_is_silent()) {
-        return;
+  if (display_is_silent()) {
+    return;
+  }
+
+  // 1. ANSI Escape Sequence Parser
+  if (ansi_state == ANSI_STATE_NORMAL) {
+    if (c == 27) { // 0x1B ESC
+      ansi_state = ANSI_STATE_ESC;
+      return;
     }
-
-    // 1. ANSI Escape Sequence Parser
-    if (ansi_state == ANSI_STATE_NORMAL) {
-        if (c == 27) { // 0x1B ESC
-            ansi_state = ANSI_STATE_ESC;
-            return;
-        }
-    } else if (ansi_state == ANSI_STATE_ESC) {
-        if (c == '[') {
-            ansi_state = ANSI_STATE_CSI;
-            ansi_param = 0;
-            return;
-        } else {
-            ansi_state = ANSI_STATE_NORMAL;
-        }
-    } else if (ansi_state == ANSI_STATE_CSI) {
-        if (c >= '0' && c <= '9') {
-            ansi_param = ansi_param * 10 + (c - '0');
-            return;
-        } else if (c == 'm') { // SGR end marker
-            current_color = ansi_to_vga_color(ansi_param);
-            ansi_state = ANSI_STATE_NORMAL;
-            return;
-        } else {
-            ansi_state = ANSI_STATE_NORMAL;
-            return;
-        }
-    }
-
-    // 2. Color Resolution
-    uint8_t active_color = (color != 0) ? color : current_color;
-
-    // 3. Character Rendering & Control Codes
-    if (c == '\n') {
-        cursor_x = 0;
-        cursor_y++;
-    } else if (c == '\r') {
-        cursor_x = 0;
-    } else if (c == '\t') {
-        cursor_x = (cursor_x + 4) & ~3;
-    } else if (c == '\b' || c == 0x7F) {
-        if (cursor_x > 0) {
-            cursor_x--;
-        } else if (cursor_y > 0) {
-            cursor_y--;
-            cursor_x = VGA_WIDTH - 1;
-        }
-        int index = cursor_y * VGA_WIDTH + cursor_x;
-        VGA_MEMORY[index] = ((uint16_t)active_color << 8) | ' ';
+  } else if (ansi_state == ANSI_STATE_ESC) {
+    if (c == '[') {
+      ansi_state = ANSI_STATE_CSI;
+      ansi_param = 0;
+      return;
     } else {
-        int index = cursor_y * VGA_WIDTH + cursor_x;
-        VGA_MEMORY[index] = ((uint16_t)active_color << 8) | (uint8_t)c;
-        cursor_x++;
-
-        if (cursor_x >= VGA_WIDTH) {
-            cursor_x = 0;
-            cursor_y++;
-        }
+      ansi_state = ANSI_STATE_NORMAL;
     }
-
-    // 4. Boundary checks & scrolling using MAIN_SCREEN_HEIGHT (24)
-    while (cursor_y >= MAIN_SCREEN_HEIGHT) {
-        scroll_screen(COLOR_DEFAULT);
+  } else if (ansi_state == ANSI_STATE_CSI) {
+    if (c >= '0' && c <= '9') {
+      ansi_param = ansi_param * 10 + (c - '0');
+      return;
+    } else if (c == 'm') { // SGR end marker
+      current_color = ansi_to_vga_color(ansi_param);
+      ansi_state = ANSI_STATE_NORMAL;
+      return;
+    } else {
+      ansi_state = ANSI_STATE_NORMAL;
+      return;
     }
+  }
 
-    update_hardware_cursor(cursor_x, cursor_y);
+  // 2. Color Resolution
+  uint8_t active_color = (color != 0) ? color : current_color;
+
+  // 3. Character Rendering & Control Codes
+  if (c == '\n') {
+    cursor_x = 0;
+    cursor_y++;
+  } else if (c == '\r') {
+    cursor_x = 0;
+  } else if (c == '\t') {
+    cursor_x = (cursor_x + 4) & ~3;
+  } else if (c == '\b' || c == 0x7F) {
+    if (cursor_x > 0) {
+      cursor_x--;
+    } else if (cursor_y > 0) {
+      cursor_y--;
+      cursor_x = VGA_WIDTH - 1;
+    }
+    int index = cursor_y * VGA_WIDTH + cursor_x;
+    VGA_MEMORY[index] = ((uint16_t)active_color << 8) | ' ';
+  } else {
+    int index = cursor_y * VGA_WIDTH + cursor_x;
+    VGA_MEMORY[index] = ((uint16_t)active_color << 8) | (uint8_t)c;
+    cursor_x++;
+
+    if (cursor_x >= VGA_WIDTH) {
+      cursor_x = 0;
+      cursor_y++;
+    }
+  }
+
+  // 4. Boundary checks & scrolling using MAIN_SCREEN_HEIGHT (24)
+  while (cursor_y >= MAIN_SCREEN_HEIGHT) {
+    scroll_screen(COLOR_DEFAULT);
+  }
+
+  update_hardware_cursor(cursor_x, cursor_y);
 }
 
 void kprint_color(const char *str, uint8_t color) {
-    if (color != 0) {
-        current_color = color; // Only set if a non-zero override was given
-    }
-    for (int i = 0; str[i] != '\0'; i++) {
-        kputchar(str[i]); // Let kputchar handle characters and inline ANSI codes uninterrupted
-    }
+  if (color != 0) {
+    current_color = color; // Only set if a non-zero override was given
+  }
+  for (int i = 0; str[i] != '\0'; i++) {
+    kputchar(str[i]); // Let kputchar handle characters and inline ANSI codes
+                      // uninterrupted
+  }
 }
 
 void sound_set_enabled(int state) { sound_enabled = state; }
@@ -279,8 +313,7 @@ void update_status_bar(void) {
   }
 
   char am_pm = 'A';
-  if(rtc.hour>12)
-  {
+  if (rtc.hour > 12) {
     rtc.hour -= 12;
     am_pm = 'P';
   }
@@ -318,8 +351,8 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
 
   // 1. Fill row 24 with background color, SKIPPING columns 0 and 1
   uint16_t blank = ' ' | bg_attr;
-  for (int col = 2; col < VGA_WIDTH;
-       col++) { // Clears background from col 2 to 79
+  for (int col = 3; col < VGA_WIDTH;
+       col++) { // Clears background from col 3 to 79
     status_row[col] = blank;
   }
 

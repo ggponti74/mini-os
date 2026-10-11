@@ -98,15 +98,6 @@ $(BUILD)/%.o: kernel/%.asm | $(BUILD)
 $(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(CFLAGS) $< -o $@
-
-initrd.tar:
-	@echo "Generating initrd.tar..."
-	@$(call MKDIR,initrd_root)
-	@echo "Hello from mini-os initrd!" > initrd_root/readme.txt
-	@echo "timezone -4" > initrd_root/system.cfg
-	@echo "sound off" >> initrd_root/system.cfg
-	tar -cvf initrd.tar -C initrd_root .
-	@$(call RM,initrd_root)
 	
 # GCC GNU assembly (.S)
 $(BUILD)/%.o: kernel/%.S | $(BUILD)
@@ -148,6 +139,4 @@ run-iso: iso
 clean:
 	$(call RM,$(BUILD))
 	$(call RM,$(DIST))
-	$(call RM,initrd.tar)
-	$(call RM,initrd_root)
 	$(MAKE) -C userland clean
