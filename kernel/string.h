@@ -1,9 +1,12 @@
 #ifndef STRING_H
 #define STRING_H
 
+#include <stddef.h>
 #include <stdint.h>
 
-int strcmp(const char *s1, const char *s2);
-void memset(void *dest, int val, uint32_t count);
-
+void memset(void *, int, uint32_t);
+int strcmp(const char *, const char *);
+int strncmp(const char *, const char *, size_t);
+size_t strlen(const char *) ;
+    
 #endif // STRING_H

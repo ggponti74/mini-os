@@ -44,6 +44,80 @@ static int is_dot_entry(const char *name) {
           strcmp(name, "") == 0);
 }
 
+// src/fs/initrd.c
+
+// 1. Copy file contents from source to destination
+int initrd_copy_file(const char *src_name, const char *dest_name) {
+  vfs_node_t *src = initrd_find_file(src_name);
+  if (!src)
+    return -1;
+
+  vfs_node_t *dest = initrd_find_file(dest_name);
+  if (!dest) {
+    dest = vfs_create(fs_root, dest_name, FS_FILE);
+    if (!dest)
+      return -2;
+  }
+
+  uint8_t buf[64];
+  for (uint32_t i = 0; i < src->length; i += sizeof(buf)) {
+    uint32_t chunk =
+        (src->length - i < sizeof(buf)) ? (src->length - i) : sizeof(buf);
+    vfs_read(src, i, chunk, buf);
+    vfs_write(dest, i, chunk, buf);
+  }
+  return 0;
+}
+
+// 2. Move / Rename a file
+int initrd_move_file(const char *old_name, const char *new_name) {
+  vfs_node_t *file = initrd_find_file(old_name);
+  if (!file)
+    return -1;
+
+  int i = 0;
+  while (new_name[i] != '\0' && i < 127) {
+    file->name[i] = new_name[i];
+    i++;
+  }
+  file->name[i] = '\0';
+  return 0;
+}
+
+// 3. Remove / Delete a file from the pool
+// src/fs/initrd.c
+
+int initrd_remove_file(const char *filename) {
+    if (!filename) return -1;
+
+    // Normalize target filename by stripping leading "./" if present
+    const char *target = filename;
+    if (target[0] == '.' && target[1] == '/') target += 2;
+
+    for (uint32_t i = 0; i < node_count; i++) {
+        const char *entry_name = file_pool[i].node.name;
+        if (entry_name[0] == '.' && entry_name[1] == '/') entry_name += 2;
+
+        if (strcmp(entry_name, target) == 0) {
+            // Shift all subsequent entries down to fill the gap
+            for (uint32_t j = i; j < node_count - 1; j++) {
+                file_pool[j] = file_pool[j + 1];
+            }
+            
+            // Clear the old last slot and decrement total count
+            node_count--;
+            file_pool[node_count].node.name[0] = '\0';
+            file_pool[node_count].node.length = 0;
+            file_pool[node_count].node.flags = 0;
+            file_pool[node_count].node.device_data = NULL;
+            
+            return 0; // Success
+        }
+    }
+    
+    return -1; // File not found
+}
+
 int initrd_get_file(const char *filename, uint8_t **out_data,
                     uint32_t *out_size) {
   const char *ptr = initrd_start;

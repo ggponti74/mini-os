@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "string.h"
 #include "display.h"
 #include "exec.h"
 #include "fs/initrd.h"
@@ -8,7 +9,6 @@
 #include "rtc.h"
 #include "shell.h"
 #include "sound.h"
-#include "string.h"
 
 #define COLOR_WHITE 0x0F
 #define BUILD_NUM 1
@@ -18,26 +18,29 @@
 static char command_buffer[MAX_BUFFER_SIZE];
 
 // Forward declarations
-static void command_version(const char *args);
-static void command_touch(const char *args);
-static void command_timezone(const char *args);
-static void command_time(const char *args);
-static void command_test(const char *args);
-static void command_sound(const char *args);
-static void command_shutdown(const char *args);
-static void command_screenshot(const char *args);
-static void command_run(const char *args);
-static void command_restart(const char *args);
-static void command_ls(const char *args);
-static void command_history(const char *args);
-static void command_hexdump(const char *args);
-static void command_help(const char *args);
-static void command_exec(const char *args);
-static void command_echo(const char *args);
-static void command_date(const char *args);
-static void command_clear(const char *args);
-static void command_cat(const char *args);
 static void command_beep(const char *args);
+static void command_cat(const char *args);
+static void command_clear(const char *args);
+static void command_cp(const char *args);
+static void command_date(const char *args);
+static void command_echo(const char *args);
+static void command_exec(const char *args);
+static void command_help(const char *args);
+static void command_hexdump(const char *args);
+static void command_history(const char *args);
+static void command_ls(const char *args);
+static void command_mv(const char *args);
+static void command_restart(const char *args);
+static void command_rm(const char *args);
+static void command_run(const char *args);
+static void command_screenshot(const char *args);
+static void command_shutdown(const char *args);
+static void command_sound(const char *args);
+static void command_test(const char *args);
+static void command_time(const char *args);
+static void command_timezone(const char *args);
+static void command_touch(const char *args);
+static void command_version(const char *args);
 
 /* Helper forward declarations */
 static void print_dec2(uint8_t val);
@@ -57,6 +60,7 @@ static const struct shell_command commands[] = {
     {"beep", "Play a beep sound", command_beep},
     {"cat", "Display file contents (Usage: cat <file>)", command_cat},
     {"clear", "Clear the screen", command_clear},
+    {"cp", "Copy a file", command_cp},
     {"date", "Show current date and timestamp", command_date},
     {"echo", "Print text to output (Usage: echo <text>)", command_echo},
     {"exec", "Execute commands from script (e.g. system.cfg)", command_exec},
@@ -65,7 +69,9 @@ static const struct shell_command commands[] = {
      command_hexdump},
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
+    {"mv", "Move a file", command_mv},
     {"restart", "Restart the system", command_restart},
+    {"rm", "Remove a file", command_rm},
     {"run", "Run a program", command_run},
     {"screenshot", "Take and restore a screenshot", command_screenshot},
     {"shutdown", "Shut down the system", command_shutdown},
@@ -251,7 +257,7 @@ static void command_help(const char *args) {
         kprint_color("Help for ", COLOR_DEFAULT);
         kprint_color(commands[i].name, COLOR_DEFAULT);
         kprint_color(":\n  ", COLOR_DEFAULT);
-        
+
         unsigned int name_length = 0;
         kprint_color(commands[i].name, COLOR_DEFAULT);
         while (commands[i].name[name_length] != '\0') {
@@ -260,7 +266,7 @@ static void command_help(const char *args) {
         while (name_length++ < 12) {
           kprint_color(" ", COLOR_DEFAULT);
         }
-        
+
         kprint_color(" - ", COLOR_DEFAULT);
         kprint_color(commands[i].description, COLOR_DEFAULT);
         kprint_color("\n", COLOR_DEFAULT);
@@ -271,7 +277,8 @@ static void command_help(const char *args) {
     // If command wasn't found
     kprint_color("Unknown help topic: ", COLOR_DEFAULT);
     kprint_color(args, COLOR_DEFAULT);
-    kprint_color("\nType 'help' for a list of available commands.\n", COLOR_DEFAULT);
+    kprint_color("\nType 'help' for a list of available commands.\n",
+                 COLOR_DEFAULT);
     return;
   }
 
@@ -425,6 +432,55 @@ static void command_restart(const char *args) {
   __asm__ volatile("cli; hlt");
 }
 
+static void command_mv(const char *args) {
+  if (!args || *args == '\0') {
+    kprint_color("Usage: mv <old> <new>\n", COLOR_WHITE);
+    return;
+  }
+
+  char old_name[64], new_name[64];
+  int i = 0, j = 0;
+  while (args[i] != ' ' && args[i] != '\0' && i < 63) {
+    old_name[i] = args[i];
+    i++;
+  }
+  old_name[i] = '\0';
+
+  while (args[i] == ' ')
+    i++;
+
+  while (args[i] != '\0' && j < 63) {
+    new_name[j++] = args[i++];
+  }
+  new_name[j] = '\0';
+
+  if (old_name[0] == '\0' || new_name[0] == '\0') {
+    kprint_color("Usage: mv <old> <new>\n", COLOR_WHITE);
+    return;
+  }
+
+  if (initrd_move_file(old_name, new_name) != 0) {
+    kprint_color("mv: file not found\n", COLOR_DEFAULT);
+  } else {
+    kprint_color("File moved/renamed successfully.\n", COLOR_DEFAULT);
+  }
+}
+
+static void command_rm(const char *args) {
+  if (!args || *args == '\0') {
+    kprint_color("Usage: rm <filename>\n", COLOR_WHITE);
+    return;
+  }
+
+  if (initrd_remove_file(args) != 0) {
+    kprint_color("rm: file not found: ", COLOR_DEFAULT);
+    kprint_color(args, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+  } else {
+    kprint_color("File removed.\n", COLOR_DEFAULT);
+  }
+}
+
 static void command_run(const char *args) {
 
   // Skip any leading spaces
@@ -467,19 +523,73 @@ static void command_touch(const char *args) {
 }
 
 static void execute_command(void) {
-  command_buffer[buffer_index] = '\0';
+    command_buffer[buffer_index] = '\0';
+    kputchar('\n');
 
-  display_set_fs_indicator(FS_IND_IDLE, FS_IND_IDLE);
-  kputchar_color('\n', COLOR_DEFAULT);
-  if (buffer_index > 0) {
-    add_to_history(command_buffer);
-  }
-  process_command(command_buffer);
+    if (buffer_index == 0) {
+        print_prompt();
+        return;
+    }
 
-  buffer_index = 0;
-  history_index = -1;
-  update_status_bar();
-  print_prompt();
+    // 1. Check for output redirection '>'
+    char *redir = NULL;
+    for (int i = 0; command_buffer[i] != '\0'; i++) {
+        if (command_buffer[i] == '>') {
+            command_buffer[i] = '\0'; // Null-terminate the base command string
+            redir = &command_buffer[i + 1];
+            break;
+        }
+    }
+
+    // Trim leading/trailing spaces from redirection target if found
+    char *target_file = NULL;
+    if (redir) {
+        while (*redir == ' ') redir++;
+        target_file = redir;
+        // Strip trailing spaces from target filename
+        int len = strlen(target_file);
+        while (len > 0 && target_file[len - 1] == ' ') {
+            target_file[--len] = '\0';
+        }
+    }
+
+    // If redirection is active, we can temporarily hook or intercept output
+    // For a simple approach, we can handle commands that produce output (like echo)
+    if (target_file && target_file[0] != '\0') {
+        // Example: Handle "echo text > file"
+        if (strncmp(command_buffer, "echo ", 5) == 0) {
+            const char *text_to_write = &command_buffer[5];
+            
+            // Create or open the destination file via VFS / Initrd
+            vfs_node_t *file = initrd_find_file(target_file);
+            if (!file) {
+                file = vfs_create(fs_root, target_file, FS_FILE);
+            }
+
+            if (file) {
+                vfs_write(file, 0, strlen(text_to_write), (uint8_t *)text_to_write);
+                // Optionally add a newline if desired, or write exact text
+                char newline = '\n';
+                vfs_write(file, strlen(text_to_write), 1, (uint8_t *)&newline);
+            } else {
+                kprint_color("Error: Could not create redirection file.\n", COLOR_DEFAULT);
+            }
+            
+            buffer_index = 0;
+            print_prompt();
+            return;
+        }
+    }
+
+    // Fallback to standard command handling if no redirection or unsupported command
+    if (strcmp(command_buffer, "help") == 0) {
+        // ... standard help commands ...
+    } else if (strcmp(command_buffer, "ls") == 0) {
+        initrd_list_files();
+    } // ... other commands ...
+
+    buffer_index = 0;
+    print_prompt();
 }
 
 void shell_init(void) {
@@ -658,6 +768,41 @@ static void command_cat(const char *args) {
   uint32_t size = file->length;
   if (data && size > 0 && data[size - 1] != '\n') {
     kputchar_color('\n', COLOR_DEFAULT);
+  }
+}
+
+static void command_cp(const char *args) {
+  if (!args || *args == '\0') {
+    kprint_color("Usage: cp <source> <dest>\n", COLOR_WHITE);
+    return;
+  }
+
+  // Split args into source and destination
+  char src[64], dest[64];
+  int i = 0, j = 0;
+  while (args[i] != ' ' && args[i] != '\0' && i < 63) {
+    src[i] = args[i];
+    i++;
+  }
+  src[i] = '\0';
+
+  while (args[i] == ' ')
+    i++; // Skip whitespace
+
+  while (args[i] != '\0' && j < 63) {
+    dest[j++] = args[i++];
+  }
+  dest[j] = '\0';
+
+  if (src[0] == '\0' || dest[0] == '\0') {
+    kprint_color("Usage: cp <source> <dest>\n", COLOR_WHITE);
+    return;
+  }
+
+  if (initrd_copy_file(src, dest) != 0) {
+    kprint_color("cp: failed to copy file\n", COLOR_DEFAULT);
+  } else {
+    kprint_color("File copied successfully.\n", COLOR_DEFAULT);
   }
 }
 
@@ -885,5 +1030,4 @@ void shell_refresh_line(void) {
   for (int i = 0; i < steps_back; i++) {
     kputchar_color('\b', COLOR_DEFAULT);
   }
-
 }
