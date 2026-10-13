@@ -55,7 +55,7 @@ void kernel_main(void) {
   pmm_init(0x1000000, 0x100000);
 
   kprint_color("Initializing network support...", COLOR_DEFAULT);
-  //hal_NETWORK_init();
+  hal_network_init();
     
   __asm__ volatile("sti");
 

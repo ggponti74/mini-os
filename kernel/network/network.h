@@ -20,9 +20,9 @@ typedef struct net_device {
 } net_device_t;
 
 // Network HAL Function Signatures (Placeholders)
-void hal_NETWORK_init(void);
-int hal_NETWORK_register_device(net_device_t *dev);
-int hal_NETWORK_send(const void *packet, size_t length);
-void hal_NETWORK_receive_callback(const void *packet, size_t length);
+void hal_network_init(void);
+int hal_network_register_device(net_device_t *dev);
+int hal_network_send(const void *packet, size_t length);
+void hal_network_receive_callback(const void *packet, size_t length);
 
 #endif

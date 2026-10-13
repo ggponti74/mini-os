@@ -192,10 +192,10 @@ LOAD build/sys/metrics.o
                 0x0000bf60                free
  *fill*         0x0000bf61        0xf 
  .text          0x0000bf70       0x61 build/network/network.o
-                0x0000bf70                hal_net_init
-                0x0000bf80                hal_net_register_device
-                0x0000bfa0                hal_net_send
-                0x0000bfd0                hal_net_receive_callback
+                0x0000bf70                hal_network_init
+                0x0000bf80                hal_network_register_device
+                0x0000bfa0                hal_network_send
+                0x0000bfd0                hal_network_receive_callback
  *fill*         0x0000bfd1        0xf 
  .text          0x0000bfe0       0xa6 build/sys/metrics.o
                 0x0000bfe0                sys_get_mem_stats
