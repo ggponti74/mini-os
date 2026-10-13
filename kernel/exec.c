@@ -15,7 +15,6 @@ int exec_flat_binary(const char *path) {
   vfs_node_t *file = initrd_find_file(path);
 
   if (!file) {
-    kprint_color("Error: Binary not found in VFS\n", COLOR_DEFAULT);
     return -1; // File not found -> shell will print "Unknown command or file"
   }
 

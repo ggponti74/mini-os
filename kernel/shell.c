@@ -15,8 +15,6 @@
 
 #define MAX_HISTORY 10
 
-// extern int kilo_main(int argc, char **argv) ;
-
 static char command_buffer[MAX_BUFFER_SIZE];
 
 // Forward declarations
@@ -161,9 +159,9 @@ void process_command(const char *cmd) {
   }
 
   // 3. Graceful error message if neither built-in nor valid binary exists
-  kprint("Unknown command or file: ");
-  kprint(cmd_name);
-  kprint("\nType 'help' for available commands.\n");
+  kprint_color("Unknown command or file: ", COLOR_DEFAULT);
+  kprint_color(cmd_name, COLOR_DEFAULT);
+  kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
 }
 
 static void execute_script(const char *filename, int silent) {
@@ -240,17 +238,56 @@ static void command_beep(const char *args) {
 }
 
 static void command_help(const char *args) {
-  (void)args;
+  // Check if a specific command argument was provided
+  if (args && *args != '\0') {
+    // Trim leading spaces
+    while (*args == ' ') {
+      args++;
+    }
+
+    // Search for the matching command in the table
+    for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+      if (strcmp(args, commands[i].name) == 0) {
+        kprint_color("Help for ", COLOR_DEFAULT);
+        kprint_color(commands[i].name, COLOR_DEFAULT);
+        kprint_color(":\n  ", COLOR_DEFAULT);
+        
+        unsigned int name_length = 0;
+        kprint_color(commands[i].name, COLOR_DEFAULT);
+        while (commands[i].name[name_length] != '\0') {
+          name_length++;
+        }
+        while (name_length++ < 12) {
+          kprint_color(" ", COLOR_DEFAULT);
+        }
+        
+        kprint_color(" - ", COLOR_DEFAULT);
+        kprint_color(commands[i].description, COLOR_DEFAULT);
+        kprint_color("\n", COLOR_DEFAULT);
+        return;
+      }
+    }
+
+    // If command wasn't found
+    kprint_color("Unknown help topic: ", COLOR_DEFAULT);
+    kprint_color(args, COLOR_DEFAULT);
+    kprint_color("\nType 'help' for a list of available commands.\n", COLOR_DEFAULT);
+    return;
+  }
+
+  // Default behavior: print the full list of commands
   kprint_color("Available commands:\n", COLOR_DEFAULT);
 
   for (unsigned int i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
     unsigned int name_length = 0;
     kprint_color("  ", COLOR_DEFAULT);
     kprint_color(commands[i].name, COLOR_DEFAULT);
-    while (commands[i].name[name_length] != '\0')
+    while (commands[i].name[name_length] != '\0') {
       name_length++;
-    while (name_length++ < 12)
+    }
+    while (name_length++ < 12) {
       kprint_color(" ", COLOR_DEFAULT);
+    }
     kprint_color(" - ", COLOR_DEFAULT);
     kprint_color(commands[i].description, COLOR_DEFAULT);
     kprint_color("\n", COLOR_DEFAULT);
@@ -353,10 +390,10 @@ static void command_test(const char *args) {
 
   kprint_color("Testing ANSI escape sequences...\n", COLOR_DEFAULT);
 
-  kprint("\033[31mRed Text\033[0m ");
-  kprint("\033[32mGreen Text\033[0m ");
-  kprint("\033[33mYellow Text\033[0m ");
-  kprint("\033[34mBlue Text\033[0m\n");
+  kprint_color("\033[31mRed Text\033[0m ", COLOR_DEFAULT);
+  kprint_color("\033[32mGreen Text\033[0m ", COLOR_DEFAULT);
+  kprint_color("\033[33mYellow Text\033[0m ", COLOR_DEFAULT);
+  kprint_color("\033[34mBlue Text\033[0m\n", COLOR_DEFAULT);
 }
 
 static void command_shutdown(const char *args) {
@@ -391,20 +428,19 @@ static void command_restart(const char *args) {
 static void command_run(const char *args) {
 
   // Skip any leading spaces
-    while (*args == ' ') {
-        args++;
-    }
+  while (*args == ' ') {
+    args++;
+  }
 
-    if (*args == '\0') {
-        kprint_color("Usage: run <binary>\n", COLOR_DEFAULT);
-        return;
-    }
+  if (*args == '\0') {
+    kprint_color("Usage: run <binary>\n", COLOR_DEFAULT);
+    return;
+  }
 
-    int result = exec_flat_binary(args);
-    if (result != 0) {
-        kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
-    }
-
+  int result = exec_flat_binary(args);
+  if (result != 0) {
+    kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
+  }
 }
 
 static void command_touch(const char *args) {
@@ -458,13 +494,17 @@ void shell_input_char(char c) {
   if (c == '\n') {
     execute_command();
   } else if (c == '\b') {
-    if (buffer_index > 0) {
+    if (buffer_index > 0 && cursor_index > 0) {
+      // delete at cursor position, not just at end
+      // for now, keep simple: delete last char
       buffer_index--;
+      cursor_index = buffer_index;
       kputchar_color('\b', COLOR_DEFAULT);
     }
   } else if (c >= ' ' && c <= '~') {
     if (buffer_index < MAX_BUFFER_SIZE - 1) {
       command_buffer[buffer_index++] = c;
+      cursor_index = buffer_index;
       kputchar_color(c, COLOR_DEFAULT);
     }
   }
@@ -810,15 +850,17 @@ void shell_handle_key_down(void) {
 }
 
 void shell_handle_key_left(void) {
-  if (buffer_index > 0) {
-    buffer_index--;
+  if (cursor_index > 0) {
+    cursor_index--;
     shell_refresh_line();
   }
 }
 
 void shell_handle_key_right(void) {
-  buffer_index++;
-  shell_refresh_line();
+  if (cursor_index < buffer_index) {
+    cursor_index++;
+    shell_refresh_line();
+  }
 }
 
 void shell_handle_key_insert(void) {
@@ -827,23 +869,21 @@ void shell_handle_key_insert(void) {
 }
 
 void shell_refresh_line(void) {
-  // 1. Move cursor back to the start of the input area (right after the prompt)
-  // Assuming your prompt length is fixed or you track it:
   kputchar_color('\r', COLOR_DEFAULT);
   kprint_color("mini-os> ", COLOR_PROMPT);
 
-  // 2. Redraw the entire contents of the command buffer
   for (int i = 0; i < buffer_index; i++) {
     kputchar_color(command_buffer[i], COLOR_DEFAULT);
   }
 
-  // 3. Clear any potential leftover trailing character from previous longer
-  // text
+  // Clear trailing char
   kputchar_color(' ', COLOR_DEFAULT);
   kputchar_color('\b', COLOR_DEFAULT);
 
-  // 4. If your cursor can move *within* the line (left/right navigation),
-  // calculate how many steps back from the end of the buffer the cursor needs
-  // to sit, and adjust the hardware cursor accordingly using
-  // update_hardware_cursor() or backspacing.
+  // Move cursor back from end to cursor_index
+  int steps_back = buffer_index - cursor_index;
+  for (int i = 0; i < steps_back; i++) {
+    kputchar_color('\b', COLOR_DEFAULT);
+  }
+
 }

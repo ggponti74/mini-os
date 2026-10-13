@@ -2,11 +2,13 @@
 #include "fs/initrd.h"
 #include "fs/vfs.h"
 #include "idt.h"
+
 #include "keyboard.h"
 #include "memory.h"
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
+#include "network/network.h"
 
 extern char kernel_end;
 
@@ -52,7 +54,11 @@ void kernel_main(void) {
   kprint_color("Initializing PMM...", COLOR_DEFAULT);
   pmm_init(0x1000000, 0x100000);
 
+  kprint_color("Initializing network support...", COLOR_DEFAULT);
+  //hal_NETWORK_init();
+    
   __asm__ volatile("sti");
+
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);
   shell_init();
   update_status_bar();
