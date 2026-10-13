@@ -51,10 +51,10 @@ void kernel_main(void) {
   fs_root = initrd_init(); // Assigns the root VFS node so shell commands like
   // touch/cat can use it
 
-  kprint_color("Initializing PMM...", COLOR_DEFAULT);
+  kprint_color("Initializing PMM...\n", COLOR_DEFAULT);
   pmm_init(0x1000000, 0x100000);
 
-  kprint_color("Initializing network support...", COLOR_DEFAULT);
+  kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();
     
   __asm__ volatile("sti");

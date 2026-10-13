@@ -210,24 +210,23 @@ LOAD build/sys/metrics.o
  *(.rodata*)
  .rodata        0x0000c0a0      0x1c1 build/display.o
  .rodata.str1.1
-                0x0000c261      0x556 build/display.o
+                0x0000c261      0x557 build/display.o
                                  0x1c (size before relaxing)
  .rodata.str1.1
-                0x0000c7b7        0xa build/exec.o
- *fill*         0x0000c7b7        0x1 
+                0x0000c7b8        0xa build/exec.o
  .rodata.cst2   0x0000c7b8        0x2 build/idt.o
  *fill*         0x0000c7ba        0x6 
  .rodata        0x0000c7c0      0x140 build/keyboard.o
  .rodata.str1.1
-                0x0000c900       0x6d build/main.o
+                0x0000c900       0x6e build/main.o
  .rodata.str1.4
-                0x0000c900      0x3e3 build/main.o
-                                 0xa2 (size before relaxing)
+                0x0000c900      0x3e7 build/main.o
+                                 0xa6 (size before relaxing)
  .rodata.str1.1
-                0x0000cce3      0x4fb build/shell.o
+                0x0000cce7      0x4fb build/shell.o
  .rodata.str1.4
-                0x0000cce3      0x33f build/shell.o
- *fill*         0x0000cce3       0x1d 
+                0x0000cce7      0x33f build/shell.o
+ *fill*         0x0000cce7       0x19 
  .rodata        0x0000cd00      0x130 build/shell.o
  .rodata.str1.1
                 0x0000ce30       0x2a build/fs/initrd.o
