@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "display.h"
+#include "exec.h"
 #include "fs/initrd.h"
 #include "fs/vfs.h"
 #include "memory.h"
@@ -8,7 +9,6 @@
 #include "shell.h"
 #include "sound.h"
 #include "string.h"
-//#include "minivi.h"
 
 #define COLOR_WHITE 0x0F
 #define BUILD_NUM 1
@@ -20,26 +20,26 @@
 static char command_buffer[MAX_BUFFER_SIZE];
 
 // Forward declarations
-static void command_beep(const char *args);
-static void command_cat(const char *args);
-static void command_clear(const char *args);
-static void command_date(const char *args);
-static void command_echo(const char *args);
-static void command_exec(const char *args);
-static void command_help(const char *args);
-static void command_hexdump(const char *args);
-static void command_history(const char *args);
-static void command_ls(const char *args);
-// static void command_kilo(const char *args);
-static void command_restart(const char *args);
-static void command_screenshot(const char *args);
-static void command_shutdown(const char *args);
-static void command_sound(const char *args);
-static void command_test(const char *args);
-static void command_time(const char *args);
-static void command_timezone(const char *args);
-static void command_touch(const char *args);
 static void command_version(const char *args);
+static void command_touch(const char *args);
+static void command_timezone(const char *args);
+static void command_time(const char *args);
+static void command_test(const char *args);
+static void command_sound(const char *args);
+static void command_shutdown(const char *args);
+static void command_screenshot(const char *args);
+static void command_run(const char *args);
+static void command_restart(const char *args);
+static void command_ls(const char *args);
+static void command_history(const char *args);
+static void command_hexdump(const char *args);
+static void command_help(const char *args);
+static void command_exec(const char *args);
+static void command_echo(const char *args);
+static void command_date(const char *args);
+static void command_clear(const char *args);
+static void command_cat(const char *args);
+static void command_beep(const char *args);
 
 /* Helper forward declarations */
 static void print_dec2(uint8_t val);
@@ -67,8 +67,8 @@ static const struct shell_command commands[] = {
      command_hexdump},
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
-    //    {"kilo", "minivi text editor", command_kilo},
     {"restart", "Restart the system", command_restart},
+    {"run", "Run a program", command_run},
     {"screenshot", "Take and restore a screenshot", command_screenshot},
     {"shutdown", "Shut down the system", command_shutdown},
     {"sound", "Toggle the sound on or off", command_sound},
@@ -78,9 +78,12 @@ static const struct shell_command commands[] = {
     {"touch", "Create an empty file (Usage: touch <file>)", command_touch},
     {"version", "Show operating system version", command_version},
 };
+
 static int buffer_index = 0;
+static int cursor_index = 0;
 static int history_count = 0;
 static int history_index = -1;
+static int insert_mode = 1;
 
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
 
@@ -143,6 +146,7 @@ void process_command(const char *cmd) {
     args++;
   }
 
+  // 1. Check built-in command table first
   for (unsigned int j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
     if (strcmp(cmd_name, commands[j].name) == 0) {
       commands[j].function(args);
@@ -150,9 +154,16 @@ void process_command(const char *cmd) {
     }
   }
 
-  kprint_color("Unknown command: ", COLOR_DEFAULT);
-  kprint_color(cmd_name, COLOR_DEFAULT);
-  kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
+  // 2. Safe Fallback: Try looking for a flat binary on the RAMDisk via VFS
+  // We wrap this with a check so it doesn't jump blindly into garbage memory
+  if (exec_flat_binary(cmd_name) == 0) {
+    return;
+  }
+
+  // 3. Graceful error message if neither built-in nor valid binary exists
+  kprint("Unknown command or file: ");
+  kprint(cmd_name);
+  kprint("\nType 'help' for available commands.\n");
 }
 
 static void execute_script(const char *filename, int silent) {
@@ -331,16 +342,16 @@ static void command_version(const char *args) {
 
 static void command_test(const char *args) {
   (void)args;
-  kprint_color("Setting FS I/O indicators...\n", COLOR_DEFAULT);
+  kprint_color("Setting FS I/O indicors...\n", COLOR_DEFAULT);
   display_set_fs_indicator(FS_IND_READ, FS_IND_WRITE);
 
-  kprint_color("Testing malloc()/free()...\n", COLOR_DEFAULT);
-  char *buffer = (char *)kmalloc(128);
+  kprint_color("Testing malloc()/fre)...\n", COLOR_DEFAULT);
+  char *buffer = (char *)kmalloc(12);
   if (buffer != NULL) {
     kfree(buffer);
   }
 
-  kprint_color("Testing ANSI escape codes\n", COLOR_DEFAULT);
+  kprint_color("Testing ANSI escape des\n", COLOR_DEFAULT);
 
   kprint("\033[31mRed Text\033[0m ");
   kprint("\033[32mGreen Text\033[0m ");
@@ -375,6 +386,46 @@ static void command_restart(const char *args) {
 
   // Triple fault fallback if controller reset fails
   __asm__ volatile("cli; hlt");
+}
+
+static void command_run(const char *input_args) {
+  if (input_args[0] == '\0') {
+    return;
+  }
+  
+  // Parse command name vs arguments
+  char cmd_name[64];
+  int i = 0;
+  while (input_args[i] != '\0' && input_args[i] != ' ' && i < 63) {
+    cmd_name[i] = input_args[i];
+    i++;
+  }
+  cmd_name[i] = '\0';
+
+  const char *args = input_args + i;
+  while (*args == ' ') {
+    args++;
+  }
+
+  // 1. Check built-in command table first (EXACT match only)
+  for (unsigned int j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
+    if (strcmp(cmd_name, commands[j].name) == 0) {
+      commands[j].function(args);
+      return;
+    }
+  }
+
+  // 2. Fallback: Try looking for a flat binary on the RAMDisk / VFS
+  int result = exec_flat_binary(cmd_name);
+  if (result == 0) {
+    return; // Successfully loaded and executed
+  }
+
+  // 3. If neither built-in nor binary exists, print unknown command error
+  // safely
+  kprint("Unknown command or file: ");
+  kprint(cmd_name);
+  kprint("\nType 'help' for available commands.\n");
 }
 
 static void command_touch(const char *args) {
@@ -777,4 +828,43 @@ void shell_handle_key_down(void) {
     history_index = -1;
     clear_input_line();
   }
+}
+
+void shell_handle_key_left(void) {
+  if (buffer_index > 0) {
+    buffer_index--;
+    shell_refresh_line();
+  }
+}
+
+void shell_handle_key_right(void) {
+  buffer_index++;
+  shell_refresh_line();
+}
+
+void shell_handle_key_insert(void) {
+  insert_mode = !insert_mode;
+  set_hardware_cursor_shape(insert_mode);
+}
+
+void shell_refresh_line(void) {
+  // 1. Move cursor back to the start of the input area (right after the prompt)
+  // Assuming your prompt length is fixed or you track it:
+  kputchar_color('\r', COLOR_DEFAULT);
+  kprint_color("mini-os> ", COLOR_PROMPT);
+
+  // 2. Redraw the entire contents of the command buffer
+  for (int i = 0; i < buffer_index; i++) {
+    kputchar_color(command_buffer[i], COLOR_DEFAULT);
+  }
+
+  // 3. Clear any potential leftover trailing character from previous longer
+  // text
+  kputchar_color(' ', COLOR_DEFAULT);
+  kputchar_color('\b', COLOR_DEFAULT);
+
+  // 4. If your cursor can move *within* the line (left/right navigation),
+  // calculate how many steps back from the end of the buffer the cursor needs
+  // to sit, and adjust the hardware cursor accordingly using
+  // update_hardware_cursor() or backspacing.
 }

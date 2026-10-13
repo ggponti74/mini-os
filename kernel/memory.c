@@ -42,29 +42,29 @@ void pmm_init(uintptr_t ram_size, uintptr_t kernel_end)
     }
 }
 
-uintptr_t pmm_alloc_frame(void)
-{
-    for (size_t i = 0; i < pmm_bitmap_size; i++)
+    uintptr_t pmm_alloc_frame(void)
     {
-        if (pmm_bitmap[i] != 0xFFFFFFFF)
-        { /* Has at least one free bit (0) */
-            for (int bit = 0; bit < 32; bit++)
-            {
-                if (!(pmm_bitmap[i] & (1 << bit)))
+        for (size_t i = 0; i < pmm_bitmap_size; i++)
+        {
+            if (pmm_bitmap[i] != 0xFFFFFFFF)
+            { /* Has at least one free bit (0) */
+                for (int bit = 0; bit < 32; bit++)
                 {
-                    size_t frame = (i * 32) + bit;
-                    pmm_bitmap[i] |= (1 << bit); /* Mark as used */
-                    if (free_memory_pages > 0)
+                    if (!(pmm_bitmap[i] & (1 << bit)))
                     {
-                        free_memory_pages--;
+                        size_t frame = (i * 32) + bit;
+                        pmm_bitmap[i] |= (1 << bit); /* Mark as used */
+                        if (free_memory_pages > 0)
+                        {
+                            free_memory_pages--;
+                        }
+                        return frame * PAGE_SIZE;
                     }
-                    return frame * PAGE_SIZE;
                 }
             }
         }
+        return 0; /* Out of memory */
     }
-    return 0; /* Out of memory */
-}
 
 void pmm_free_frame(uintptr_t frame_addr)
 {

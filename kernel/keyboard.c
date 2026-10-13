@@ -33,47 +33,68 @@ void keyboard_init(void) {
 }
 
 void keyboard_handler(void) {
-  // MUST read data port to notify PS/2 controller
-  uint8_t scancode = inb(0x60);
-  outb(0xE9, scancode);
-  if (scancode == 0xE0) {
-    extended_scancode = 1;
+    // 1. MUST read data port to notify PS/2 controller
+    uint8_t scancode = inb(0x60);
+    outb(0xE9, scancode);
+
+    // 2. Handle the 0xE0 prefix byte
+    if (scancode == 0xE0) {
+        extended_scancode = 1;
+        pic_send_eoi(1);
+        return;
+    }
+
+    // 3. Handle Key Presses (Make Codes)
+    if (!(scancode & 0x80)) {
+        if (extended_scancode) {
+            extended_scancode = 0; // Consume extended flag immediately
+            
+            if (scancode == 0x48) {
+                shell_handle_key_up();
+            } else if (scancode == 0x50) {
+                shell_handle_key_down();
+            } else if (scancode == 0x4B) {
+                shell_handle_key_left();
+            } else if (scancode == 0x4D) {
+                shell_handle_key_right();
+            } else if (scancode == 0x52) {
+                shell_handle_key_insert();
+            }
+        } else {
+            // Standard non-extended key presses
+            if (scancode == 0x48) {
+                shell_handle_key_up();
+            } else if (scancode == 0x50) {
+                shell_handle_key_down();
+            } else if (scancode == 0x4B) {
+                shell_handle_key_left();
+            } else if (scancode == 0x4D) {
+                shell_handle_key_right();
+            } else if (scancode == 0x52 || scancode == 0xD2) {
+                shell_handle_key_insert();
+            } else if (scancode == 0x2A || scancode == 0x36) {
+                shift_pressed = 1;
+            } else if (scancode < 128) {
+                char ascii = shift_pressed ? scancode_ascii_uppercase[scancode]
+                                           : scancode_ascii_lowercase[scancode];
+                if (ascii != 0) {
+                    shell_input_char(ascii);
+                }
+            }
+        }
+    } 
+    // 4. Handle Key Releases (Break Codes)
+    else {
+        if (extended_scancode) {
+            extended_scancode = 0; // Clear extended flag on release bytes like E0 D2
+        } else {
+            uint8_t released = scancode & 0x7F;
+            if (released == 0x2A || released == 0x36) {
+                shift_pressed = 0;
+            }
+        }
+    }
+
+    // MANDATORY: Always send EOI at the very end of handler
     pic_send_eoi(1);
-    return;
-  }
-
-  if (!(scancode & 0x80)) { // Key press
-    if (extended_scancode) {
-      extended_scancode = 0;
-      if (scancode == 0x48) {
-        shell_handle_key_up();
-      } else if (scancode == 0x50) {
-        shell_handle_key_down();
-      }
-    } else if (scancode == 0x48) {
-      shell_handle_key_up();
-    } else if (scancode == 0x50) {
-      shell_handle_key_down();
-    } else if (scancode == 0x2A || scancode == 0x36) {
-      shift_pressed = 1;
-    } else if (scancode < 128) {
-      char ascii = shift_pressed ? scancode_ascii_uppercase[scancode]
-                                 : scancode_ascii_lowercase[scancode];
-      if (ascii != 0) {
-        shell_input_char(ascii);
-      }
-    }
-  } else { // Key release
-    if (extended_scancode) {
-      extended_scancode = 0;
-    } else {
-      uint8_t released = scancode & 0x7F;
-      if (released == 0x2A || released == 0x36) {
-        shift_pressed = 0;
-      }
-    }
-  }
-
-  // MANDATORY: Always send EOI at the very end of handler
-  pic_send_eoi(1);
 }

@@ -18,6 +18,10 @@ void process_command(const char *cmd);
 // Arrow key navigation handlers for command history
 void shell_handle_key_up(void);
 void shell_handle_key_down(void);
+void shell_handle_key_left(void);
+void shell_handle_key_right(void);
+void shell_handle_key_insert(void);
+void shell_refresh_line(void);
 
 // Getter for system time zone offset
 int shell_get_timezone(void);
