@@ -3,9 +3,12 @@
 #include "fs/vfs.h"
 #include "idt.h"
 #include "keyboard.h"
+#include "memory.h"
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
+
+extern char kernel_end;
 
 static inline void serial_outb(unsigned short port, unsigned char val) {
   __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
@@ -44,7 +47,10 @@ void kernel_main(void) {
   kprint_color("Initializing virtual file system and RAM disk...\n",
                COLOR_DEFAULT);
   fs_root = initrd_init(); // Assigns the root VFS node so shell commands like
-                           // touch/cat can use it
+  // touch/cat can use it
+
+  kprint_color("Initializing PMM...", COLOR_DEFAULT);
+  pmm_init(0x1000000, 0x100000);
 
   __asm__ volatile("sti");
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);

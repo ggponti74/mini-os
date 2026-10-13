@@ -13,7 +13,9 @@ int exec_flat_binary(const char *path) {
 
   // 1. Look up the binary file in the VFS / RAMDisk pool
   vfs_node_t *file = initrd_find_file(path);
+
   if (!file) {
+    kprint_color("Error: Binary not found in VFS\n", COLOR_DEFAULT);
     return -1; // File not found -> shell will print "Unknown command or file"
   }
 
@@ -30,7 +32,7 @@ int exec_flat_binary(const char *path) {
   for (size_t i = 0; i < pages_needed; i++) {
     uintptr_t frame = pmm_alloc_frame();
     if (frame == 0) {
-      return -2; // Out of memory
+      return -3; // Out of physical memory frames
     }
     if (i == 0) {
       first_frame = frame;
@@ -41,9 +43,14 @@ int exec_flat_binary(const char *path) {
   uint8_t *dest_ptr = (uint8_t *)first_frame;
   vfs_read(file, 0, file->length, dest_ptr);
 
-  // 5. Cast and execute
-  void (*entry)(void) = (void (*)(void))first_frame;
-  entry();
+  // Define the function pointer type
+  typedef int (*binary_main_t)(int argc, char **argv);
 
-  return 0;
+  binary_main_t entry = (binary_main_t)first_frame;
+
+  // Example arguments
+  int argc = 2;
+  char *argv[] = {"test", "arg1", NULL};
+
+  return entry(argc, argv);
 }

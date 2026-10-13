@@ -342,16 +342,16 @@ static void command_version(const char *args) {
 
 static void command_test(const char *args) {
   (void)args;
-  kprint_color("Setting FS I/O indicors...\n", COLOR_DEFAULT);
+  kprint_color("Setting FS I/O indicators...\n", COLOR_DEFAULT);
   display_set_fs_indicator(FS_IND_READ, FS_IND_WRITE);
 
-  kprint_color("Testing malloc()/fre)...\n", COLOR_DEFAULT);
+  kprint_color("Testing malloc()/free())...\n", COLOR_DEFAULT);
   char *buffer = (char *)kmalloc(12);
   if (buffer != NULL) {
     kfree(buffer);
   }
 
-  kprint_color("Testing ANSI escape des\n", COLOR_DEFAULT);
+  kprint_color("Testing ANSI escape sequences...\n", COLOR_DEFAULT);
 
   kprint("\033[31mRed Text\033[0m ");
   kprint("\033[32mGreen Text\033[0m ");
@@ -388,44 +388,23 @@ static void command_restart(const char *args) {
   __asm__ volatile("cli; hlt");
 }
 
-static void command_run(const char *input_args) {
-  if (input_args[0] == '\0') {
-    return;
-  }
-  
-  // Parse command name vs arguments
-  char cmd_name[64];
-  int i = 0;
-  while (input_args[i] != '\0' && input_args[i] != ' ' && i < 63) {
-    cmd_name[i] = input_args[i];
-    i++;
-  }
-  cmd_name[i] = '\0';
+static void command_run(const char *args) {
 
-  const char *args = input_args + i;
-  while (*args == ' ') {
-    args++;
-  }
-
-  // 1. Check built-in command table first (EXACT match only)
-  for (unsigned int j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
-    if (strcmp(cmd_name, commands[j].name) == 0) {
-      commands[j].function(args);
-      return;
+  // Skip any leading spaces
+    while (*args == ' ') {
+        args++;
     }
-  }
 
-  // 2. Fallback: Try looking for a flat binary on the RAMDisk / VFS
-  int result = exec_flat_binary(cmd_name);
-  if (result == 0) {
-    return; // Successfully loaded and executed
-  }
+    if (*args == '\0') {
+        kprint_color("Usage: run <binary>\n", COLOR_DEFAULT);
+        return;
+    }
 
-  // 3. If neither built-in nor binary exists, print unknown command error
-  // safely
-  kprint("Unknown command or file: ");
-  kprint(cmd_name);
-  kprint("\nType 'help' for available commands.\n");
+    int result = exec_flat_binary(args);
+    if (result != 0) {
+        kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
+    }
+
 }
 
 static void command_touch(const char *args) {
