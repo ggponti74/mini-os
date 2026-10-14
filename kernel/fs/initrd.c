@@ -69,7 +69,7 @@ int initrd_copy_file(const char *src_name, const char *dest_name) {
   return 0;
 }
 
-// 2. Move / Rename a file
+// Move / Rename a file
 int initrd_move_file(const char *old_name, const char *new_name) {
   vfs_node_t *file = initrd_find_file(old_name);
   if (!file)
@@ -84,38 +84,43 @@ int initrd_move_file(const char *old_name, const char *new_name) {
   return 0;
 }
 
-// 3. Remove / Delete a file from the pool
-// src/fs/initrd.c
-
+// Remove / Delete a file from the pool
 int initrd_remove_file(const char *filename) {
-    if (!filename) return -1;
+  if (!filename)
+    return -1;
 
-    // Normalize target filename by stripping leading "./" if present
-    const char *target = filename;
-    if (target[0] == '.' && target[1] == '/') target += 2;
+  // Skip any leading spaces passed from the shell dispatcher
+  while (*filename == ' ')
+    filename++;
 
-    for (uint32_t i = 0; i < node_count; i++) {
-        const char *entry_name = file_pool[i].node.name;
-        if (entry_name[0] == '.' && entry_name[1] == '/') entry_name += 2;
+  // Normalize target filename by stripping leading "./" if present
+  const char *target = filename;
+  if (target[0] == '.' && target[1] == '/')
+    target += 2;
 
-        if (strcmp(entry_name, target) == 0) {
-            // Shift all subsequent entries down to fill the gap
-            for (uint32_t j = i; j < node_count - 1; j++) {
-                file_pool[j] = file_pool[j + 1];
-            }
-            
-            // Clear the old last slot and decrement total count
-            node_count--;
-            file_pool[node_count].node.name[0] = '\0';
-            file_pool[node_count].node.length = 0;
-            file_pool[node_count].node.flags = 0;
-            file_pool[node_count].node.device_data = NULL;
-            
-            return 0; // Success
-        }
+  for (uint32_t i = 0; i < node_count; i++) {
+    const char *entry_name = file_pool[i].node.name;
+    if (entry_name[0] == '.' && entry_name[1] == '/')
+      entry_name += 2;
+
+    if (strcmp(entry_name, target) == 0) {
+      // Shift all subsequent entries down to fill the gap
+      for (uint32_t j = i; j < node_count - 1; j++) {
+        file_pool[j] = file_pool[j + 1];
+      }
+
+      // Clear the old last slot and decrement total count
+      node_count--;
+      file_pool[node_count].node.name[0] = '\0';
+      file_pool[node_count].node.length = 0;
+      file_pool[node_count].node.flags = 0;
+      file_pool[node_count].node.device_data = NULL;
+
+      return 0; // Success
     }
-    
-    return -1; // File not found
+  }
+
+  return -1; // File not found
 }
 
 int initrd_get_file(const char *filename, uint8_t **out_data,

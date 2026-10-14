@@ -524,12 +524,15 @@ static void command_touch(const char *args) {
 
 static void execute_command(void) {
     command_buffer[buffer_index] = '\0';
-    kputchar('\n');
+    kputchar_color('\n', COLOR_DEFAULT);
 
     if (buffer_index == 0) {
         print_prompt();
         return;
     }
+
+    // Add to history if implemented
+    add_to_history(command_buffer);
 
     // 1. Check for output redirection '>'
     char *redir = NULL;
@@ -546,21 +549,17 @@ static void execute_command(void) {
     if (redir) {
         while (*redir == ' ') redir++;
         target_file = redir;
-        // Strip trailing spaces from target filename
         int len = strlen(target_file);
         while (len > 0 && target_file[len - 1] == ' ') {
             target_file[--len] = '\0';
         }
     }
 
-    // If redirection is active, we can temporarily hook or intercept output
-    // For a simple approach, we can handle commands that produce output (like echo)
+    // If redirection is active with echo
     if (target_file && target_file[0] != '\0') {
-        // Example: Handle "echo text > file"
         if (strncmp(command_buffer, "echo ", 5) == 0) {
             const char *text_to_write = &command_buffer[5];
             
-            // Create or open the destination file via VFS / Initrd
             vfs_node_t *file = initrd_find_file(target_file);
             if (!file) {
                 file = vfs_create(fs_root, target_file, FS_FILE);
@@ -568,7 +567,6 @@ static void execute_command(void) {
 
             if (file) {
                 vfs_write(file, 0, strlen(text_to_write), (uint8_t *)text_to_write);
-                // Optionally add a newline if desired, or write exact text
                 char newline = '\n';
                 vfs_write(file, strlen(text_to_write), 1, (uint8_t *)&newline);
             } else {
@@ -576,19 +574,44 @@ static void execute_command(void) {
             }
             
             buffer_index = 0;
+            history_index = -1;
             print_prompt();
             return;
         }
     }
 
-    // Fallback to standard command handling if no redirection or unsupported command
-    if (strcmp(command_buffer, "help") == 0) {
-        // ... standard help commands ...
-    } else if (strcmp(command_buffer, "ls") == 0) {
-        initrd_list_files();
-    } // ... other commands ...
+    // 2. Standard Command Table Lookup (Fixed!)
+    // Parse command name vs arguments
+    char cmd_name[64];
+    int i = 0;
+    while (command_buffer[i] != '\0' && command_buffer[i] != ' ' && i < 63) {
+        cmd_name[i] = command_buffer[i];
+        i++;
+    }
+    cmd_name[i] = '\0';
+
+    const char *args = command_buffer + i;
+    while (*args == ' ') {
+        args++;
+    }
+
+    int found = 0;
+    for (unsigned int j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
+        if (strcmp(cmd_name, commands[j].name) == 0) {
+            commands[j].function(args);
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found) {
+        kprint_color("Unknown command: ", COLOR_DEFAULT);
+        kprint(cmd_name);
+        kputchar_color('\n', COLOR_DEFAULT);
+    }
 
     buffer_index = 0;
+    history_index = -1;
     print_prompt();
 }
 
