@@ -89,6 +89,9 @@ void kheap_init(uintptr_t heap_start, size_t heap_size) {
   heap_end = heap_curr + heap_size;
 }
 
+// In kernel/memory.c
+extern char _end[];
+
 void *kmalloc(size_t size) {
   /* Align allocation size to 8-byte boundaries */
   size = (size + 7) & ~7;

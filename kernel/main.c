@@ -10,10 +10,12 @@
 #include "shell.h"
 #include "sound.h"
 
-#define KERNEL_HEAP_SIZE (64 * 1024)
+//#define KERNEL_HEAP_SIZE (512 * 1024)
+
+extern char kernel_end_symbol[];
 
 // Find where your kernel ends (or after your PMM bitmap) and initialize:
-extern uintptr_t kernel_end_symbol; // or your kernel end address
+//extern uintptr_t kernel_end_symbol; // or your kernel end address
 
 uintptr_t heap_start_address =
     (uintptr_t)&kernel_end_symbol; // adjust to your setup
@@ -60,8 +62,12 @@ void kernel_main(void) {
   kprint_color("Initializing PMM...\n", COLOR_DEFAULT);
   pmm_init(0x1000000, 0x100000);
 
+#define HEAP_START_ADDR  0x50000 
+#define KERNEL_HEAP_SIZE (256 * 1024)
+
   kprint_color("Initializing memory...\n", COLOR_DEFAULT);
-  kheap_init(heap_start_address, KERNEL_HEAP_SIZE);
+  kheap_init(HEAP_START_ADDR, KERNEL_HEAP_SIZE);
+
 
   kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();
