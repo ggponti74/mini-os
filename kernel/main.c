@@ -10,7 +10,9 @@
 #include "shell.h"
 #include "sound.h"
 
-//#define KERNEL_HEAP_SIZE (512 * 1024)
+
+#define HEAP_START_ADDR  0x50000 
+#define KERNEL_HEAP_SIZE (256 * 1024)
 
 extern char kernel_end_symbol[];
 
@@ -52,6 +54,7 @@ void kernel_main(void) {
   keyboard_init();
 
   kprint_color("Initializing sound...\n", COLOR_DEFAULT);
+  sound_init();
   beep(440, 10);
 
   kprint_color("Initializing virtual file system and RAM disk...\n",
@@ -61,9 +64,6 @@ void kernel_main(void) {
 
   kprint_color("Initializing PMM...\n", COLOR_DEFAULT);
   pmm_init(0x1000000, 0x100000);
-
-#define HEAP_START_ADDR  0x50000 
-#define KERNEL_HEAP_SIZE (256 * 1024)
 
   kprint_color("Initializing memory...\n", COLOR_DEFAULT);
   kheap_init(HEAP_START_ADDR, KERNEL_HEAP_SIZE);

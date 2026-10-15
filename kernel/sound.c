@@ -34,5 +34,10 @@ void beep(uint32_t freq, uint32_t duration) {
 }
 
 void sound_init(void) {
+    // Enable speaker gate on Port 0x61 (set bits 0 and 1)
+    uint8_t tmp = inb(0x61);
+    if ((tmp & 3) != 3) {
+        outb(0x61, tmp | 3);
+    }
     nosound();
 }

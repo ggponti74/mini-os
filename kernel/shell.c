@@ -35,6 +35,7 @@ static void command_restart(const char *args);
 static void command_rm(const char *args);
 static void command_run(const char *args);
 static void command_screenshot(const char *args);
+static void command_set(const char *args);
 static void command_shutdown(const char *args);
 static void command_sound(const char *args);
 static void command_test(const char *args);
@@ -50,15 +51,26 @@ static void print_tz_suffix(void);
 static void get_local_time(rtc_time_t *local);
 static void add_to_history(const char *cmd);
 static char history[MAX_HISTORY][MAX_BUFFER_SIZE];
+
 static const char *command_alias_get(const char *name);
 static void command_alias_list(void);
 static void command_alias_set(const char *, const char *);
+
+static const char *command_set_get(const char *name);
+static void command_set_list(void);
+static void command_set_set(const char *, const char *);
 
 struct shell_command {
   const char *name;
   const char *description;
   void (*function)(const char *args);
 };
+
+typedef struct set_node {
+    char *name;
+    char *value;
+    struct set_node *next;
+} set_node_t;
 
 static const struct shell_command commands[] = {
     {"alias", "Define or display command aliases (Usage: alias name=command)",
@@ -80,6 +92,7 @@ static const struct shell_command commands[] = {
     {"rm", "Remove a file", command_rm},
     {"run", "Run a program", command_run},
     {"screenshot", "Take and restore a screenshot", command_screenshot},
+    {"set", "Set enviroment variables", command_set},
     {"shutdown", "Shut down the system", command_shutdown},
     {"sound", "Toggle the sound on or off", command_sound},
     {"test", "Run diagnostic test", command_test},
@@ -98,6 +111,7 @@ static int insert_mode = 1;
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
 
 static alias_node_t *alias_head = NULL;
+static set_node_t *set_head = NULL;
 
 screen_snapshot_t saved_screen;
 
@@ -244,7 +258,140 @@ static void command_exec(const char *args) {
   execute_script(args, 0);
 }
 
-// kernel/shell.c
+static void command_set(const char *args)
+{
+
+    char name[32];
+    int i = 0;
+    const char *value;
+
+    if (!args || *args == '\0') {
+        command_set_list();
+        return;
+    }
+
+    while (*args == ' ') args++;
+    if (*args == '\0') {
+        command_set_list();
+        return;
+    }
+
+    // Parse variable name up to '=' or space
+    while (args[i] != '=' && args[i] != ' ' && args[i] != '\0' && i < 31) {
+        name[i] = args[i];
+        i++;
+    }
+    name[i] = '\0';
+
+    while (args[i] == ' ' || args[i] == '=') i++;
+
+    value = &args[i];
+    if (name[0] != '\0' && value[0] != '\0') {
+        command_set_set(name, value);
+        kprint_color("Environment variable set.\n", COLOR_DEFAULT);
+    } else {
+        kprint_color("Usage: set <name>=<value>\n", COLOR_DEFAULT);
+    }
+}
+
+static const char *command_set_get(const char *name) {
+  set_node_t *curr = set_head;
+
+  while (curr != NULL) {
+    if (strcmp(curr->name, name) == 0) {
+      return curr->value;
+    }
+    curr = curr->next;
+  }
+
+  return NULL;
+}
+
+static void command_set_list(void) {
+  set_node_t *curr = set_head; // Declared at the top
+  if (!curr) {
+    kprint_color("No variables defined.\n", COLOR_DEFAULT);
+    return;
+  }
+  while (curr != NULL) {
+    kprint_color(curr->name, COLOR_DEFAULT);
+    kprint_color("=", COLOR_DEFAULT);
+    kprint_color(curr->value, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+    curr = curr->next;
+  }
+}
+
+static void command_set_set(const char *name, const char *value_str) {
+  set_node_t *curr;
+  set_node_t *new_node;
+
+  if (!name || !value_str || name[0] == '\0') {
+    kprint_color("Set: invalid name\n", COLOR_DEFAULT);
+    return;
+  }
+
+  // Clean any trailing whitespace or carriage returns from value
+  char clean_value[64];
+  int v = 0;
+  while (value_str[v] != '\0' && value_str[v] != '\r' && value_str[v] != '\n' &&
+         v < 63) {
+    clean_value[v] = value_str[v];
+    v++;
+  }
+  // Strip trailing spaces from value
+  while (v > 0 && clean_value[v - 1] == ' ') {
+    v--;
+  }
+  clean_value[v] = '\0';
+
+  if (clean_value[0] == '\0') {
+    kprint_color("Set: invalid value\n", COLOR_DEFAULT);
+    return;
+  }
+
+  // Check if alias already exists and update
+  curr = set_head;
+  while (curr != NULL) {
+    if (strcmp(curr->name, name) == 0) {
+      kfree(curr->value);
+      curr->value = (char *)kmalloc(strlen(clean_value) + 1);
+      if (!curr->value) {
+        kprint_color("alias: memory allocation failed\n", COLOR_DEFAULT);
+        return;
+      }
+      strcpy(curr->value, clean_value);
+      return;
+    }
+    curr = curr->next;
+  }
+
+  // Allocate new node
+  new_node = (set_node_t *)kmalloc(sizeof(set_node_t));
+  if (!new_node) {
+    return;
+  }
+
+  new_node->name = (char *)kmalloc(strlen(name) + 1);
+  if (!new_node->name) {
+    kprint_color("set: kmalloc failed for name\n", COLOR_DEFAULT);
+    kfree(new_node);
+    return;
+  }
+  strcpy(new_node->name, name);
+
+  new_node->value = (char *)kmalloc(strlen(clean_value) + 1);
+  if (!new_node->value) {
+    kprint_color("set: kmalloc failed for value\n", COLOR_DEFAULT);
+    kfree(new_node->name);
+    kfree(new_node);
+    return;
+  }
+  strcpy(new_node->value, clean_value);
+
+  new_node->next = set_head;
+  set_head = new_node;
+}
 
 static void command_alias(const char *args) {
   if (!args || *args == '\0') {
@@ -294,76 +441,77 @@ static const char *command_alias_get(const char *name) {
 }
 
 static void command_alias_set(const char *name, const char *value_str) {
-    alias_node_t *curr;
-    alias_node_t *new_node;
+  alias_node_t *curr;
+  alias_node_t *new_node;
 
-    if (!name || !value_str || name[0] == '\0') {
-        kprint_color("alias: invalid name\n", COLOR_DEFAULT);
+  if (!name || !value_str || name[0] == '\0') {
+    kprint_color("alias: invalid name\n", COLOR_DEFAULT);
+    return;
+  }
+
+  // Clean any trailing whitespace or carriage returns from value
+  char clean_value[64];
+  int v = 0;
+  while (value_str[v] != '\0' && value_str[v] != '\r' && value_str[v] != '\n' &&
+         v < 63) {
+    clean_value[v] = value_str[v];
+    v++;
+  }
+  // Strip trailing spaces from value
+  while (v > 0 && clean_value[v - 1] == ' ') {
+    v--;
+  }
+  clean_value[v] = '\0';
+
+  if (clean_value[0] == '\0') {
+    kprint_color("alias: invalid value\n", COLOR_DEFAULT);
+    return;
+  }
+
+  // Check if alias already exists and update
+  curr = alias_head;
+  while (curr != NULL) {
+    if (strcmp(curr->name, name) == 0) {
+      kfree(curr->value);
+      curr->value = (char *)kmalloc(strlen(clean_value) + 1);
+      if (!curr->value) {
+        kprint_color("alias: memory allocation failed\n", COLOR_DEFAULT);
         return;
+      }
+      strcpy(curr->value, clean_value);
+      kprint_color("Alias updated.\n", COLOR_DEFAULT);
+      return;
     }
+    curr = curr->next;
+  }
 
-    // Clean any trailing whitespace or carriage returns from value
-    char clean_value[64];
-    int v = 0;
-    while (value_str[v] != '\0' && value_str[v] != '\r' && value_str[v] != '\n' && v < 63) {
-        clean_value[v] = value_str[v];
-        v++;
-    }
-    // Strip trailing spaces from value
-    while (v > 0 && clean_value[v - 1] == ' ') {
-        v--;
-    }
-    clean_value[v] = '\0';
+  // Allocate new node
+  new_node = (alias_node_t *)kmalloc(sizeof(alias_node_t));
+  if (!new_node) {
+    kprint_color("alias: kmalloc failed for node\n", COLOR_DEFAULT);
+    return;
+  }
 
-    if (clean_value[0] == '\0') {
-        kprint_color("alias: invalid value\n", COLOR_DEFAULT);
-        return;
-    }
+  new_node->name = (char *)kmalloc(strlen(name) + 1);
+  if (!new_node->name) {
+    kprint_color("alias: kmalloc failed for name\n", COLOR_DEFAULT);
+    kfree(new_node);
+    return;
+  }
+  strcpy(new_node->name, name);
 
-    // Check if alias already exists and update
-    curr = alias_head;
-    while (curr != NULL) {
-        if (strcmp(curr->name, name) == 0) {
-            kfree(curr->value);
-            curr->value = (char *)kmalloc(strlen(clean_value) + 1);
-            if (!curr->value) {
-                kprint_color("alias: memory allocation failed\n", COLOR_DEFAULT);
-                return;
-            }
-            strcpy(curr->value, clean_value);
-            kprint_color("Alias updated.\n", COLOR_DEFAULT);
-            return;
-        }
-        curr = curr->next;
-    }
+  new_node->value = (char *)kmalloc(strlen(clean_value) + 1);
+  if (!new_node->value) {
+    kprint_color("alias: kmalloc failed for value\n", COLOR_DEFAULT);
+    kfree(new_node->name);
+    kfree(new_node);
+    return;
+  }
+  strcpy(new_node->value, clean_value);
 
-    // Allocate new node
-    new_node = (alias_node_t *)kmalloc(sizeof(alias_node_t));
-    if (!new_node) {
-        kprint_color("alias: kmalloc failed for node\n", COLOR_DEFAULT);
-        return;
-    }
-
-    new_node->name = (char *)kmalloc(strlen(name) + 1);
-    if (!new_node->name) {
-        kprint_color("alias: kmalloc failed for name\n", COLOR_DEFAULT );
-        kfree(new_node);
-        return;
-    }
-    strcpy(new_node->name, name);
-
-    new_node->value = (char *)kmalloc(strlen(clean_value) + 1);
-    if (!new_node->value) {
-        kprint_color("alias: kmalloc failed for value\n", COLOR_DEFAULT);
-        kfree(new_node->name);
-        kfree(new_node);
-        return;
-    }
-    strcpy(new_node->value, clean_value);
-
-    new_node->next = alias_head;
-    alias_head = new_node;
-    kprint_color("Alias set successfully.\n", COLOR_DEFAULT);
+  new_node->next = alias_head;
+  alias_head = new_node;
+  kprint_color("Alias set successfully.\n", COLOR_DEFAULT);
 }
 
 static void command_alias_list(void) {
@@ -715,8 +863,8 @@ static void execute_command(void) {
   }
 
   if (!found) {
-    kprint_color("Unknown command: ",COLOR_DEFAULT );
-    kprint_color(cmd_name,COLOR_DEFAULT);
+    kprint_color("Unknown command: ", COLOR_DEFAULT);
+    kprint_color(cmd_name, COLOR_DEFAULT);
     kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
   }
 
