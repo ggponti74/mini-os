@@ -6,6 +6,12 @@
 
 #define MAX_BUFFER_SIZE 128
 
+typedef struct alias_node {
+    char *name;
+    char *value;
+    struct alias_node *next;
+} alias_node_t;
+
 // Initialize and setup shell state/prompt
 void shell_init(void);
 

@@ -21,4 +21,6 @@ SECTIONS
         *(.comment)
         *(.eh_frame*)
     }
+    
+    kernel_end_symbol = .;
 }

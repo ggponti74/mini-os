@@ -5,12 +5,18 @@
 
 #include "keyboard.h"
 #include "memory.h"
+#include "network/network.h"
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
-#include "network/network.h"
 
-extern char kernel_end;
+#define KERNEL_HEAP_SIZE (64 * 1024)
+
+// Find where your kernel ends (or after your PMM bitmap) and initialize:
+extern uintptr_t kernel_end_symbol; // or your kernel end address
+
+uintptr_t heap_start_address =
+    (uintptr_t)&kernel_end_symbol; // adjust to your setup
 
 static inline void serial_outb(unsigned short port, unsigned char val) {
   __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
@@ -54,9 +60,12 @@ void kernel_main(void) {
   kprint_color("Initializing PMM...\n", COLOR_DEFAULT);
   pmm_init(0x1000000, 0x100000);
 
+  kprint_color("Initializing memory...\n", COLOR_DEFAULT);
+  kheap_init(heap_start_address, KERNEL_HEAP_SIZE);
+
   kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();
-    
+
   __asm__ volatile("sti");
 
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);

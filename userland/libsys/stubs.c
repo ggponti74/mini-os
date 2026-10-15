@@ -1,21 +1,11 @@
+// userland/libsys/stubs.c
 #include <stddef.h>
 
-// 64 KB static buffer reserved for the userland heap break
-static char user_heap[64 * 1024]; 
-static char *heap_ptr = user_heap;
+// 4. Heap Expansion Stub (_sbrk for malloc)
+extern char __end[]; // Defined by linker script marking kernel/userland end
+static char *heap_end = NULL;
 
-void *_sbrk(int incr) {
-    char *prev_heap_ptr = heap_ptr;
-
-    // Check if the requested increment exceeds the available buffer
-    if (heap_ptr + incr > user_heap + sizeof(user_heap)) {
-        return (void *)-1; // Out of memory
-    }
-
-    heap_ptr += incr;
-    return (void *)prev_heap_ptr;
-}
-
+// 1. Process Exit Stub
 void _exit(int status) {
     __asm__ volatile (
         "int $0x80"
@@ -25,6 +15,7 @@ void _exit(int status) {
     while (1) { __asm__ volatile("hlt"); }
 }
 
+// 2. Read Stub (POSIX compliant signature)
 int _read(int fd, void *buf, size_t count) {
     int bytes_read;
     __asm__ volatile (
@@ -35,6 +26,7 @@ int _read(int fd, void *buf, size_t count) {
     return bytes_read;
 }
 
+// 3. Write Stub (POSIX compliant signature)
 int _write(int fd, const void *buf, size_t count) {
     int bytes_written;
     __asm__ volatile (
@@ -43,4 +35,15 @@ int _write(int fd, const void *buf, size_t count) {
         : "a"(4), "b"(fd), "c"(buf), "d"(count)
     );
     return bytes_written;
+}
+
+void *_sbrk(ptrdiff_t incr) {
+    if (heap_end == NULL) {
+        heap_end = __end;
+    }
+    
+    char *prev_heap_end = heap_end;
+    // Simple bump allocation check against limits if necessary
+    heap_end += incr;
+    return (void *)prev_heap_end;
 }

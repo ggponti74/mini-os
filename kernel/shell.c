@@ -1,6 +1,5 @@
 #include <stdint.h>
 
-#include "string.h"
 #include "display.h"
 #include "exec.h"
 #include "fs/initrd.h"
@@ -9,8 +8,9 @@
 #include "rtc.h"
 #include "shell.h"
 #include "sound.h"
+#include "string.h"
 
-#define COLOR_WHITE 0x0F
+#define COLOR_DEFAULT 0x0F
 #define BUILD_NUM 1
 
 #define MAX_HISTORY 10
@@ -18,6 +18,7 @@
 static char command_buffer[MAX_BUFFER_SIZE];
 
 // Forward declarations
+static void command_alias(const char *args);
 static void command_beep(const char *args);
 static void command_cat(const char *args);
 static void command_clear(const char *args);
@@ -49,6 +50,9 @@ static void print_tz_suffix(void);
 static void get_local_time(rtc_time_t *local);
 static void add_to_history(const char *cmd);
 static char history[MAX_HISTORY][MAX_BUFFER_SIZE];
+static const char *command_alias_get(const char *name);
+static void command_alias_list(void);
+static void command_alias_set(const char *, const char *);
 
 struct shell_command {
   const char *name;
@@ -57,6 +61,8 @@ struct shell_command {
 };
 
 static const struct shell_command commands[] = {
+    {"alias", "Define or display command aliases (Usage: alias name=command)",
+     command_alias},
     {"beep", "Play a beep sound", command_beep},
     {"cat", "Display file contents (Usage: cat <file>)", command_cat},
     {"clear", "Clear the screen", command_clear},
@@ -90,6 +96,8 @@ static int history_index = -1;
 static int insert_mode = 1;
 
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
+
+static alias_node_t *alias_head = NULL;
 
 screen_snapshot_t saved_screen;
 
@@ -236,6 +244,143 @@ static void command_exec(const char *args) {
   execute_script(args, 0);
 }
 
+// kernel/shell.c
+
+static void command_alias(const char *args) {
+  if (!args || *args == '\0') {
+    command_alias_list();
+    return;
+  }
+
+  // Skip leading spaces
+  while (*args == ' ')
+    args++;
+  if (*args == '\0') {
+    command_alias_list();
+    return;
+  }
+
+  // Parse name=value format
+  char name[32];
+  int i = 0;
+  while (args[i] != '=' && args[i] != ' ' && args[i] != '\0' && i < 31) {
+    name[i] = args[i];
+    i++;
+  }
+  name[i] = '\0';
+
+  while (args[i] == ' ' || args[i] == '=')
+    i++; // Skip spaces and '='
+
+  const char *value = &args[i];
+  if (name[0] != '\0' && value[0] != '\0') {
+    command_alias_set(name, value);
+  } else {
+    kprint_color("Usage: alias <name>=<command>|-list", COLOR_DEFAULT);
+  }
+}
+
+static const char *command_alias_get(const char *name) {
+  alias_node_t *curr = alias_head;
+
+  while (curr != NULL) {
+    if (strcmp(curr->name, name) == 0) {
+      return curr->value;
+    }
+    curr = curr->next;
+  }
+
+  return NULL;
+}
+
+static void command_alias_set(const char *name, const char *value_str) {
+    alias_node_t *curr;
+    alias_node_t *new_node;
+
+    if (!name || !value_str || name[0] == '\0') {
+        kprint_color("alias: invalid name\n", COLOR_DEFAULT);
+        return;
+    }
+
+    // Clean any trailing whitespace or carriage returns from value
+    char clean_value[64];
+    int v = 0;
+    while (value_str[v] != '\0' && value_str[v] != '\r' && value_str[v] != '\n' && v < 63) {
+        clean_value[v] = value_str[v];
+        v++;
+    }
+    // Strip trailing spaces from value
+    while (v > 0 && clean_value[v - 1] == ' ') {
+        v--;
+    }
+    clean_value[v] = '\0';
+
+    if (clean_value[0] == '\0') {
+        kprint_color("alias: invalid value\n", COLOR_DEFAULT);
+        return;
+    }
+
+    // Check if alias already exists and update
+    curr = alias_head;
+    while (curr != NULL) {
+        if (strcmp(curr->name, name) == 0) {
+            kfree(curr->value);
+            curr->value = (char *)kmalloc(strlen(clean_value) + 1);
+            if (!curr->value) {
+                kprint_color("alias: memory allocation failed\n", COLOR_DEFAULT);
+                return;
+            }
+            strcpy(curr->value, clean_value);
+            kprint_color("Alias updated.\n", COLOR_DEFAULT);
+            return;
+        }
+        curr = curr->next;
+    }
+
+    // Allocate new node
+    new_node = (alias_node_t *)kmalloc(sizeof(alias_node_t));
+    if (!new_node) {
+        kprint_color("alias: kmalloc failed for node\n", COLOR_DEFAULT);
+        return;
+    }
+
+    new_node->name = (char *)kmalloc(strlen(name) + 1);
+    if (!new_node->name) {
+        kprint_color("alias: kmalloc failed for name\n", COLOR_DEFAULT );
+        kfree(new_node);
+        return;
+    }
+    strcpy(new_node->name, name);
+
+    new_node->value = (char *)kmalloc(strlen(clean_value) + 1);
+    if (!new_node->value) {
+        kprint_color("alias: kmalloc failed for value\n", COLOR_DEFAULT);
+        kfree(new_node->name);
+        kfree(new_node);
+        return;
+    }
+    strcpy(new_node->value, clean_value);
+
+    new_node->next = alias_head;
+    alias_head = new_node;
+    kprint_color("Alias set successfully.\n", COLOR_DEFAULT);
+}
+
+static void command_alias_list(void) {
+  alias_node_t *curr = alias_head; // Declared at the top
+  if (!curr) {
+    kprint_color("No aliases defined.\n", COLOR_DEFAULT);
+    return;
+  }
+  while (curr != NULL) {
+    kprint_color(curr->name, COLOR_DEFAULT);
+    kprint_color("=", COLOR_DEFAULT);
+    kprint_color(curr->value, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+    curr = curr->next;
+  }
+}
+
 static void command_beep(const char *args) {
   (void)args;
   if (sound_is_enabled()) {
@@ -335,7 +480,7 @@ static void command_help(const char *args) {
 //         // Print ASCII printable representation
 //         for (uint32_t j = 0; j < 16 && (i + j) < file_size; j++) {
 //             char c = file_data[i + j];
-//             kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_WHITE);
+//             kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_DEFAULT);
 //         }
 //         kputchar_color('\n', COLOR_DEFAULT);
 //     }
@@ -434,7 +579,7 @@ static void command_restart(const char *args) {
 
 static void command_mv(const char *args) {
   if (!args || *args == '\0') {
-    kprint_color("Usage: mv <old> <new>\n", COLOR_WHITE);
+    kprint_color("Usage: mv <old> <new>\n", COLOR_DEFAULT);
     return;
   }
 
@@ -455,7 +600,7 @@ static void command_mv(const char *args) {
   new_name[j] = '\0';
 
   if (old_name[0] == '\0' || new_name[0] == '\0') {
-    kprint_color("Usage: mv <old> <new>\n", COLOR_WHITE);
+    kprint_color("Usage: mv <old> <new>\n", COLOR_DEFAULT);
     return;
   }
 
@@ -468,7 +613,7 @@ static void command_mv(const char *args) {
 
 static void command_rm(const char *args) {
   if (!args || *args == '\0') {
-    kprint_color("Usage: rm <filename>\n", COLOR_WHITE);
+    kprint_color("Usage: rm <filename>\n", COLOR_DEFAULT);
     return;
   }
 
@@ -518,101 +663,67 @@ static void command_touch(const char *args) {
     kprint_color("Failed to create file.\n", COLOR_DEFAULT);
     return;
   }
-
-  kprint_color("File created successfully.\n", COLOR_DEFAULT);
 }
 
 static void execute_command(void) {
-    command_buffer[buffer_index] = '\0';
-    kputchar_color('\n', COLOR_DEFAULT);
+  command_buffer[buffer_index] = '\0';
+  kputchar_color('\n', COLOR_DEFAULT);
 
-    if (buffer_index == 0) {
-        print_prompt();
-        return;
-    }
-
-    // Add to history if implemented
-    add_to_history(command_buffer);
-
-    // 1. Check for output redirection '>'
-    char *redir = NULL;
-    for (int i = 0; command_buffer[i] != '\0'; i++) {
-        if (command_buffer[i] == '>') {
-            command_buffer[i] = '\0'; // Null-terminate the base command string
-            redir = &command_buffer[i + 1];
-            break;
-        }
-    }
-
-    // Trim leading/trailing spaces from redirection target if found
-    char *target_file = NULL;
-    if (redir) {
-        while (*redir == ' ') redir++;
-        target_file = redir;
-        int len = strlen(target_file);
-        while (len > 0 && target_file[len - 1] == ' ') {
-            target_file[--len] = '\0';
-        }
-    }
-
-    // If redirection is active with echo
-    if (target_file && target_file[0] != '\0') {
-        if (strncmp(command_buffer, "echo ", 5) == 0) {
-            const char *text_to_write = &command_buffer[5];
-            
-            vfs_node_t *file = initrd_find_file(target_file);
-            if (!file) {
-                file = vfs_create(fs_root, target_file, FS_FILE);
-            }
-
-            if (file) {
-                vfs_write(file, 0, strlen(text_to_write), (uint8_t *)text_to_write);
-                char newline = '\n';
-                vfs_write(file, strlen(text_to_write), 1, (uint8_t *)&newline);
-            } else {
-                kprint_color("Error: Could not create redirection file.\n", COLOR_DEFAULT);
-            }
-            
-            buffer_index = 0;
-            history_index = -1;
-            print_prompt();
-            return;
-        }
-    }
-
-    // 2. Standard Command Table Lookup (Fixed!)
-    // Parse command name vs arguments
-    char cmd_name[64];
-    int i = 0;
-    while (command_buffer[i] != '\0' && command_buffer[i] != ' ' && i < 63) {
-        cmd_name[i] = command_buffer[i];
-        i++;
-    }
-    cmd_name[i] = '\0';
-
-    const char *args = command_buffer + i;
-    while (*args == ' ') {
-        args++;
-    }
-
-    int found = 0;
-    for (unsigned int j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
-        if (strcmp(cmd_name, commands[j].name) == 0) {
-            commands[j].function(args);
-            found = 1;
-            break;
-        }
-    }
-
-    if (!found) {
-        kprint_color("Unknown command: ", COLOR_DEFAULT);
-        kprint(cmd_name);
-        kputchar_color('\n', COLOR_DEFAULT);
-    }
-
+  if (buffer_index == 0) {
     buffer_index = 0;
     history_index = -1;
+    update_status_bar();
     print_prompt();
+    return;
+  }
+
+  add_to_history(command_buffer);
+
+  // 1. Parse command name vs arguments (input_args)
+  char cmd_name[64];
+  int i = 0;
+  while (command_buffer[i] != '\0' && command_buffer[i] != ' ' && i < 63) {
+    cmd_name[i] = command_buffer[i];
+    i++;
+  }
+  cmd_name[i] = '\0';
+
+  const char *input_args = command_buffer + i;
+  while (*input_args == ' ') {
+    input_args++;
+  }
+
+  // 2. Check for Alias Expansion
+  const char *aliased = command_alias_get(cmd_name);
+  if (aliased) {
+    int j = 0;
+    while (aliased[j] != '\0' && aliased[j] != ' ' && j < 63) {
+      cmd_name[j] = aliased[j];
+      j++;
+    }
+    cmd_name[j] = '\0';
+  }
+
+  // 3. Dispatch to command table
+  int found = 0;
+  for (unsigned int j = 0; j < sizeof(commands) / sizeof(commands[0]); j++) {
+    if (strcmp(cmd_name, commands[j].name) == 0) {
+      commands[j].function(input_args);
+      found = 1;
+      break;
+    }
+  }
+
+  if (!found) {
+    kprint_color("Unknown command: ",COLOR_DEFAULT );
+    kprint_color(cmd_name,COLOR_DEFAULT);
+    kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
+  }
+
+  buffer_index = 0;
+  history_index = -1;
+  update_status_bar();
+  print_prompt();
 }
 
 void shell_init(void) {
@@ -693,14 +804,14 @@ static void get_local_time(rtc_time_t *local) {
 
 static void command_hexdump(const char *args) {
   if (!args || *args == '\0') {
-    kprint_color("Usage: hexdump <filename>\n", COLOR_WHITE);
+    kprint_color("Usage: hexdump <filename>\n", COLOR_DEFAULT);
     return;
   }
 
   vfs_node_t *file = vfs_lookup(fs_root, args);
   if (!file) {
     kprint_color("File not found: ", COLOR_DEFAULT);
-    kprint_color(args, COLOR_WHITE);
+    kprint_color(args, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
     return;
   }
@@ -730,7 +841,7 @@ static void command_hexdump(const char *args) {
     // Print ASCII printable representation
     for (uint32_t j = 0; j < bytes_read; j++) {
       char c = (char)chunk[j];
-      kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_WHITE);
+      kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_DEFAULT);
     }
     kputchar_color('\n', COLOR_DEFAULT);
   }
@@ -796,7 +907,7 @@ static void command_cat(const char *args) {
 
 static void command_cp(const char *args) {
   if (!args || *args == '\0') {
-    kprint_color("Usage: cp <source> <dest>\n", COLOR_WHITE);
+    kprint_color("Usage: cp <source> <dest>\n", COLOR_DEFAULT);
     return;
   }
 
@@ -818,14 +929,12 @@ static void command_cp(const char *args) {
   dest[j] = '\0';
 
   if (src[0] == '\0' || dest[0] == '\0') {
-    kprint_color("Usage: cp <source> <dest>\n", COLOR_WHITE);
+    kprint_color("Usage: cp <source> <dest>\n", COLOR_DEFAULT);
     return;
   }
 
   if (initrd_copy_file(src, dest) != 0) {
     kprint_color("cp: failed to copy file\n", COLOR_DEFAULT);
-  } else {
-    kprint_color("File copied successfully.\n", COLOR_DEFAULT);
   }
 }
 

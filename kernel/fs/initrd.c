@@ -213,28 +213,69 @@ vfs_node_t *initrd_find_file(const char *filename) {
 // touched files) kernel/fs/initrd.c
 
 void initrd_list_files(void) {
-  for (uint32_t i = 0; i < node_count; i++) {
-    vfs_node_t *node = &file_pool[i].node;
+    // Collect valid, non-dot node indices
+    uint32_t valid_indices[64]; 
+    uint32_t count = 0;
 
-    // 1. Display attributes / type tag
-    if (node->flags == FS_DIRECTORY) { // Adjust flag check based on your VFS
-                                       // flags definition (e.g., FS_DIRECTORY)
-      kprint_color(" d\t", COLOR_PROMPT);
-    } else {
-      kprint_color("f\t ", COLOR_DEFAULT);
+    for (uint32_t i = 0; i < node_count && count < 64; i++) {
+        const char *name = file_pool[i].node.name;
+        if (!is_dot_entry(name)) {
+            valid_indices[count++] = i;
+        }
     }
 
-    // Display size in bytes
-    kprint_color("\t", COLOR_DEFAULT);
-    char size_buf[12];
-    itoa(node->length, size_buf);
-    kprint_color(size_buf, COLOR_DEFAULT);
-    kprint_color(" bytes\t", COLOR_DEFAULT);
+    // Sort valid entry indices alphabetically by node name (Bubble Sort)
+    for (uint32_t i = 0; i < count; i++) {
+        for (uint32_t j = i + 1; j < count; j++) {
+            const char *name_i = file_pool[valid_indices[i]].node.name;
+            const char *name_j = file_pool[valid_indices[j]].node.name;
 
-    // Display file name
-    kprint_color(node->name, COLOR_DEFAULT);
-    kprint_color("\n", COLOR_DEFAULT);
-  }
+            // Strip leading "./" if present for comparison[cite: 4]
+            if (name_i[0] == '.' && name_i[1] == '/') name_i += 2;
+            if (name_j[0] == '.' && name_j[1] == '/') name_j += 2;
+
+            if (strcmp(name_i, name_j) > 0) {
+                // Swap indices[cite: 4]
+                uint32_t temp = valid_indices[i];
+                valid_indices[i] = valid_indices[j];
+                valid_indices[j] = temp;
+            }
+        }
+    }
+
+    // Print sorted files[cite: 4]
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t idx = valid_indices[i];
+        const char *display_name = file_pool[idx].node.name;
+        
+        if (display_name[0] == '.' && display_name[1] == '/') {
+            display_name += 2;
+        }
+
+        // Print type ('f' or 'd')[cite: 4]
+        char type_char = (file_pool[idx].node.flags & FS_DIRECTORY) ? 'd' : 'f';
+        kputchar_color(type_char, COLOR_DEFAULT);
+        kprint_color("   ", COLOR_DEFAULT);
+
+        // Format and right-align size in a 6-character column[cite: 4]
+        char size_buf[12];
+        itoa(file_pool[idx].node.length, size_buf);
+        
+        int len = 0;
+        while (size_buf[len] != '\0') len++;
+        
+        int width = 6;
+        for (int p = len; p < width; p++) {
+            kputchar_color(' ', COLOR_DEFAULT);
+        }
+        
+        kprint_color(size_buf, COLOR_DEFAULT);
+        kprint_color("   ", COLOR_DEFAULT);
+
+        // Print filename[cite: 4]
+        kprint_color(display_name, COLOR_DEFAULT);
+        kputchar_color('\n', COLOR_DEFAULT);
+    }
 }
 
 // 3. Print contents of a file using vfs_read or direct pool access

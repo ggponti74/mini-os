@@ -6,6 +6,14 @@ size_t strlen(const char *str) {
     return len;
 }
 
+// kernel/string.c (or string utilities file)
+
+char *strcpy(char *dest, const char *src) {
+    char *saved = dest;
+    while ((*dest++ = *src++) != '\0');
+    return saved;
+}
+
 int strncmp(const char *s1, const char *s2, size_t n) {
     while (n && *s1 && (*s1 == *s2)) {
         s1++;
