@@ -6,6 +6,8 @@
 #include "keyboard.h"
 #include "memory.h"
 #include "hal/network/network.h"
+#include "drivers/pci.h"
+#include "drivers/e1000.h"
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
@@ -70,6 +72,16 @@ void kernel_main(void) {
 
   kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();
+  // e1000_check_hardware();
+  // uint8_t mac[6];
+  // e1000_get_mac_address(e1000_get_mmio_base(), mac);
+  // int i = 0;
+  // print_hex8(mac[i++]); kputchar(':');
+  // print_hex8(mac[i++]); kputchar(':');
+  // print_hex8(mac[i++]); kputchar(':');
+  // print_hex8(mac[i++]); kputchar(':');
+  // print_hex8(mac[i++]); kputchar(':');
+  // print_hex8(mac[i++]); kputchar('\n');
 
   __asm__ volatile("sti");
 

@@ -19,6 +19,9 @@ typedef struct net_device {
     void *priv_data; // Pointer to driver-specific data (e.g., e1000 registers)
 } net_device_t;
 
+static inline uint32_t e1000_read_reg(uint32_t, uint16_t );
+static inline void e1000_write_reg(uint32_t, uint16_t, uint32_t);
+
 // Network HAL Function Signatures (Placeholders)
 void hal_network_init(void);
 int hal_network_register_device(net_device_t *dev);
