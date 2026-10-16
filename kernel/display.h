@@ -52,6 +52,7 @@ int sound_is_enabled(void);
 void set_text_color(uint8_t color);
 void display_save_screenshot(screen_snapshot_t *snapshot);
 void display_restore_screenshot(const screen_snapshot_t *snapshot);
+uint8_t display_get_cursor_y(void);
 
 void itoa(uint32_t, char *);
 void print_hex8(uint8_t value);

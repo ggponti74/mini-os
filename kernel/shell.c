@@ -9,6 +9,7 @@
 #include "shell.h"
 #include "sound.h"
 #include "string.h"
+#include "drivers/e1000.h"
 
 #define COLOR_DEFAULT 0x0F
 #define BUILD_NUM 1
@@ -31,6 +32,8 @@ static void command_hexdump(const char *args);
 static void command_history(const char *args);
 static void command_ls(const char *args);
 static void command_mv(const char *args);
+static void command_net(const char *args);
+static void command_pause(const char *args);
 static void command_restart(const char *args);
 static void command_rm(const char *args);
 static void command_run(const char *args);
@@ -88,6 +91,7 @@ static const struct shell_command commands[] = {
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
     {"mv", "Move a file", command_mv},
+    {"net", "Network utilities", command_net},
     {"restart", "Restart the system", command_restart},
     {"rm", "Remove a file", command_rm},
     {"run", "Run a program", command_run},
@@ -608,46 +612,6 @@ static void command_help(const char *args) {
   }
 }
 
-// void command_hexdump(const char *args) {
-//     if (!args || *args == '\0') {
-//         kprint_color("Usage: hexdump <filename>\n", COLOR_DEFAULT);
-//         return;
-//     }
-
-//     uint8_t *file_data;
-//     uint32_t file_size;
-//     if (initrd_get_file(args, &file_data, &file_size) != 0) {
-//         kprint_color("File not found: ", COLOR_DEFAULT);
-//         kprint_color(args, COLOR_DEFAULT);
-//         kputchar_color('\n', COLOR_DEFAULT);
-//         return;
-//     }
-
-//     for (uint32_t i = 0; i < file_size; i += 16) {
-//         print_hex32(i); // Prints offset like 0x00000010
-//         kprint_color(": ", COLOR_DEFAULT);
-
-//         // Print Hex values
-//         for (uint32_t j = 0; j < 16; j++) {
-//             if (i + j < file_size) {
-//                 print_hex8(file_data[i + j]);
-//                 kputchar_color(' ', COLOR_DEFAULT);
-//             } else {
-//                 kprint_color("   ", COLOR_DEFAULT);
-//             }
-//         }
-
-//         kprint_color(" | ", COLOR_DEFAULT);
-
-//         // Print ASCII printable representation
-//         for (uint32_t j = 0; j < 16 && (i + j) < file_size; j++) {
-//             char c = file_data[i + j];
-//             kputchar_color((c >= 32 && c <= 126) ? c : '.', COLOR_DEFAULT);
-//         }
-//         kputchar_color('\n', COLOR_DEFAULT);
-//     }
-// }
-
 static void command_clear(const char *args) {
   (void)args;
   clear_screen();
@@ -771,6 +735,32 @@ static void command_mv(const char *args) {
   } else {
     kprint_color("File moved/renamed successfully.\n", COLOR_DEFAULT);
   }
+}
+
+static void command_net(const char *args) {
+
+  if (!args || *args == '\0') {
+    kprint_color("Usage: net <command>\n", COLOR_DEFAULT);
+    return;
+  }
+  if (strcmp(args, "mac") == 0) {
+    uint8_t mac[6];
+    e1000_get_mac_address(e1000_get_mmio_base(), mac);
+    int i = 0;
+    print_hex8(mac[i++]); kputchar(':');
+    print_hex8(mac[i++]); kputchar(':');
+    print_hex8(mac[i++]); kputchar(':');
+    print_hex8(mac[i++]); kputchar(':');
+    print_hex8(mac[i++]); kputchar(':');
+    print_hex8(mac[i++]); kputchar('\n');
+  } else {
+    kprint_color("Invalid command.\n", COLOR_DEFAULT);
+  }
+}
+
+static void command_pause(const char *args) {
+  kprint_color("Press any key...", COLOR_DEFAULT);
+  keyboard_wait_key();
 }
 
 static void command_rm(const char *args) {

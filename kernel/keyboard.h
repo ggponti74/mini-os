@@ -8,5 +8,6 @@
 
 void keyboard_init(void);
 void keyboard_handler(void);
+void keyboard_wait_key(void);
 
 #endif

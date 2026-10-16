@@ -98,3 +98,8 @@ void keyboard_handler(void) {
     // MANDATORY: Always send EOI at the very end of handler
     pic_send_eoi(1);
 }
+
+void keyboard_wait_key()
+{
+    //TODO: implement wait
+}

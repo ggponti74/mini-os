@@ -23,6 +23,11 @@ static const char hex_chars[] = "0123456789ABCDEF";
 static ansi_state_t ansi_state = ANSI_STATE_NORMAL;
 static int ansi_param = 0;
 
+uint8_t display_get_cursor_y()
+{
+  return cursor_y;
+}
+
 /**
  * Saves the current VGA screen memory, cursor position, and color state.
  */
