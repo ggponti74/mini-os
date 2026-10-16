@@ -5,19 +5,18 @@
 
 #include "keyboard.h"
 #include "memory.h"
-#include "network/network.h"
+#include "hal/network/network.h"
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
 
-
-#define HEAP_START_ADDR  0x50000 
+#define HEAP_START_ADDR 0x50000
 #define KERNEL_HEAP_SIZE (256 * 1024)
 
 extern char kernel_end_symbol[];
 
 // Find where your kernel ends (or after your PMM bitmap) and initialize:
-//extern uintptr_t kernel_end_symbol; // or your kernel end address
+// extern uintptr_t kernel_end_symbol; // or your kernel end address
 
 uintptr_t heap_start_address =
     (uintptr_t)&kernel_end_symbol; // adjust to your setup
@@ -40,9 +39,10 @@ void kernel_main(void) {
   __asm__ volatile("cli");
   outb(0xE9, 'K');
 
-  clear_screen();
-  kprint_color("Screen cleaned...\n", COLOR_DEFAULT);
   display_init();
+
+  clear_screen();
+  kprint_color("Initializing screen...\n", COLOR_DEFAULT);
 
   kprint_color("Initializing PIC...\n", COLOR_DEFAULT);
   pic_remap();
@@ -67,7 +67,6 @@ void kernel_main(void) {
 
   kprint_color("Initializing memory...\n", COLOR_DEFAULT);
   kheap_init(HEAP_START_ADDR, KERNEL_HEAP_SIZE);
-
 
   kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();

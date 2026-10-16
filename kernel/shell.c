@@ -674,7 +674,7 @@ static void command_version(const char *args) {
 
   kprint_color("mini-os version 1.0 (build ", COLOR_DEFAULT);
   char buf[12];
-  (void)itoa(BUILD_NUM, buf); // Uses existing itoa in display.c
+  itoa(BUILD_NUM, buf); // Uses existing itoa in display.c
   kprint_color(buf, COLOR_DEFAULT);
   kprint_color(")\n", COLOR_DEFAULT);
 
@@ -1107,7 +1107,7 @@ static void command_echo(const char *args) {
   }
   if (args[0] == '$') {
     const char *value = command_set_get(++args);
-    if(value) {
+    if (value) {
       kprint_color(value, COLOR_DEFAULT);
     }
 
