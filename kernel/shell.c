@@ -67,9 +67,9 @@ struct shell_command {
 };
 
 typedef struct set_node {
-    char *name;
-    char *value;
-    struct set_node *next;
+  char *name;
+  char *value;
+  struct set_node *next;
 } set_node_t;
 
 static const struct shell_command commands[] = {
@@ -258,40 +258,54 @@ static void command_exec(const char *args) {
   execute_script(args, 0);
 }
 
-static void command_set(const char *args)
-{
+static void command_set(const char *args) {
 
-    char name[32];
-    int i = 0;
-    const char *value;
+  char name[32];
+  int i = 0;
+  const char *value;
 
-    if (!args || *args == '\0') {
-        command_set_list();
-        return;
+  if (!args || *args == '\0') {
+    command_set_list();
+    return;
+  }
+
+  while (*args == ' ')
+    args++;
+  if (*args == '\0') {
+    command_set_list();
+    return;
+  }
+
+  // Parse variable name up to '=' or space
+  while (args[i] != '=' && args[i] != ' ' && args[i] != '\0' && i < 31) {
+    name[i] = args[i];
+    i++;
+  }
+  name[i] = '\0';
+
+  while (args[i] == ' ' || args[i] == '=')
+    i++;
+
+  value = &args[i];
+  if (name[0] != '\0' && value[0] != '\0') {
+    command_set_set(name, value);
+    kprint_color("Environment variable set.\n", COLOR_DEFAULT);
+  } else {
+    kprint_color("Usage: set <name>=<value>\n", COLOR_DEFAULT);
+  }
+}
+
+static const char *command_set_get_by(const char *name) {
+  set_node_t *curr = set_head;
+
+  while (curr != NULL) {
+    if (strcmp(curr->name, name) == 0) {
+      return curr->value;
     }
+    curr = curr->next;
+  }
 
-    while (*args == ' ') args++;
-    if (*args == '\0') {
-        command_set_list();
-        return;
-    }
-
-    // Parse variable name up to '=' or space
-    while (args[i] != '=' && args[i] != ' ' && args[i] != '\0' && i < 31) {
-        name[i] = args[i];
-        i++;
-    }
-    name[i] = '\0';
-
-    while (args[i] == ' ' || args[i] == '=') i++;
-
-    value = &args[i];
-    if (name[0] != '\0' && value[0] != '\0') {
-        command_set_set(name, value);
-        kprint_color("Environment variable set.\n", COLOR_DEFAULT);
-    } else {
-        kprint_color("Usage: set <name>=<value>\n", COLOR_DEFAULT);
-    }
+  return NULL;
 }
 
 static const char *command_set_get(const char *name) {
@@ -1091,7 +1105,15 @@ static void command_echo(const char *args) {
     kputchar_color('\n', COLOR_DEFAULT);
     return;
   }
-  kprint_color(args, COLOR_DEFAULT);
+  if (args[0] == '$') {
+    const char *value = command_set_get(++args);
+    if(value) {
+      kprint_color(value, COLOR_DEFAULT);
+    }
+
+  } else {
+    kprint_color(args, COLOR_DEFAULT);
+  }
   kputchar_color('\n', COLOR_DEFAULT);
 }
 
