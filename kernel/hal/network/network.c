@@ -25,7 +25,6 @@ void hal_network_init(void) {
 
                 // Check for Intel e1000 (82540EM is 0x100E)
                 if (vendor == 0x8086 && device == 0x100E) {
-                    kprint("[NET] Found Intel e1000 NIC!\n");
 
                     // 1. Enable Memory Space (bit 1) and Bus Master (bit 2) in Command Register
                     uint32_t cmd = pci_config_read(bus, slot, func, 0x04);
@@ -46,8 +45,6 @@ void hal_network_init(void) {
             }
         }
     }
-
-    kprint("[NET] No supported network card found.\n");
 }
 
 int hal_network_register_device(net_device_t *dev) {

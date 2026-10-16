@@ -10,6 +10,7 @@
 #include "sound.h"
 #include "string.h"
 #include "drivers/e1000.h"
+#include "keyboard.h"
 
 #define COLOR_DEFAULT 0x0F
 #define BUILD_NUM 1
