@@ -1,16 +1,16 @@
 #include <stdint.h>
 
 #include "display.h"
+#include "drivers/e1000.h"
 #include "exec.h"
 #include "fs/initrd.h"
 #include "fs/vfs.h"
+#include "keyboard.h"
 #include "memory.h"
 #include "rtc.h"
 #include "shell.h"
 #include "sound.h"
 #include "string.h"
-#include "drivers/e1000.h"
-#include "keyboard.h"
 
 #define COLOR_DEFAULT 0x0F
 #define BUILD_NUM 1
@@ -93,6 +93,7 @@ static const struct shell_command commands[] = {
     {"ls", "List files in current directory", command_ls},
     {"mv", "Move a file", command_mv},
     {"net", "Network utilities", command_net},
+    {"pause", "Wait for a key to be pressed", command_pause},
     {"restart", "Restart the system", command_restart},
     {"rm", "Remove a file", command_rm},
     {"run", "Run a program", command_run},
@@ -748,20 +749,41 @@ static void command_net(const char *args) {
     uint8_t mac[6];
     e1000_get_mac_address(e1000_get_mmio_base(), mac);
     int i = 0;
-    print_hex8(mac[i++]); kputchar(':');
-    print_hex8(mac[i++]); kputchar(':');
-    print_hex8(mac[i++]); kputchar(':');
-    print_hex8(mac[i++]); kputchar(':');
-    print_hex8(mac[i++]); kputchar(':');
-    print_hex8(mac[i++]); kputchar('\n');
+    print_hex8(mac[i++]);
+    kputchar(':');
+    print_hex8(mac[i++]);
+    kputchar(':');
+    print_hex8(mac[i++]);
+    kputchar(':');
+    print_hex8(mac[i++]);
+    kputchar(':');
+    print_hex8(mac[i++]);
+    kputchar(':');
+    print_hex8(mac[i++]);
+    kputchar('\n');
   } else {
     kprint_color("Invalid command.\n", COLOR_DEFAULT);
   }
 }
 
 static void command_pause(const char *args) {
-  kprint_color("Press any key...", COLOR_DEFAULT);
-  keyboard_wait_key();
+  (void)args;
+
+  kprint_color("Press any key to continue...", COLOR_DEFAULT);
+
+  // 1. Arm the keyboard driver's pause state
+  set_keyboard_pause_state(1);
+
+  //set_keyboard_pause_state(0);
+
+  // 2. Block execution right here until the keyboard handler clears the flag.
+  // Using __asm__ volatile("hlt") halts the CPU safely until the next interrupt
+  // (the key release).
+  while (get_keyboard_pause_state()) {
+    __asm__ volatile("hlt");
+  }
+
+  kputchar('\n');
 }
 
 static void command_rm(const char *args) {

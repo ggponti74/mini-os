@@ -8,6 +8,7 @@
 
 void keyboard_init(void);
 void keyboard_handler(void);
-void keyboard_wait_key(void);
+void set_keyboard_pause_state(int);
+int get_keyboard_pause_state(void);
 
 #endif
