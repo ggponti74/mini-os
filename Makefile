@@ -69,7 +69,7 @@ CC := gcc
 OBJCOPY := objcopy
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel
 
-.PHONY: all clean run run-iso iso initrd.tar boot kernel libsys image
+.PHONY: all clean run run-iso iso boot kernel libsys image
 
 all: image
 
@@ -98,6 +98,14 @@ $(BUILD)/%.o: kernel/%.asm | $(BUILD)
 $(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(CFLAGS) $< -o $@
+
+$(BUILD)/editor: userland/Makefile userland/libsys/apps/editor.c \
+                 userland/libsys/apps/editor.h \
+                 userland/libsys/apps/editor_entry.c | $(BUILD)
+	$(MAKE) -C userland editor
+
+initrd.tar: $(BUILD)/editor $(INITRD_SOURCE) bin/demo music.cfg
+	$(INITRD_COMMAND)
 	
 # GCC GNU assembly (.S)
 $(BUILD)/%.o: kernel/%.S | $(BUILD)
@@ -115,7 +123,7 @@ kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
 libsys:
-	$(MAKE) -C userland/libsys
+	$(MAKE) -C userland
 
 # Make image depend on the actual binary file
 image: boot kernel | $(DIST)

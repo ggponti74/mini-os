@@ -11,6 +11,11 @@ text mode and the display mode reported by the firmware.
 
 Run `exec music.cfg` in the shell to play the Nokia ringtone.
 
+The initrd includes the userland editor binary, which can be invoked with
+`editor`. It currently initializes the editor buffer scaffold and exits; an
+interactive interface and file I/O require userland terminal and filesystem
+support that is not yet implemented.
+
 The QEMU `run` and `run-iso` targets route the PC speaker to the host audio
 backend. If the default audio backend is unavailable on your host, override
 it with a supported QEMU `QEMU_AUDIO_FLAGS` value.

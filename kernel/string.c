@@ -14,6 +14,18 @@ char *strcpy(char *dest, const char *src) {
     return saved;
 }
 
+void *memcpy(void *dest, const void *src, size_t count) {
+    unsigned char *destination = (unsigned char *)dest;
+    const unsigned char *source = (const unsigned char *)src;
+    void *saved = dest;
+
+    while (count-- > 0) {
+        *destination++ = *source++;
+    }
+
+    return saved;
+}
+
 int strncmp(const char *s1, const char *s2, size_t n) {
     while (n && *s1 && (*s1 == *s2)) {
         s1++;

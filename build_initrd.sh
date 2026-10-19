@@ -9,6 +9,7 @@ echo "sound on" >> initrd_root/system.cfg
 echo "set os=mini-os 1.0" >> initrd_root/system.cfg
 cp bin/demo initrd_root/
 cp music.cfg initrd_root/
+cp build/editor initrd_root/editor
 
 # Create uncompressed tar archive
 tar -cvf initrd.tar -C initrd_root .

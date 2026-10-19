@@ -8,7 +8,7 @@
 #include "vfs.h"
 
 #define MAX_NODES 32
-#define MAX_FILE_SIZE 1024
+#define MAX_FILE_SIZE 8192
 
 typedef struct {
   vfs_node_t node;
