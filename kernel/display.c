@@ -28,6 +28,16 @@ uint8_t display_get_cursor_y()
   return cursor_y;
 }
 
+void display_move_cursor_left(void) {
+  if (cursor_x > 0) {
+    cursor_x--;
+  } else if (cursor_y > 0) {
+    cursor_y--;
+    cursor_x = VGA_WIDTH - 1;
+  }
+  update_hardware_cursor(cursor_x, cursor_y);
+}
+
 /**
  * Saves the current VGA screen memory, cursor position, and color state.
  */

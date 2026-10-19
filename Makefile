@@ -11,6 +11,7 @@ ifeq ($(OS),Windows_NT)
     QEMU = qemu-system-i386
     QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
     QEMU_NET_FLAGS = -nic user,model=e1000
+    QEMU_AUDIO_FLAGS ?= -audiodev dsound,id=pcspk -machine pcspk-audiodev=pcspk
     INITRD_SOURCE = build_initrd.ps1
     INITRD_COMMAND = powershell -ExecutionPolicy Bypass -File build_initrd.ps1
 else
@@ -25,6 +26,7 @@ else
     QEMU = qemu-system-i386
     QEMU_ISO_FLAGS = -cdrom $(ISO) -nographic
     QEMU_NET_FLAGS = -nic user,model=e1000
+    QEMU_AUDIO_FLAGS ?= -audiodev pa,id=pcspk -machine pcspk-audiodev=pcspk
     INITRD_SOURCE = build_initrd.sh
     INITRD_COMMAND = bash build_initrd.sh
 endif
@@ -128,11 +130,11 @@ iso: image | $(DIST)
 
 # Run floppy image directly
 run: image
-	$(QEMU) -fda $(IMAGE) $(QEMU_NET_FLAGS) -nographic -serial stdio
+	$(QEMU) -fda $(IMAGE) $(QEMU_NET_FLAGS) $(QEMU_AUDIO_FLAGS) -nographic -serial stdio
 
 # Run ISO image in CD-ROM mode
 run-iso: iso
-	$(QEMU) $(QEMU_ISO_FLAGS) $(QEMU_NET_FLAGS) $(QEMU_DEBUG_FLAGS)
+	$(QEMU) $(QEMU_ISO_FLAGS) $(QEMU_NET_FLAGS) $(QEMU_AUDIO_FLAGS) $(QEMU_DEBUG_FLAGS)
 	
 clean:
 	$(call RM,$(BUILD))

@@ -153,10 +153,14 @@ static void add_to_history(const char *cmd) {
 }
 
 static void clear_input_line(void) {
+  cursor_index = buffer_index;
+  shell_refresh_line();
   while (buffer_index > 0) {
     buffer_index--;
     kputchar_color('\b', COLOR_DEFAULT);
   }
+  cursor_index = 0;
+  command_buffer[0] = '\0';
 }
 
 static void command_alias(const char *args) {
@@ -1059,6 +1063,8 @@ static void execute_command(void) {
 
   if (buffer_index == 0) {
     buffer_index = 0;
+    cursor_index = 0;
+    command_buffer[0] = '\0';
     history_index = -1;
     update_status_bar();
     print_prompt();
@@ -1109,6 +1115,8 @@ static void execute_command(void) {
   }
 
   buffer_index = 0;
+  cursor_index = 0;
+  command_buffer[0] = '\0';
   history_index = -1;
   update_status_bar();
   if (!get_keyboard_pause_state()) {
@@ -1395,6 +1403,7 @@ static void set_input_buffer(const char *str) {
     str++;
   }
   command_buffer[buffer_index] = '\0';
+  cursor_index = buffer_index;
 }
 
 int shell_command_busy(void) {
@@ -1452,6 +1461,8 @@ void shell_handle_key_up(void) {
 
 void shell_init(void) {
   buffer_index = 0;
+  cursor_index = 0;
+  command_buffer[0] = '\0';
   history_index = -1;
   execute_script("system.cfg", 1);
   update_status_bar();
@@ -1463,6 +1474,8 @@ void shell_init(void) {
 void shell_input_char(char c) {
   if (c == '\n') {
     if (!command_pending && !command_running) {
+      cursor_index = buffer_index;
+      shell_refresh_line();
       kputchar_color('\n', COLOR_DEFAULT);
       command_pending = 1;
     }
@@ -1470,22 +1483,33 @@ void shell_input_char(char c) {
     if (command_pending || command_running) {
       return;
     }
-    if (buffer_index > 0 && cursor_index > 0) {
-      // delete at cursor position, not just at end
-      // for now, keep simple: delete last char
+    if (cursor_index > 0) {
+      for (int i = cursor_index - 1; i < buffer_index - 1; i++) {
+        command_buffer[i] = command_buffer[i + 1];
+      }
       buffer_index--;
-      cursor_index = buffer_index;
-      kputchar_color('\b', COLOR_DEFAULT);
+      cursor_index--;
+      command_buffer[buffer_index] = '\0';
+      shell_refresh_line();
     }
   } else if (c >= ' ' && c <= '~') {
     if (command_pending || command_running) {
       return;
     }
-    if (buffer_index < MAX_BUFFER_SIZE - 1) {
+    if (insert_mode && buffer_index < MAX_BUFFER_SIZE - 1) {
+      for (int i = buffer_index; i > cursor_index; i--) {
+        command_buffer[i] = command_buffer[i - 1];
+      }
+      command_buffer[cursor_index++] = c;
+      buffer_index++;
+    } else if (cursor_index < buffer_index) {
+      command_buffer[cursor_index++] = c;
+    } else if (buffer_index < MAX_BUFFER_SIZE - 1) {
       command_buffer[buffer_index++] = c;
       cursor_index = buffer_index;
-      kputchar_color(c, COLOR_DEFAULT);
     }
+    command_buffer[buffer_index] = '\0';
+    shell_refresh_line();
   }
 }
 
@@ -1505,12 +1529,12 @@ void shell_refresh_line(void) {
 
   // Clear trailing char
   kputchar_color(' ', COLOR_DEFAULT);
-  kputchar_color('\b', COLOR_DEFAULT);
+  display_move_cursor_left();
 
   // Move cursor back from end to cursor_index
   int steps_back = buffer_index - cursor_index;
   for (int i = 0; i < steps_back; i++) {
-    kputchar_color('\b', COLOR_DEFAULT);
+    display_move_cursor_left();
   }
 }
 void shell_run_pending_command(void) {

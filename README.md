@@ -10,3 +10,7 @@ numeric IPv4 addresses only. `test video` reports mini-os's supported VGA
 text mode and the display mode reported by the firmware.
 
 Run `exec music.cfg` in the shell to play the Nokia ringtone.
+
+The QEMU `run` and `run-iso` targets route the PC speaker to the host audio
+backend. If the default audio backend is unavailable on your host, override
+it with a supported QEMU `QEMU_AUDIO_FLAGS` value.
