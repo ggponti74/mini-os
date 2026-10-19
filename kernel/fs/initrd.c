@@ -216,12 +216,15 @@ void initrd_list_files(void) {
     // Collect valid, non-dot node indices
     uint32_t valid_indices[64]; 
     uint32_t count = 0;
-
-    for (uint32_t i = 0; i < node_count && count < 64; i++) {
-        const char *name = file_pool[i].node.name;
-        if (!is_dot_entry(name)) {
-            valid_indices[count++] = i;
-        }
+    uint32_t totalLength = 0;
+    
+    for (uint32_t i = 0; i < node_count && count < 64; i++)
+    {
+      const char *name = file_pool[i].node.name;
+      if (!is_dot_entry(name))
+      {
+        valid_indices[count++] = i;
+      }
     }
 
     // Sort valid entry indices alphabetically by node name (Bubble Sort)
@@ -260,7 +263,9 @@ void initrd_list_files(void) {
         // Format and right-align size in a 6-character column[cite: 4]
         char size_buf[12];
         itoa(file_pool[idx].node.length, size_buf);
-        
+
+        totalLength += file_pool[idx].node.length;
+       
         int len = 0;
         while (size_buf[len] != '\0') len++;
         
@@ -276,6 +281,11 @@ void initrd_list_files(void) {
         kprint_color(display_name, COLOR_DEFAULT);
         kputchar_color('\n', COLOR_DEFAULT);
     }
+
+    char size_buf[12];
+    itoa(totalLength, size_buf);
+    kprint_color(size_buf, COLOR_DEFAULT);
+    kprint_color(" bytes total\n", COLOR_DEFAULT); 
 }
 
 // 3. Print contents of a file using vfs_read or direct pool access
