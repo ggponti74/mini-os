@@ -8,6 +8,7 @@ struct idt_ptr idtp;
 // Assembly routine defined in kernel/interrupts.asm or kernel/boot.asm
 extern void idt_load(uint32_t idt_ptr_addr);
 extern void isr_default_stub(void);
+extern void irq0_timer_stub(void);
 extern void irq1_keyboard_stub(void); // Declared here
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
@@ -27,7 +28,8 @@ void idt_init(void) {
         idt_set_gate(i, (uint32_t)isr_default_stub, 0x08, 0x8E);
     }
 
-    // 2. Map Vector 33 (IRQ1) to irq1_keyboard_stub
+    // 2. Map IRQ0 and IRQ1 to their handlers.
+    idt_set_gate(32, (uint32_t)irq0_timer_stub, 0x08, 0x8E);
     idt_set_gate(33, (uint32_t)irq1_keyboard_stub, 0x08, 0x8E);
 
     // 3. Load IDT

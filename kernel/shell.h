@@ -18,6 +18,8 @@ void shell_init(void);
 // Pass incoming keyboard characters to the shell buffer
 void shell_input_char(char c);
 void shell_pause_complete(void);
+void shell_run_pending_command(void);
+int shell_command_busy(void);
 
 // Parse and execute a command string directly
 void process_command(const char *cmd);

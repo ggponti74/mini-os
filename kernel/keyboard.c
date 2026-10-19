@@ -78,6 +78,11 @@ void keyboard_handler(void) {
     return;
   }
 
+  if (shell_command_busy()) {
+    pic_send_eoi(1);
+    return;
+  }
+
   // 2. Handle the 0xE0 prefix byte
   if (scancode == 0xE0) {
     extended_scancode = 1;

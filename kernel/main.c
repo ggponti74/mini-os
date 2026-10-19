@@ -6,6 +6,7 @@
 #include "keyboard.h"
 #include "memory.h"
 #include "hal/network/network.h"
+#include "hal/timer.h"
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
@@ -53,9 +54,11 @@ void kernel_main(void) {
   kprint_color("Initializing keyboard...\n", COLOR_DEFAULT);
   keyboard_init();
 
+  kprint_color("Initializing timer...\n", COLOR_DEFAULT);
+  hal_timer_init(1000);
+
   kprint_color("Initializing sound...\n", COLOR_DEFAULT);
   sound_init();
-  beep(440, 10);
 
   kprint_color("Initializing virtual file system and RAM disk...\n",
                COLOR_DEFAULT);
@@ -72,6 +75,7 @@ void kernel_main(void) {
   hal_network_init();
 
   __asm__ volatile("sti");
+  beep(440, 10);
 hal_network_configure_dhcp();
 
 /*
@@ -93,6 +97,7 @@ hal_network_configure_dhcp();
   display_set_fs_indicator(FS_IND_IDLE, FS_IND_IDLE);
 
   while (1) {
+    shell_run_pending_command();
     update_status_bar();
     __asm__ volatile("hlt");
   }
