@@ -2,6 +2,7 @@
 #include "display.h"
 #include "fs/initrd.h"
 #include "fs/vfs.h"
+#include "keyboard.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -29,6 +30,7 @@ int exec_flat_binary(const char *path, int argc, char **argv) {
     return -3;
   }
 
+  keyboard_clear_queue();
   typedef int (*binary_main_t)(int argc, char **argv);
   binary_main_t entry = (binary_main_t)binary_image;
   return entry(argc, argv);

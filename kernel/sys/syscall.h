@@ -10,5 +10,13 @@
 #define SYS_CLOSE  6
 #define SYS_SBRK   7
 #define SYS_FSTAT  8
+#define SYS_GETKEY 9
+#define SYS_CLEAR  10
+#define SYS_CURSOR 11
+#define SYS_FTRUNCATE 12
+
+#define OPEN_WRONLY 0x01
+#define OPEN_RDWR   0x02
+#define OPEN_CREAT  0x100
 
 #endif

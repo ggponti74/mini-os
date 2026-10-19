@@ -10,6 +10,7 @@ extern void idt_load(uint32_t idt_ptr_addr);
 extern void isr_default_stub(void);
 extern void irq0_timer_stub(void);
 extern void irq1_keyboard_stub(void); // Declared here
+extern void syscall_stub(void);
 
 void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[num].base_low  = (base & 0xFFFF);
@@ -31,6 +32,7 @@ void idt_init(void) {
     // 2. Map IRQ0 and IRQ1 to their handlers.
     idt_set_gate(32, (uint32_t)irq0_timer_stub, 0x08, 0x8E);
     idt_set_gate(33, (uint32_t)irq1_keyboard_stub, 0x08, 0x8E);
+    idt_set_gate(0x80, (uint32_t)syscall_stub, 0x08, 0xEF);
 
     // 3. Load IDT
     idt_load((uint32_t)&idtp);

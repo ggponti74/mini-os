@@ -6,6 +6,10 @@
 
 static int extended_scancode = 0;
 static int shift_pressed = 0;
+static int control_pressed = 0;
+static volatile uint32_t key_queue[64];
+static volatile uint32_t key_queue_head;
+static volatile uint32_t key_queue_tail;
 
 volatile int waiting_for_pause = 0;
 
@@ -36,6 +40,75 @@ void keyboard_init(void) {
 
 void set_keyboard_pause_state(int state) { waiting_for_pause = state; }
 int get_keyboard_pause_state() { return waiting_for_pause; }
+
+static void queue_key(uint32_t key) {
+  uint32_t next = (key_queue_head + 1) % 64;
+  if (next != key_queue_tail) {
+    key_queue[key_queue_head] = key;
+    key_queue_head = next;
+  }
+}
+
+int keyboard_read_key(void) {
+  if (key_queue_tail == key_queue_head) {
+    return -1;
+  }
+  uint32_t key = key_queue[key_queue_tail];
+  key_queue_tail = (key_queue_tail + 1) % 64;
+  return (int)key;
+}
+
+void keyboard_clear_queue(void) {
+  key_queue_tail = key_queue_head;
+}
+
+static void queue_program_key(uint8_t scancode) {
+  if (scancode & 0x80) {
+    uint8_t released = scancode & 0x7F;
+    if (extended_scancode) {
+      extended_scancode = 0;
+    } else if (released == 0x2A || released == 0x36) {
+      shift_pressed = 0;
+    } else if (released == 0x1D) {
+      control_pressed = 0;
+    }
+    return;
+  }
+
+  if (extended_scancode) {
+    extended_scancode = 0;
+    switch (scancode) {
+    case 0x47: queue_key(KEY_EVENT_HOME); break;
+    case 0x48: queue_key(KEY_EVENT_UP); break;
+    case 0x4B: queue_key(KEY_EVENT_LEFT); break;
+    case 0x4D: queue_key(KEY_EVENT_RIGHT); break;
+    case 0x4F: queue_key(KEY_EVENT_END); break;
+    case 0x50: queue_key(KEY_EVENT_DOWN); break;
+    case 0x53: queue_key(KEY_EVENT_DELETE); break;
+    }
+    return;
+  }
+
+  if (scancode == 0x2A || scancode == 0x36) {
+    shift_pressed = 1;
+    return;
+  }
+  if (scancode == 0x1D) {
+    control_pressed = 1;
+    return;
+  }
+  if (scancode < 128) {
+    char value = shift_pressed ? scancode_ascii_uppercase[scancode]
+                               : scancode_ascii_lowercase[scancode];
+    if (control_pressed && (value == 's' || value == 'S')) {
+      queue_key(KEY_EVENT_CTRL_S);
+    } else if (control_pressed && (value == 'q' || value == 'Q')) {
+      queue_key(KEY_EVENT_CTRL_Q);
+    } else if (value != 0) {
+      queue_key((uint8_t)value);
+    }
+  }
+}
 
 void keyboard_handler(void) {
 
@@ -78,14 +151,15 @@ void keyboard_handler(void) {
     return;
   }
 
-  if (shell_command_busy()) {
+  // 2. Handle the 0xE0 prefix byte before routing keys to shell or a program.
+  if (scancode == 0xE0) {
+    extended_scancode = 1;
     pic_send_eoi(1);
     return;
   }
 
-  // 2. Handle the 0xE0 prefix byte
-  if (scancode == 0xE0) {
-    extended_scancode = 1;
+  if (shell_command_busy()) {
+    queue_program_key(scancode);
     pic_send_eoi(1);
     return;
   }

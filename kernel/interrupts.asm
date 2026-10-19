@@ -3,9 +3,11 @@ global idt_load
 global isr_default_stub
 global irq0_timer_stub
 global irq1_keyboard_stub
+global syscall_stub
 
 extern hal_timer_irq_handler
 extern keyboard_handler
+extern syscall_dispatch
 
 ; Load IDT table into CPU IDTR
 idt_load:
@@ -73,4 +75,20 @@ irq1_keyboard_stub:
     pop ds
     popa
     iret
+
+syscall_stub:
+    pusha
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov esi, esp
+    push dword [esi + 20]
+    push dword [esi + 24]
+    push dword [esi + 16]
+    push dword [esi + 28]
+    call syscall_dispatch
+    add esp, 16
+    mov [esi + 28], eax
+    popa
+    iretd
     

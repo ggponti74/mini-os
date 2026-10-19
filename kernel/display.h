@@ -47,6 +47,8 @@ void set_hardware_cursor_shape(int);
 void disable_hardware_cursor(void);
 void update_hardware_cursor(int, int);
 void display_move_cursor_left(void);
+void display_clear_console(void);
+void display_set_console_cursor(uint8_t x, uint8_t y);
 void scroll_screen(uint8_t color);
 void sound_set_enabled(int );
 int sound_is_enabled(void);

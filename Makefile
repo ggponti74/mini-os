@@ -101,7 +101,10 @@ $(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
 
 $(BUILD)/editor: userland/Makefile userland/libsys/apps/editor.c \
                  userland/libsys/apps/editor.h \
-                 userland/libsys/apps/editor_entry.c | $(BUILD)
+                 userland/libsys/apps/editor_entry.c \
+                 userland/libsys/apps/editor_start.S \
+                 userland/libsys/apps/editor_syscall.S \
+                 userland/flat.ld | $(BUILD)
 	$(MAKE) -C userland editor
 
 initrd.tar: $(BUILD)/editor $(INITRD_SOURCE) bin/demo music.cfg

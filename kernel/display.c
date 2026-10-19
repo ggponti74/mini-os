@@ -204,6 +204,19 @@ void clear_screen(void) {
   update_hardware_cursor(cursor_x, cursor_y);
 }
 
+void display_clear_console(void) {
+  clear_screen();
+}
+
+void display_set_console_cursor(uint8_t x, uint8_t y) {
+  if (x >= VGA_WIDTH || y >= MAIN_SCREEN_HEIGHT) {
+    return;
+  }
+  cursor_x = x;
+  cursor_y = y;
+  update_hardware_cursor(cursor_x, cursor_y);
+}
+
 void scroll_screen(uint8_t override_color) {
   // 1. Shift lines 1..(MAIN_SCREEN_HEIGHT-1) up
   for (int y = 0; y < MAIN_SCREEN_HEIGHT - 1; y++) {
