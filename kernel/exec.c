@@ -5,11 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// External references to your PMM
-extern uintptr_t pmm_alloc_frame(void);
-extern void pmm_free_frame(uintptr_t frame_addr);
+static uint8_t binary_image[8192];
 
-int exec_flat_binary(const char *path) {
+int exec_flat_binary(const char *path, int argc, char **argv) {
 
   // 1. Look up the binary file in the VFS / RAMDisk pool
   vfs_node_t *file = initrd_find_file(path);
@@ -23,33 +21,15 @@ int exec_flat_binary(const char *path) {
     return -1;
   }
 
-  // 2. Calculate how many 4 KB pages are needed
-  size_t pages_needed = (file->length + 4095) / 4096;
-
-  // 3. Allocate physical frames sequentially
-  uintptr_t first_frame = 0;
-  for (size_t i = 0; i < pages_needed; i++) {
-    uintptr_t frame = pmm_alloc_frame();
-    if (frame == 0) {
-      return -3; // Out of physical memory frames
-    }
-    if (i == 0) {
-      first_frame = frame;
-    }
+  if (file->length > sizeof(binary_image)) {
+    return -3;
   }
 
-  // 4. Copy raw payload bytes from the RAMDisk node
-  uint8_t *dest_ptr = (uint8_t *)first_frame;
-  vfs_read(file, 0, file->length, dest_ptr);
+  if (vfs_read(file, 0, file->length, binary_image) != file->length) {
+    return -3;
+  }
 
-  // Define the function pointer type
   typedef int (*binary_main_t)(int argc, char **argv);
-
-  binary_main_t entry = (binary_main_t)first_frame;
-
-  // Example arguments
-  int argc = 2;
-  char *argv[] = {"test", "arg1", NULL};
-
+  binary_main_t entry = (binary_main_t)binary_image;
   return entry(argc, argv);
 }

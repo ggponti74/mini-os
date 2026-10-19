@@ -58,6 +58,7 @@ static void command_time(const char *args);
 static void command_timezone(const char *args);
 static void command_touch(const char *args);
 static void command_version(const char *args);
+static int execute_binary(const char *path, const char *args);
 static void execute_command(void);
 static void execute_script(const char *filename, int silent);
 static void get_local_time(rtc_time_t *local);
@@ -727,21 +728,93 @@ static void command_rm(const char *args) {
 }
 
 static void command_run(const char *args) {
-
-  // Skip any leading spaces
   while (*args == ' ') {
     args++;
   }
 
   if (*args == '\0') {
-    kprint_color("Usage: run <binary>\n", COLOR_DEFAULT);
+    kprint_color("Usage: run <binary> [args]\n", COLOR_DEFAULT);
     return;
   }
 
-  int result = exec_flat_binary(args);
-  if (result != 0) {
+  char path[64];
+  uint32_t path_length = 0;
+  while (args[path_length] != '\0' && args[path_length] != ' ' &&
+         path_length < sizeof(path) - 1) {
+    path[path_length] = args[path_length];
+    path_length++;
+  }
+  if (args[path_length] != '\0' && args[path_length] != ' ') {
+    kprint_color("run: binary name is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  path[path_length] = '\0';
+  args += path_length;
+  while (*args == ' ') {
+    args++;
+  }
+
+  if (!initrd_find_file(path)) {
+    kprint_color("run: binary not found: ", COLOR_DEFAULT);
+    kprint_color(path, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+    return;
+  }
+  if (execute_binary(path, args) != 0) {
     kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
   }
+}
+
+static int execute_binary(const char *path, const char *args) {
+  char program_name[64];
+  char argument_storage[MAX_BUFFER_SIZE];
+  char *argv[MAX_BUFFER_SIZE / 2 + 1];
+  uint32_t program_length = 0;
+  uint32_t argument_length = 0;
+  int argc = 1;
+
+  while (path[program_length] != '\0' &&
+         program_length < sizeof(program_name) - 1) {
+    program_name[program_length] = path[program_length];
+    program_length++;
+  }
+  if (path[program_length] != '\0') {
+    return -1;
+  }
+  program_name[program_length] = '\0';
+  argv[0] = program_name;
+
+  while (args[argument_length] != '\0' &&
+         argument_length < sizeof(argument_storage) - 1) {
+    argument_storage[argument_length] = args[argument_length];
+    argument_length++;
+  }
+  if (args[argument_length] != '\0') {
+    return -1;
+  }
+  argument_storage[argument_length] = '\0';
+
+  for (uint32_t i = 0; i < argument_length;) {
+    while (argument_storage[i] == ' ') {
+      i++;
+    }
+    if (argument_storage[i] == '\0') {
+      break;
+    }
+    if (argc >= (int)(sizeof(argv) / sizeof(argv[0])) - 1) {
+      return -1;
+    }
+    argv[argc++] = &argument_storage[i];
+    while (argument_storage[i] != '\0' && argument_storage[i] != ' ') {
+      i++;
+    }
+    if (argument_storage[i] == ' ') {
+      argument_storage[i++] = '\0';
+    }
+  }
+  argv[argc] = NULL;
+
+  return exec_flat_binary(path, argc, argv);
 }
 
 void command_screenshot(const char *args) {
@@ -1109,9 +1182,15 @@ static void execute_command(void) {
   }
 
   if (!found) {
-    kprint_color("Unknown command: ", COLOR_DEFAULT);
-    kprint_color(cmd_name, COLOR_DEFAULT);
-    kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
+    if (initrd_find_file(cmd_name)) {
+      if (execute_binary(cmd_name, input_args) != 0) {
+        kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
+      }
+    } else {
+      kprint_color("Unknown command: ", COLOR_DEFAULT);
+      kprint_color(cmd_name, COLOR_DEFAULT);
+      kprint_color("\nType 'help' for available commands.\n", COLOR_DEFAULT);
+    }
   }
 
   buffer_index = 0;
@@ -1383,9 +1462,11 @@ void process_command(const char *cmd) {
     }
   }
 
-  // 2. Safe Fallback: Try looking for a flat binary on the RAMDisk via VFS
-  // We wrap this with a check so it doesn't jump blindly into garbage memory
-  if (exec_flat_binary(cmd_name) == 0) {
+  // 2. Run a flat binary from the RAM disk when no built-in matches.
+  if (initrd_find_file(cmd_name)) {
+    if (execute_binary(cmd_name, args) != 0) {
+      kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
+    }
     return;
   }
 
