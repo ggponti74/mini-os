@@ -2,6 +2,40 @@
 #include "sound.h"
 #include "io.h"
 
+static uint16_t pit_channel0_count(void) {
+    outb(0x43, 0x00);
+    uint16_t count = inb(0x40);
+    count |= (uint16_t)inb(0x40) << 8;
+    return count;
+}
+
+static void wait_ms(uint32_t milliseconds) {
+    const uint16_t divisor = 1193;
+    uint32_t remaining = milliseconds * divisor;
+    uint32_t poll_budget = milliseconds * 10000;
+
+    outb(0x43, 0x34);
+    outb(0x40, (uint8_t)(divisor & 0xFF));
+    outb(0x40, (uint8_t)(divisor >> 8));
+
+    uint16_t previous = pit_channel0_count();
+
+    while (remaining > 0 && poll_budget > 0) {
+        uint16_t current = pit_channel0_count();
+        uint32_t elapsed = previous >= current
+                               ? previous - current
+                               : previous + (uint32_t)divisor - current;
+        if (elapsed > 0) {
+            if (elapsed >= remaining) {
+                return;
+            }
+            remaining -= elapsed;
+            previous = current;
+        }
+        poll_budget--;
+    }
+}
+
 void play_sound(uint32_t nFreq) {
     if (nFreq == 0) return;
 
@@ -27,9 +61,7 @@ void nosound(void) {
 
 void beep(uint32_t freq, uint32_t duration) {
     play_sound(freq);
-    for (volatile uint32_t i = 0; i < duration * 100000; i++) {
-        __asm__ volatile ("nop");
-    }
+    wait_ms(duration);
     nosound();
 }
 

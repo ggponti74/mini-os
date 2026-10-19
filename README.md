@@ -8,3 +8,5 @@ the assigned address, `net mac` to display the NIC address, or
 `net ping <IPv4 address>` to send one ICMP echo request. Ping currently accepts
 numeric IPv4 addresses only. `test video` reports mini-os's supported VGA
 text mode and the display mode reported by the firmware.
+
+Run `exec music.cfg` in the shell to play the Nokia ringtone.

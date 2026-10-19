@@ -1,6 +1,7 @@
 New-Item -ItemType Directory -Force -Path "initrd_root" | Out-Null
 Set-Content -Path "initrd_root\readme.txt" -Value "Hello from mini-os initrd!"
 Set-Content -Path "initrd_root\system.cfg" -Value "timezone -4"
+Copy-Item -Path "music.cfg" -Destination "initrd_root\music.cfg"
 
 # Using tar.exe available natively in modern Windows
 tar.exe -cvf initrd.tar -C initrd_root .

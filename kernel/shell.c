@@ -79,7 +79,8 @@ typedef struct set_node {
 static const struct shell_command commands[] = {
     {"alias", "Define or display command aliases (Usage: alias name=command)",
      command_alias},
-    {"beep", "Play a beep sound", command_beep},
+    {"beep", "Play a beep (Usage: beep <frequency_hz> <duration_ms>)",
+     command_beep},
     {"cat", "Display file contents (Usage: cat <file>)", command_cat},
     {"clear", "Clear the screen", command_clear},
     {"cp", "Copy a file", command_cp},
@@ -549,10 +550,59 @@ static void command_alias_list(void) {
   }
 }
 
+static int parse_uint32_argument(const char **args, uint32_t *value) {
+  while (**args == ' ') {
+    (*args)++;
+  }
+  if (**args < '0' || **args > '9') {
+    return -1;
+  }
+
+  uint32_t parsed = 0;
+  while (**args >= '0' && **args <= '9') {
+    uint32_t digit = (uint32_t)(**args - '0');
+    if (parsed > (0xFFFFFFFFu - digit) / 10) {
+      return -1;
+    }
+    parsed = parsed * 10 + digit;
+    (*args)++;
+  }
+  *value = parsed;
+  return 0;
+}
+
 static void command_beep(const char *args) {
-  (void)args;
+  uint32_t frequency = 440;
+  uint32_t duration = 50;
+
+  if (args && *args != '\0') {
+    const char *cursor = args;
+    if (parse_uint32_argument(&cursor, &frequency) != 0 ||
+        parse_uint32_argument(&cursor, &duration) != 0) {
+      kprint_color("Usage: beep <frequency_hz> <duration_ms>\n", COLOR_DEFAULT);
+      return;
+    }
+    while (*cursor == ' ') {
+      cursor++;
+    }
+    if (*cursor != '\0') {
+      kprint_color("Usage: beep <frequency_hz> <duration_ms>\n", COLOR_DEFAULT);
+      return;
+    }
+    if (frequency == 0 || frequency > 1193180) {
+      kprint_color("beep: frequency must be between 1 and 1193180 Hz\n",
+                   COLOR_DEFAULT);
+      return;
+    }
+    if (duration == 0 || duration > 42949) {
+      kprint_color("beep: duration must be between 1 and 42949 ms\n",
+                   COLOR_DEFAULT);
+      return;
+    }
+  }
+
   if (sound_is_enabled()) {
-    beep(440, 50);
+    beep(frequency, duration);
   }
 }
 
