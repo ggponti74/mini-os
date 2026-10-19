@@ -26,7 +26,7 @@ load_kernel:
     mov bx, KERNEL_OFFSET
     mov cx, 0x0002
     mov dh, 0
-    mov di, 64
+    mov di, 128
 
 .read_loop:
     push cx
@@ -35,20 +35,49 @@ load_kernel:
 
     xor ax, ax
     mov dl, [BOOT_DRIVE]
+    push cx
+    push dx
+    push bx
+    push es
     int 0x13
+    pop es
+    pop bx
+    pop dx
+    pop cx
 
     mov ax, 0x0201
     mov dl, [BOOT_DRIVE]
+    push cx
+    push dx
+    push bx
+    push es
     int 0x13
+    pop es
+    pop bx
+    pop dx
+    pop cx
     jnc .success
 
     mov ax, 0x0201
     mov dl, 0x80
+    push cx
+    push dx
+    push bx
+    push es
     int 0x13
+    pop es
+    pop bx
+    pop dx
+    pop cx
     jc .disk_error
 
 .success:
     add bx, 512
+    jnc .no_segment_wrap
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+.no_segment_wrap:
     pop di
     pop dx
     pop cx

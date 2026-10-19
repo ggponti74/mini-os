@@ -3,14 +3,12 @@
 
 #include <stdint.h>
 
-#include "../display.h"
-
-static inline uint32_t e1000_read_reg(uint32_t, uint16_t);
-static inline void e1000_write_reg(uint32_t, uint16_t,uint32_t);
+#include "../hal/network/network.h"
 
 void e1000_check_hardware(void);
 
 void e1000_get_mac_address(uint32_t, uint8_t *);
+int e1000_initialize(net_device_t *dev, uint32_t mmio_base);
 
 void e1000_set_bar0(uint32_t);
 uint32_t e1000_get_bar0(void);

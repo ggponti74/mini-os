@@ -10,6 +10,7 @@ ifeq ($(OS),Windows_NT)
     PAD_IMAGE = powershell -Command "$$f = [System.IO.File]::OpenWrite('$(1)'); $$f.SetLength(1474560); $$f.Close()"
     QEMU = qemu-system-i386
     QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
+    QEMU_NET_FLAGS = -nic user,model=e1000
     INITRD_SOURCE = build_initrd.ps1
     INITRD_COMMAND = powershell -ExecutionPolicy Bypass -File build_initrd.ps1
 else
@@ -23,6 +24,7 @@ else
     PAD_IMAGE = truncate -s 1474560 $(1)
     QEMU = qemu-system-i386
     QEMU_ISO_FLAGS = -cdrom $(ISO) -nographic
+    QEMU_NET_FLAGS = -nic user,model=e1000
     INITRD_SOURCE = build_initrd.sh
     INITRD_COMMAND = bash build_initrd.sh
 endif
@@ -126,11 +128,11 @@ iso: image | $(DIST)
 
 # Run floppy image directly
 run: image
-	$(QEMU) -fda $(IMAGE) -nographic -serial stdio
+	$(QEMU) -fda $(IMAGE) $(QEMU_NET_FLAGS) -nographic -serial stdio
 
 # Run ISO image in CD-ROM mode
 run-iso: iso
-	$(QEMU) $(QEMU_ISO_FLAGS) $(QEMU_DEBUG_FLAGS)
+	$(QEMU) $(QEMU_ISO_FLAGS) $(QEMU_NET_FLAGS) $(QEMU_DEBUG_FLAGS)
 	
 clean:
 	$(call RM,$(BUILD))

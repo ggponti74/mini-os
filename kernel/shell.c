@@ -1,10 +1,10 @@
 #include <stdint.h>
 
 #include "display.h"
-#include "drivers/e1000.h"
 #include "exec.h"
 #include "fs/initrd.h"
 #include "fs/vfs.h"
+#include "hal/network/network.h"
 #include "keyboard.h"
 #include "memory.h"
 #include "rtc.h"
@@ -740,29 +740,38 @@ static void command_mv(const char *args) {
 }
 
 static void command_net(const char *args) {
-
   if (!args || *args == '\0') {
-    kprint_color("Usage: net <command>\n", COLOR_DEFAULT);
+    kprint_color("Usage: net <mac|ip>\n", COLOR_DEFAULT);
     return;
   }
   if (strcmp(args, "mac") == 0) {
-    uint8_t mac[6];
-    e1000_get_mac_address(e1000_get_mmio_base(), mac);
-    int i = 0;
-    print_hex8(mac[i++]);
-    kputchar(':');
-    print_hex8(mac[i++]);
-    kputchar(':');
-    print_hex8(mac[i++]);
-    kputchar(':');
-    print_hex8(mac[i++]);
-    kputchar(':');
-    print_hex8(mac[i++]);
-    kputchar(':');
-    print_hex8(mac[i++]);
+    uint8_t mac[NET_MAC_LEN];
+    if (hal_network_get_mac(mac) != 0) {
+      kprint_color("No network device found.\n", COLOR_DEFAULT);
+      return;
+    }
+    for (int i = 0; i < NET_MAC_LEN; i++) {
+      if (i != 0) {
+        kputchar(':');
+      }
+      print_hex8(mac[i]);
+    }
+    kputchar('\n');
+  } else if (strcmp(args, "ip") == 0) {
+    uint8_t address[4];
+    if (hal_network_get_ipv4(address) != 0) {
+      kprint_color("No DHCP-assigned IP address.\n", COLOR_DEFAULT);
+      return;
+    }
+    for (int i = 0; i < 4; i++) {
+      if (i != 0) {
+        kputchar('.');
+      }
+      print_uint(address[i]);
+    }
     kputchar('\n');
   } else {
-    kprint_color("Invalid command.\n", COLOR_DEFAULT);
+    kprint_color("Usage: net <mac|ip>\n", COLOR_DEFAULT);
   }
 }
 
