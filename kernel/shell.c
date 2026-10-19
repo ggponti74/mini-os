@@ -658,7 +658,35 @@ static void command_version(const char *args) {
 }
 
 static void command_test(const char *args) {
-  (void)args;
+  if (args && *args != '\0') {
+    if (strcmp(args, "video") != 0) {
+      kprint_color("Usage: test [video]\n", COLOR_DEFAULT);
+      return;
+    }
+
+    volatile const uint8_t *bios_data = (volatile const uint8_t *)0x449;
+    uint8_t mode = bios_data[0];
+    uint16_t columns = (uint16_t)bios_data[1] |
+                       ((uint16_t)bios_data[2] << 8);
+    uint16_t rows = (uint16_t)bios_data[0x484 - 0x449] + 1;
+
+    kprint_color("mini-os supported display modes:\n", COLOR_DEFAULT);
+    kprint_color("  VGA color text: 80x25\n", COLOR_DEFAULT);
+    kprint_color("Firmware current mode: ", COLOR_DEFAULT);
+    print_hex8(mode);
+    kprint_color(" (", COLOR_DEFAULT);
+    print_uint(columns);
+    kputchar('x');
+    print_uint(rows);
+    kprint_color(", ", COLOR_DEFAULT);
+    if (mode == 0x03 && columns == 80 && rows == 25) {
+      kprint_color("supported)\n", COLOR_DEFAULT);
+    } else {
+      kprint_color("not recognized as mini-os supported)\n", COLOR_DEFAULT);
+    }
+    return;
+  }
+
   kprint_color("Setting FS I/O indicators...\n", COLOR_DEFAULT);
   display_set_fs_indicator(FS_IND_READ, FS_IND_WRITE);
 
