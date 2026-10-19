@@ -771,19 +771,7 @@ static void command_pause(const char *args) {
 
   kprint_color("Press any key to continue...", COLOR_DEFAULT);
 
-  // 1. Arm the keyboard driver's pause state
   set_keyboard_pause_state(1);
-
-  //set_keyboard_pause_state(0);
-
-  // 2. Block execution right here until the keyboard handler clears the flag.
-  // Using __asm__ volatile("hlt") halts the CPU safely until the next interrupt
-  // (the key release).
-  while (get_keyboard_pause_state()) {
-    __asm__ volatile("hlt");
-  }
-
-  kputchar('\n');
 }
 
 static void command_rm(const char *args) {
@@ -898,13 +886,23 @@ static void execute_command(void) {
   buffer_index = 0;
   history_index = -1;
   update_status_bar();
-  print_prompt();
+  if (!get_keyboard_pause_state()) {
+    print_prompt();
+  }
 }
 
 void shell_init(void) {
   buffer_index = 0;
   history_index = -1;
   execute_script("system.cfg", 1);
+  update_status_bar();
+  if (!get_keyboard_pause_state()) {
+    print_prompt();
+  }
+}
+
+void shell_pause_complete(void) {
+  kputchar('\n');
   update_status_bar();
   print_prompt();
 }

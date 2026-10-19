@@ -8,7 +8,6 @@ static int extended_scancode = 0;
 static int shift_pressed = 0;
 
 volatile int waiting_for_pause = 0;
-volatile int pause_extended = 0;
 
 static const char scancode_ascii_lowercase[128] = {
     0,   27,  '1',  '2',  '3',  '4', '5', '6',  '7', '8', '9', '0',
@@ -44,8 +43,7 @@ void keyboard_handler(void) {
   uint8_t scancode = inb(0x60);
   outb(0xE9, scancode);
 
-  // If we are paused, swallow incoming keys until we catch a key release (break
-  // code)
+  // Swallow keys until a key press resumes the shell.
   static int pause_extended = 0;
 
   if (waiting_for_pause) {
@@ -62,7 +60,8 @@ void keyboard_handler(void) {
       pause_extended = 0;
 
       if (!(scancode & 0x80)) {
-        waiting_for_pause = 0; // exit pause mode
+        waiting_for_pause = 0;
+        shell_pause_complete();
       }
 
       pic_send_eoi(1);
@@ -72,6 +71,7 @@ void keyboard_handler(void) {
     // Non-extended key: same rule
     if (!(scancode & 0x80)) {
       waiting_for_pause = 0;
+      shell_pause_complete();
     }
 
     pic_send_eoi(1);
