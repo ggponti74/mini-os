@@ -739,9 +739,46 @@ static void command_mv(const char *args) {
   }
 }
 
+static int parse_ipv4_address(const char *text, uint8_t address[4]) {
+  const char *cursor = text;
+  for (int octet = 0; octet < 4; octet++) {
+    if (*cursor < '0' || *cursor > '9') {
+      return -1;
+    }
+    uint16_t value = 0;
+    while (*cursor >= '0' && *cursor <= '9') {
+      value = (uint16_t)(value * 10 + (uint16_t)(*cursor - '0'));
+      if (value > 255) {
+        return -1;
+      }
+      cursor++;
+    }
+    address[octet] = (uint8_t)value;
+    if (octet < 3) {
+      if (*cursor != '.') {
+        return -1;
+      }
+      cursor++;
+    }
+  }
+  while (*cursor == ' ') {
+    cursor++;
+  }
+  return *cursor == '\0' ? 0 : -1;
+}
+
+static void print_ipv4_address(const uint8_t address[4]) {
+  for (int i = 0; i < 4; i++) {
+    if (i != 0) {
+      kputchar('.');
+    }
+    print_uint(address[i]);
+  }
+}
+
 static void command_net(const char *args) {
   if (!args || *args == '\0') {
-    kprint_color("Usage: net <mac|ip>\n", COLOR_DEFAULT);
+    kprint_color("Usage: net <mac|ip|ping IPv4>\n", COLOR_DEFAULT);
     return;
   }
   if (strcmp(args, "mac") == 0) {
@@ -763,15 +800,39 @@ static void command_net(const char *args) {
       kprint_color("No DHCP-assigned IP address.\n", COLOR_DEFAULT);
       return;
     }
-    for (int i = 0; i < 4; i++) {
-      if (i != 0) {
-        kputchar('.');
-      }
-      print_uint(address[i]);
-    }
+    print_ipv4_address(address);
     kputchar('\n');
+  } else if (strncmp(args, "ping", 4) == 0 && args[4] == ' ') {
+    const char *target = args + 5;
+    while (*target == ' ') {
+      target++;
+    }
+    uint8_t destination[4];
+    if (parse_ipv4_address(target, destination) != 0) {
+      kprint_color("Usage: net ping <IPv4 address>\n", COLOR_DEFAULT);
+      return;
+    }
+
+    kprint_color("PING ", COLOR_DEFAULT);
+    print_ipv4_address(destination);
+    kprint_color(": ", COLOR_DEFAULT);
+    int result = hal_network_ping_ipv4(destination);
+    if (result == 0) {
+      kprint_color("reply, 32 bytes\n", COLOR_DEFAULT);
+    } else if (result == -1) {
+      kprint_color("network is not configured; acquire a DHCP lease first\n",
+                   COLOR_DEFAULT);
+    } else if (result == -2) {
+      kprint_color("no route to destination\n", COLOR_DEFAULT);
+    } else if (result == -3) {
+      kprint_color("ARP request timed out\n", COLOR_DEFAULT);
+    } else if (result == -5) {
+      kprint_color("request timed out\n", COLOR_DEFAULT);
+    } else {
+      kprint_color("network send/receive failed\n", COLOR_DEFAULT);
+    }
   } else {
-    kprint_color("Usage: net <mac|ip>\n", COLOR_DEFAULT);
+    kprint_color("Usage: net <mac|ip|ping IPv4>\n", COLOR_DEFAULT);
   }
 }
 

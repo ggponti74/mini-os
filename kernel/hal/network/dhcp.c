@@ -146,7 +146,8 @@ static int send_dhcp_message(net_device_t *dev, uint8_t message_type,
 
 static int parse_dhcp_reply(const uint8_t *packet, size_t packet_length,
                             const net_device_t *dev, uint8_t expected_type,
-                            uint8_t address[4], uint8_t server_id[4]) {
+                            uint8_t address[4], uint8_t server_id[4],
+                            uint8_t subnet_mask[4], uint8_t gateway[4]) {
   const size_t minimum_length =
       ETHERNET_HEADER_SIZE + IPV4_HEADER_SIZE + UDP_HEADER_SIZE + DHCP_FIXED_SIZE;
   if (packet_length < minimum_length ||
@@ -187,6 +188,8 @@ static int parse_dhcp_reply(const uint8_t *packet, size_t packet_length,
 
   uint8_t message_type = 0;
   uint8_t found_server_id[4] = {ip[12], ip[13], ip[14], ip[15]};
+  uint8_t found_subnet_mask[4] = {0};
+  uint8_t found_gateway[4] = {0};
   size_t offset = DHCP_FIXED_SIZE;
   while (offset < bootp_length) {
     uint8_t code = bootp[offset++];
@@ -209,6 +212,14 @@ static int parse_dhcp_reply(const uint8_t *packet, size_t packet_length,
       for (size_t i = 0; i < 4; i++) {
         found_server_id[i] = bootp[offset + i];
       }
+    } else if (code == 1 && option_length == 4) {
+      for (size_t i = 0; i < 4; i++) {
+        found_subnet_mask[i] = bootp[offset + i];
+      }
+    } else if (code == 3 && option_length >= 4) {
+      for (size_t i = 0; i < 4; i++) {
+        found_gateway[i] = bootp[offset + i];
+      }
     }
     offset += option_length;
   }
@@ -219,13 +230,16 @@ static int parse_dhcp_reply(const uint8_t *packet, size_t packet_length,
   for (size_t i = 0; i < 4; i++) {
     address[i] = bootp[16 + i];
     server_id[i] = found_server_id[i];
+    subnet_mask[i] = found_subnet_mask[i];
+    gateway[i] = found_gateway[i];
   }
   return !address_is_zero(address) && !address_is_zero(server_id);
 }
 
 static int wait_for_dhcp_reply(const net_device_t *dev, uint8_t expected_type,
                                const uint8_t expected_server_id[4],
-                               uint8_t address[4], uint8_t server_id[4]) {
+                               uint8_t address[4], uint8_t server_id[4],
+                               uint8_t subnet_mask[4], uint8_t gateway[4]) {
   uint8_t packet[NET_MAX_PACKET_SIZE];
   rtc_time_t start_time;
   rtc_read_datetime(&start_time);
@@ -237,13 +251,18 @@ static int wait_for_dhcp_reply(const net_device_t *dev, uint8_t expected_type,
     if (length > 0) {
       uint8_t received_address[4];
       uint8_t received_server_id[4];
+      uint8_t received_subnet_mask[4];
+      uint8_t received_gateway[4];
       if (parse_dhcp_reply(packet, (size_t)length, dev, expected_type,
-                           received_address, received_server_id) &&
+                           received_address, received_server_id,
+                           received_subnet_mask, received_gateway) &&
           (!expected_server_id ||
            addresses_equal(received_server_id, expected_server_id))) {
         for (size_t i = 0; i < 4; i++) {
           address[i] = received_address[i];
           server_id[i] = received_server_id[i];
+          subnet_mask[i] = received_subnet_mask[i];
+          gateway[i] = received_gateway[i];
         }
         return 0;
       }
@@ -263,21 +282,25 @@ static int wait_for_dhcp_reply(const net_device_t *dev, uint8_t expected_type,
   return -1;
 }
 
-int dhcp_request_ipv4(net_device_t *dev, uint8_t address[4]) {
-  if (!dev || !address) {
+int dhcp_request_ipv4(net_device_t *dev, uint8_t address[4],
+                      uint8_t subnet_mask[4], uint8_t gateway[4]) {
+  if (!dev || !address || !subnet_mask || !gateway) {
     return -1;
   }
 
   uint8_t offered_address[4] = {0};
   uint8_t server_id[4] = {0};
   uint8_t ignored_server_id[4] = {0};
+  uint8_t ignored_subnet_mask[4] = {0};
+  uint8_t ignored_gateway[4] = {0};
   int got_offer = 0;
   for (uint32_t attempt = 0; attempt < 2 && !got_offer; attempt++) {
     if (send_dhcp_message(dev, DHCP_DISCOVER, NULL, NULL) != 0) {
       return -1;
     }
-    got_offer = wait_for_dhcp_reply(dev, DHCP_OFFER, NULL, offered_address,
-                                    server_id) == 0;
+    got_offer = wait_for_dhcp_reply(
+                    dev, DHCP_OFFER, NULL, offered_address, server_id,
+                    ignored_subnet_mask, ignored_gateway) == 0;
   }
   if (!got_offer) {
     return -1;
@@ -288,7 +311,7 @@ int dhcp_request_ipv4(net_device_t *dev, uint8_t address[4]) {
       return -1;
     }
     if (wait_for_dhcp_reply(dev, DHCP_ACK, server_id, address,
-                            ignored_server_id) == 0) {
+                            ignored_server_id, subnet_mask, gateway) == 0) {
       return 0;
     }
   }

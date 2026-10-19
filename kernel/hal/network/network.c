@@ -8,9 +8,15 @@
 static net_device_t *default_net_dev;
 static net_device_t e1000_device;
 static uint8_t ipv4_address[4];
+static uint8_t ipv4_subnet_mask[4];
+static uint8_t ipv4_gateway[4];
 static int ipv4_configured;
 
-int dhcp_request_ipv4(net_device_t *dev, uint8_t address[4]);
+int dhcp_request_ipv4(net_device_t *dev, uint8_t address[4],
+                      uint8_t subnet_mask[4], uint8_t gateway[4]);
+int network_ping_ipv4(net_device_t *dev, const uint8_t address[4],
+                     const uint8_t subnet_mask[4], const uint8_t gateway[4],
+                     const uint8_t destination[4]);
 
 void hal_network_init(void) {
   for (int bus = 0; bus < 256; bus++) {
@@ -75,7 +81,10 @@ int hal_network_configure_dhcp(void) {
   }
   ipv4_configured = 0;
   memset(ipv4_address, 0, sizeof(ipv4_address));
-  if (dhcp_request_ipv4(default_net_dev, ipv4_address) != 0) {
+  memset(ipv4_subnet_mask, 0, sizeof(ipv4_subnet_mask));
+  memset(ipv4_gateway, 0, sizeof(ipv4_gateway));
+  if (dhcp_request_ipv4(default_net_dev, ipv4_address, ipv4_subnet_mask,
+                        ipv4_gateway) != 0) {
     return -2;
   }
   ipv4_configured = 1;
@@ -100,6 +109,14 @@ int hal_network_get_mac(uint8_t address[NET_MAC_LEN]) {
     address[i] = default_net_dev->mac_addr[i];
   }
   return 0;
+}
+
+int hal_network_ping_ipv4(const uint8_t destination[4]) {
+  if (!destination || !default_net_dev || !ipv4_configured) {
+    return -1;
+  }
+  return network_ping_ipv4(default_net_dev, ipv4_address, ipv4_subnet_mask,
+                           ipv4_gateway, destination);
 }
 
 void hal_network_receive_callback(const void *packet, size_t length) {

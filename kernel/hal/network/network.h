@@ -26,6 +26,7 @@ int hal_network_poll(void *packet, size_t max_length);
 int hal_network_configure_dhcp(void);
 int hal_network_get_ipv4(uint8_t address[4]);
 int hal_network_get_mac(uint8_t address[NET_MAC_LEN]);
+int hal_network_ping_ipv4(const uint8_t destination[4]);
 void hal_network_receive_callback(const void *packet, size_t length);
 
 #endif
