@@ -1223,6 +1223,11 @@ static void execute_script(const char *filename, int silent) {
     return;
   }
 
+  int was_pending = command_pending;
+  int was_running = command_running;
+  command_pending = 0;
+  command_running = 1;
+
   if (silent) {
     display_set_silent(1);
   }
@@ -1259,6 +1264,9 @@ static void execute_script(const char *filename, int silent) {
   if (silent) {
     display_set_silent(0);
   }
+
+  command_running = was_running;
+  command_pending = was_pending;
 }
 
 static void get_local_time(rtc_time_t *local) {
