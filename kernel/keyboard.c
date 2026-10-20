@@ -134,7 +134,6 @@ void keyboard_handler(void) {
 
       if (!(scancode & 0x80)) {
         waiting_for_pause = 0;
-        shell_pause_complete();
       }
 
       pic_send_eoi(1);
@@ -144,7 +143,6 @@ void keyboard_handler(void) {
     // Non-extended key: same rule
     if (!(scancode & 0x80)) {
       waiting_for_pause = 0;
-      shell_pause_complete();
     }
 
     pic_send_eoi(1);

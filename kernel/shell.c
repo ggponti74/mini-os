@@ -698,8 +698,11 @@ static void command_pause(const char *args) {
   (void)args;
 
   kprint_color("Press any key to continue...", COLOR_DEFAULT);
-
   set_keyboard_pause_state(1);
+  while (get_keyboard_pause_state()) {
+    __asm__ volatile("hlt" ::: "memory");
+  }
+  kputchar_color('\n', COLOR_DEFAULT);
 }
 
 static void command_restart(const char *args) {
@@ -1600,12 +1603,6 @@ void shell_input_char(char c) {
     command_buffer[buffer_index] = '\0';
     shell_refresh_line();
   }
-}
-
-void shell_pause_complete(void) {
-  kputchar('\n');
-  update_status_bar();
-  print_prompt();
 }
 
 void shell_refresh_line(void) {
