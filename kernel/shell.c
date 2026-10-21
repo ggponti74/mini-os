@@ -2252,7 +2252,7 @@ void shell_input_char(char c)
 void shell_refresh_line(void)
 {
   kputchar_color('\r', COLOR_DEFAULT);
-  kprint_color("mini-os> ", COLOR_PROMPT);
+  print_prompt();
 
   for (int i = 0; i < buffer_index; i++)
   {
