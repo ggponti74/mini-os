@@ -11,6 +11,7 @@
 #include "shell.h"
 #include "sound.h"
 #include "string.h"
+#include "sys/metrics.h"
 
 #define COLOR_DEFAULT 0x0F
 #define BUILD_NUM 1
@@ -39,6 +40,7 @@ static void command_help(const char *args);
 static void command_hexdump(const char *args);
 static void command_history(const char *args);
 static void command_ls(const char *args);
+static void command_mem(const char *args);
 static void command_mv(const char *args);
 static void command_net(const char *args);
 static void command_pause(const char *args);
@@ -100,6 +102,7 @@ static const struct shell_command commands[] = {
      command_hexdump},
     {"history", "Show command history", command_history},
     {"ls", "List files in current directory", command_ls},
+    {"mem", "Display physical memory usage", command_mem},
     {"mv", "Move a file", command_mv},
     {"net", "Network utilities", command_net},
     {"pause", "Wait for a key to be pressed", command_pause},
@@ -591,6 +594,19 @@ static void command_history(const char *args) {
 static void command_ls(const char *args) {
   (void)args;
   initrd_list_files();
+}
+
+static void command_mem(const char *args) {
+  (void)args;
+  mem_stats_t stats = sys_get_mem_stats();
+
+  kprint_color("Total: ", COLOR_DEFAULT);
+  print_uint(stats.total_kb);
+  kprint_color(" KB\nUsed:  ", COLOR_DEFAULT);
+  print_uint(stats.used_kb);
+  kprint_color(" KB\nFree:  ", COLOR_DEFAULT);
+  print_uint(stats.free_kb);
+  kprint_color(" KB\n", COLOR_DEFAULT);
 }
 
 // static void command_kilo(const char *args) {

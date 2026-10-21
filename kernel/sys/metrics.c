@@ -1,18 +1,10 @@
 // src/sys/metrics.c
 #include "metrics.h"
-
-// Example memory tracker assumptions (hook into your dynamic allocator/pmm)
-extern uint32_t total_memory_pages;
-extern uint32_t free_memory_pages;
+#include "memory.h"
 
 mem_stats_t sys_get_mem_stats(void) {
-    
-    // placeholder
-    total_memory_pages = 4096 * 1024 * 1024;
-    free_memory_pages = 1 * 1024 * 1024;
-
     mem_stats_t stats;
-    // Assuming 4KB pages
+    // The PMM tracks memory in 4 KB pages.
     stats.total_kb = total_memory_pages * 4;
     stats.free_kb = free_memory_pages * 4;
     stats.used_kb = stats.total_kb - stats.free_kb;
