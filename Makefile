@@ -99,15 +99,15 @@ $(BUILD)/fs/initrd_data.o: kernel/fs/initrd_data.S initrd.tar | $(BUILD)
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(CFLAGS) $< -o $@
 
-$(BUILD)/editor: userland/Makefile userland/libsys/apps/editor.c \
+$(BUILD)/edit: userland/Makefile userland/libsys/apps/editor.c \
                  userland/libsys/apps/editor.h \
                  userland/libsys/apps/editor_entry.c \
                  userland/libsys/apps/editor_start.S \
                  userland/libsys/apps/editor_syscall.S \
                  userland/flat.ld | $(BUILD)
-	$(MAKE) -C userland editor
+	$(MAKE) -C userland edit
 
-initrd.tar: $(BUILD)/editor $(INITRD_SOURCE) bin/demo music.cfg
+initrd.tar: $(BUILD)/edit $(INITRD_SOURCE) bin/demo music.cfg
 	$(INITRD_COMMAND)
 	
 # GCC GNU assembly (.S)

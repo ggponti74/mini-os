@@ -62,7 +62,7 @@ static void redraw(editor_buffer_t *buffer, const char *filename,
 
   first_line = cursor_line >= EDITOR_ROWS ? cursor_line - EDITOR_ROWS + 1 : 0;
   editor_syscall(SYS_CLEAR, 0, 0, 0);
-  write_string("editor: ");
+  write_string("edit: ");
   for (unsigned int i = 0; filename[i] != '\0' && i < 55; i++) {
     console_write(&filename[i], 1);
   }
@@ -142,13 +142,13 @@ int editor_entry(int argc, char **argv) {
   int dirty = 0;
 
   if (argc < 2 || !argv[1] || argv[1][0] == '\0') {
-    write_string("Usage: editor <file>\n");
+    write_string("Usage: edit <file>\n");
     return 1;
   }
   filename = argv[1];
   fd = editor_syscall(SYS_OPEN, (int)filename, OPEN_RDWR | OPEN_CREAT, 0);
   if (fd < 0) {
-    write_string("editor: could not open file\n");
+    write_string("edit: could not open file\n");
     return 1;
   }
 
@@ -159,7 +159,7 @@ int editor_entry(int argc, char **argv) {
                                (int)(EDITOR_BUFFER_CAPACITY - 1 - length));
     if (count < 0) {
       editor_syscall(SYS_CLOSE, fd, 0, 0);
-      write_string("editor: could not read file\n");
+      write_string("edit: could not read file\n");
       return 1;
     }
     if (count == 0) {
@@ -171,13 +171,13 @@ int editor_entry(int argc, char **argv) {
     char extra;
     if (editor_syscall(SYS_READ, fd, (int)&extra, 1) > 0) {
       editor_syscall(SYS_CLOSE, fd, 0, 0);
-      write_string("editor: file exceeds the 4095-byte buffer limit\n");
+      write_string("edit: file exceeds the 4095-byte buffer limit\n");
       return 1;
     }
   }
   if (editor_buffer_load(&buffer, buffer.text, length) != 0) {
     editor_syscall(SYS_CLOSE, fd, 0, 0);
-    write_string("editor: could not load file\n");
+    write_string("edit: could not load file\n");
     return 1;
   }
 

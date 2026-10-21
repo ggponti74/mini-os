@@ -9,15 +9,15 @@ CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
 SRCS := libsys/stubs.c libsys/apps/editor.c
 OBJS := $(SRCS:.c=.o)
 TARGET := libsys/libsys.a
-EDITOR_BIN := ../build/editor
+EDIT_BIN := ../build/edit
 EDITOR_OBJ_DIR := ../build/userland
 EDITOR_OBJS := $(EDITOR_OBJ_DIR)/editor_start.o \
 	$(EDITOR_OBJ_DIR)/editor_entry.o $(EDITOR_OBJ_DIR)/editor.o \
 	$(EDITOR_OBJ_DIR)/editor_syscall.o
 
-.PHONY: all clean editor
+.PHONY: all clean edit
 
-all: $(TARGET) editor
+all: $(TARGET) edit
 
 libsys/%.o: libsys/%.c
 	mkdir -p $(dir $@)
@@ -26,7 +26,7 @@ libsys/%.o: libsys/%.c
 $(TARGET): $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
-editor: $(EDITOR_BIN)
+edit: $(EDIT_BIN)
 
 $(EDITOR_OBJ_DIR):
 	mkdir -p $@
@@ -46,7 +46,7 @@ $(EDITOR_OBJ_DIR)/editor_syscall.o: libsys/apps/editor_syscall.S \
                                     | $(EDITOR_OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(EDITOR_BIN): $(EDITOR_OBJS) flat.ld | ../build
+$(EDIT_BIN): $(EDITOR_OBJS) flat.ld | ../build
 	$(LD) -m elf_i386 --defsym=_GLOBAL_OFFSET_TABLE_=0 -T flat.ld \
 		--oformat binary \
 		-o $@ $(EDITOR_OBJS)
@@ -55,5 +55,5 @@ $(EDITOR_BIN): $(EDITOR_OBJS) flat.ld | ../build
 	mkdir -p $@
 
 clean:
-	rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDITOR_BIN)
+	rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN)
 	
