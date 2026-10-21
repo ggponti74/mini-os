@@ -72,10 +72,12 @@ static int is_dot_entry(const char *name) {
 // 1. Copy file contents from source to destination
 int initrd_copy_file(const char *src_name, const char *dest_name) {
   vfs_node_t *src = initrd_find_file(src_name);
-  if (!src)
+  if (!src || (src->flags & FS_DIRECTORY))
     return -1;
 
   vfs_node_t *dest = initrd_find_file(dest_name);
+  if (dest && (dest->flags & FS_DIRECTORY))
+    return -1;
   if (!dest) {
     dest = vfs_create(fs_root, dest_name, FS_FILE);
     if (!dest)
@@ -95,15 +97,40 @@ int initrd_copy_file(const char *src_name, const char *dest_name) {
 // Move / Rename a file
 int initrd_move_file(const char *old_name, const char *new_name) {
   vfs_node_t *file = initrd_find_file(old_name);
-  if (!file)
+  if (!file || (file->flags & FS_DIRECTORY) || !new_name || !*new_name)
     return -1;
 
-  int i = 0;
-  while (new_name[i] != '\0' && i < 127) {
-    file->name[i] = new_name[i];
-    i++;
+  size_t destination_length = strlen(new_name);
+  if (destination_length >= sizeof(file->name))
+    return -1;
+  char destination[sizeof(file->name)];
+  for (size_t i = 0; i <= destination_length; i++) {
+    destination[i] = new_name[i];
   }
-  file->name[i] = '\0';
+
+  char *base_name = destination;
+  char *parent_path = NULL;
+  for (size_t i = 0; i < destination_length; i++) {
+    if (destination[i] == '/') {
+      base_name = destination + i + 1;
+      parent_path = destination + i;
+    }
+  }
+  if (*base_name == '\0' || strcmp(base_name, ".") == 0 ||
+      strcmp(base_name, "..") == 0)
+    return -1;
+  if (parent_path) {
+    *parent_path = '\0';
+  }
+  vfs_node_t *parent =
+      parent_path ? vfs_lookup(fs_root, destination) : fs_root;
+  if (!parent || !(parent->flags & FS_DIRECTORY) ||
+      initrd_find_file(new_name))
+    return -1;
+
+  for (size_t i = 0; i <= destination_length; i++) {
+    file->name[i] = new_name[i];
+  }
   return 0;
 }
 
@@ -263,16 +290,39 @@ vfs_node_t *initrd_find_file(const char *filename) {
 // 2. List all files currently residing in the RAMDisk pool (including newly
 // touched files) kernel/fs/initrd.c
 
-void initrd_list_files(void) {
+static const char *initrd_child_name(const char *name, const char *directory,
+                                     size_t directory_length) {
+  const char *child = name;
+  if (directory_length > 0) {
+    if (strncmp(name, directory, directory_length) != 0 ||
+        name[directory_length] != '/') {
+      return NULL;
+    }
+    child = name + directory_length + 1;
+  }
+  if (*child == '\0') {
+    return NULL;
+  }
+  for (size_t i = 0; child[i] != '\0'; i++) {
+    if (child[i] == '/') {
+      return NULL;
+    }
+  }
+  return child;
+}
+
+void initrd_list_files(const char *directory) {
     // Collect valid, non-dot node indices
     uint32_t valid_indices[64]; 
     uint32_t count = 0;
     uint32_t totalLength = 0;
+    size_t directory_length = directory ? strlen(directory) : 0;
     
     for (uint32_t i = 0; i < node_count && count < 64; i++)
     {
-      const char *name = file_pool[i].node.name;
-      if (!is_dot_entry(name))
+      const char *name =
+          initrd_child_name(file_pool[i].node.name, directory, directory_length);
+      if (name && !is_dot_entry(name))
       {
         valid_indices[count++] = i;
       }
@@ -283,6 +333,8 @@ void initrd_list_files(void) {
         for (uint32_t j = i + 1; j < count; j++) {
             const char *name_i = file_pool[valid_indices[i]].node.name;
             const char *name_j = file_pool[valid_indices[j]].node.name;
+            name_i = initrd_child_name(name_i, directory, directory_length);
+            name_j = initrd_child_name(name_j, directory, directory_length);
 
             // Strip leading "./" if present for comparison[cite: 4]
             if (name_i[0] == '.' && name_i[1] == '/') name_i += 2;
@@ -300,7 +352,8 @@ void initrd_list_files(void) {
     // Print sorted files[cite: 4]
     for (uint32_t i = 0; i < count; i++) {
         uint32_t idx = valid_indices[i];
-        const char *display_name = file_pool[idx].node.name;
+        const char *display_name = initrd_child_name(
+            file_pool[idx].node.name, directory, directory_length);
         
         if (display_name[0] == '.' && display_name[1] == '/') {
             display_name += 2;

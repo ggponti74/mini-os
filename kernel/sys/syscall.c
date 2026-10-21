@@ -5,6 +5,7 @@
 #include "../fs/initrd.h"
 #include "../fs/vfs.h"
 #include "../keyboard.h"
+#include "../shell.h"
 #include "syscall.h"
 
 #define SYSCALL_FD_COUNT 8
@@ -33,9 +34,13 @@ static int open_file(const char *path, uint32_t flags) {
     return -1;
   }
 
-  vfs_node_t *node = vfs_lookup(fs_root, path);
+  char resolved_path[SYSCALL_PATH_LENGTH];
+  if (shell_resolve_path(path, resolved_path, sizeof(resolved_path)) != 0) {
+    return -1;
+  }
+  vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
   if (!node && (flags & OPEN_CREAT)) {
-    node = vfs_create(fs_root, path, FS_FILE);
+    node = vfs_create(fs_root, resolved_path, FS_FILE);
   }
   if (!node || (node->flags & FS_DIRECTORY)) {
     return -1;

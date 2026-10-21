@@ -31,6 +31,7 @@ static void command_alias_list(void);
 static void command_alias_set(const char *name, const char *value_str);
 static void command_beep(const char *args);
 static void command_cat(const char *args);
+static void command_cd(const char *args);
 static void command_clear(const char *args);
 static void command_cp(const char *args);
 static void command_date(const char *args);
@@ -94,6 +95,7 @@ static const struct shell_command commands[] = {
     {"alias", "Define or display command aliases", command_alias},
     {"beep", "Play a beep", command_beep},
     {"cat", "Display file contents", command_cat},
+    {"cd", "Change the current directory", command_cd},
     {"clear", "Clear the screen", command_clear},
     {"cp", "Copy a file", command_cp},
     {"date", "Show current date and timestamp", command_date},
@@ -130,6 +132,7 @@ static int history_index = -1;
 static int insert_mode = 1;
 static volatile int command_pending = 0;
 static volatile int command_running = 0;
+static char current_directory[128];
 
 static int tz_offset = 0; // Time zone offset in hours (-12 to +14)
 
@@ -137,6 +140,86 @@ static alias_node_t *alias_head = NULL;
 static set_node_t *set_head = NULL;
 
 screen_snapshot_t saved_screen;
+
+int shell_resolve_path(const char *path, char *resolved, uint32_t size)
+{
+  if (!path || !resolved || size == 0)
+  {
+    return -1;
+  }
+
+  uint32_t length = 0;
+  if (path[0] != '/')
+  {
+    while (current_directory[length] != '\0')
+    {
+      if (length + 1 >= size)
+      {
+        return -1;
+      }
+      resolved[length] = current_directory[length];
+      length++;
+    }
+  }
+  resolved[length] = '\0';
+
+  while (*path)
+  {
+    while (*path == '/')
+    {
+      path++;
+    }
+    if (*path == '\0')
+    {
+      break;
+    }
+
+    const char *component = path;
+    uint32_t component_length = 0;
+    while (path[component_length] != '\0' && path[component_length] != '/')
+    {
+      component_length++;
+    }
+    path += component_length;
+
+    if (component_length == 1 && component[0] == '.')
+    {
+      continue;
+    }
+    if (component_length == 2 && component[0] == '.' && component[1] == '.')
+    {
+      if (length > 0)
+      {
+        while (length > 0 && resolved[length - 1] != '/')
+        {
+          length--;
+        }
+        if (length > 0)
+        {
+          length--;
+        }
+        resolved[length] = '\0';
+      }
+      continue;
+    }
+
+    uint32_t separator = length > 0 ? 1 : 0;
+    if (length + separator + component_length >= size)
+    {
+      return -1;
+    }
+    if (separator)
+    {
+      resolved[length++] = '/';
+    }
+    for (uint32_t i = 0; i < component_length; i++)
+    {
+      resolved[length++] = component[i];
+    }
+    resolved[length] = '\0';
+  }
+  return 0;
+}
 
 static void add_to_history(const char *cmd)
 {
@@ -387,7 +470,13 @@ static void command_cat(const char *args)
     return;
   }
 
-  vfs_node_t *file = vfs_lookup(fs_root, args);
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("cat: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  vfs_node_t *file = vfs_lookup(fs_root, path);
   if (!file)
   {
     kprint_color("cat: file not found: ", COLOR_DEFAULT);
@@ -433,6 +522,39 @@ static void command_clear(const char *args)
   clear_screen();
 }
 
+static void command_cd(const char *args)
+{
+  char path[128];
+  if (!args || *args == '\0')
+  {
+    if (current_directory[0] == '\0')
+    {
+      kprint_color("/\n", COLOR_DEFAULT);
+    }
+    else
+    {
+      kputchar_color('/', COLOR_DEFAULT);
+      kprint_color(current_directory, COLOR_DEFAULT);
+      kputchar_color('\n', COLOR_DEFAULT);
+    }
+    return;
+  }
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("cd: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  vfs_node_t *directory = vfs_lookup(fs_root, path);
+  if (!directory || !(directory->flags & FS_DIRECTORY))
+  {
+    kprint_color("cd: not a directory: ", COLOR_DEFAULT);
+    kprint_color(args, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+    return;
+  }
+  strcpy(current_directory, path);
+}
+
 static void command_cp(const char *args)
 {
   if (!args || *args == '\0')
@@ -442,23 +564,33 @@ static void command_cp(const char *args)
   }
 
   // Split args into source and destination
-  char src[64], dest[64];
+  char src[128], dest[128];
   int i = 0, j = 0;
-  while (args[i] != ' ' && args[i] != '\0' && i < 63)
+  while (args[i] != ' ' && args[i] != '\0' && i < 127)
   {
     src[i] = args[i];
     i++;
   }
   src[i] = '\0';
+  if (args[i] != ' ' && args[i] != '\0')
+  {
+    kprint_color("cp: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
 
   while (args[i] == ' ')
     i++; // Skip whitespace
 
-  while (args[i] != '\0' && j < 63)
+  while (args[i] != '\0' && j < 127)
   {
     dest[j++] = args[i++];
   }
   dest[j] = '\0';
+  if (args[i] != '\0')
+  {
+    kprint_color("cp: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
 
   if (src[0] == '\0' || dest[0] == '\0')
   {
@@ -466,7 +598,14 @@ static void command_cp(const char *args)
     return;
   }
 
-  if (initrd_copy_file(src, dest) != 0)
+  char source_path[128], destination_path[128];
+  if (shell_resolve_path(src, source_path, sizeof(source_path)) != 0 ||
+      shell_resolve_path(dest, destination_path, sizeof(destination_path)) != 0)
+  {
+    kprint_color("cp: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  if (initrd_copy_file(source_path, destination_path) != 0)
   {
     kprint_color("cp: failed to copy file\n", COLOR_DEFAULT);
   }
@@ -530,7 +669,13 @@ static void command_exec(const char *args)
     kprint_color("Usage: exec <filename>\n", COLOR_DEFAULT);
     return;
   }
-  execute_script(args, 0);
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("exec: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  execute_script(path, 0);
 }
 
 static void command_help(const char *args)
@@ -609,12 +754,23 @@ static void command_hexdump(const char *args)
     return;
   }
 
-  vfs_node_t *file = vfs_lookup(fs_root, args);
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("hexdump: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  vfs_node_t *file = vfs_lookup(fs_root, path);
   if (!file)
   {
     kprint_color("File not found: ", COLOR_DEFAULT);
     kprint_color(args, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
+    return;
+  }
+  if (file->flags & FS_DIRECTORY)
+  {
+    kprint_color("hexdump: is a directory\n", COLOR_DEFAULT);
     return;
   }
 
@@ -679,8 +835,21 @@ static void command_history(const char *args)
 
 static void command_ls(const char *args)
 {
-  (void)args;
-  initrd_list_files();
+  char path[128];
+  if (shell_resolve_path(args && *args ? args : ".", path, sizeof(path)) != 0)
+  {
+    kprint_color("ls: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  vfs_node_t *directory = vfs_lookup(fs_root, path);
+  if (!directory || !(directory->flags & FS_DIRECTORY))
+  {
+    kprint_color("ls: not a directory: ", COLOR_DEFAULT);
+    kprint_color(args, COLOR_DEFAULT);
+    kputchar_color('\n', COLOR_DEFAULT);
+    return;
+  }
+  initrd_list_files(path);
 }
 
 static void command_mem(const char *args)
@@ -704,17 +873,23 @@ static void command_mkdir(const char *args)
     kprint_color("Usage: mkdir <directory>\n", COLOR_DEFAULT);
     return;
   }
-  if (vfs_lookup(fs_root, args))
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("mkdir: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  if (vfs_lookup(fs_root, path))
   {
     kprint_color("mkdir: already exists: ", COLOR_DEFAULT);
-    kprint_color(args, COLOR_DEFAULT);
+    kprint_color(path, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
     return;
   }
-  if (!vfs_create(fs_root, args, FS_DIRECTORY))
+  if (!vfs_create(fs_root, path, FS_DIRECTORY))
   {
     kprint_color("mkdir: cannot create directory: ", COLOR_DEFAULT);
-    kprint_color(args, COLOR_DEFAULT);
+    kprint_color(path, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
   }
 }
@@ -734,23 +909,33 @@ static void command_mv(const char *args)
     return;
   }
 
-  char old_name[64], new_name[64];
+  char old_name[128], new_name[128];
   int i = 0, j = 0;
-  while (args[i] != ' ' && args[i] != '\0' && i < 63)
+  while (args[i] != ' ' && args[i] != '\0' && i < 127)
   {
     old_name[i] = args[i];
     i++;
   }
   old_name[i] = '\0';
+  if (args[i] != ' ' && args[i] != '\0')
+  {
+    kprint_color("mv: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
 
   while (args[i] == ' ')
     i++;
 
-  while (args[i] != '\0' && j < 63)
+  while (args[i] != '\0' && j < 127)
   {
     new_name[j++] = args[i++];
   }
   new_name[j] = '\0';
+  if (args[i] != '\0')
+  {
+    kprint_color("mv: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
 
   if (old_name[0] == '\0' || new_name[0] == '\0')
   {
@@ -758,7 +943,14 @@ static void command_mv(const char *args)
     return;
   }
 
-  if (initrd_move_file(old_name, new_name) != 0)
+  char source_path[128], destination_path[128];
+  if (shell_resolve_path(old_name, source_path, sizeof(source_path)) != 0 ||
+      shell_resolve_path(new_name, destination_path, sizeof(destination_path)) != 0)
+  {
+    kprint_color("mv: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  if (initrd_move_file(source_path, destination_path) != 0)
   {
     kprint_color("mv: file not found\n", COLOR_DEFAULT);
   }
@@ -886,7 +1078,13 @@ static void command_rm(const char *args)
     return;
   }
 
-  int result = initrd_remove_file(args);
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("rm: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  int result = initrd_remove_file(path);
   if (result == -2)
   {
     kprint_color("rm: is a directory; use rmdir\n", COLOR_DEFAULT);
@@ -894,7 +1092,7 @@ static void command_rm(const char *args)
   else if (result != 0)
   {
     kprint_color("rm: file not found: ", COLOR_DEFAULT);
-    kprint_color(args, COLOR_DEFAULT);
+    kprint_color(path, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
   }
   else
@@ -911,17 +1109,33 @@ static void command_rmdir(const char *args)
     return;
   }
 
-  int result = initrd_remove_directory(args);
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("rmdir: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  size_t path_length = strlen(path);
+  if (current_directory[0] != '\0' &&
+      strncmp(current_directory, path, path_length) == 0 &&
+      (current_directory[path_length] == '\0' ||
+       current_directory[path_length] == '/'))
+  {
+    kprint_color("rmdir: cannot remove the current directory or its parent\n",
+                 COLOR_DEFAULT);
+    return;
+  }
+  int result = initrd_remove_directory(path);
   if (result == -2)
   {
     kprint_color("rmdir: directory not empty: ", COLOR_DEFAULT);
-    kprint_color(args, COLOR_DEFAULT);
+    kprint_color(path, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
   }
   else if (result != 0)
   {
     kprint_color("rmdir: directory not found: ", COLOR_DEFAULT);
-    kprint_color(args, COLOR_DEFAULT);
+    kprint_color(path, COLOR_DEFAULT);
     kputchar_color('\n', COLOR_DEFAULT);
   }
   else
@@ -943,27 +1157,34 @@ static void command_run(const char *args)
     return;
   }
 
-  char path[64];
+  char requested_path[128];
   uint32_t path_length = 0;
   while (args[path_length] != '\0' && args[path_length] != ' ' &&
-         path_length < sizeof(path) - 1)
+         path_length < sizeof(requested_path) - 1)
   {
-    path[path_length] = args[path_length];
+    requested_path[path_length] = args[path_length];
     path_length++;
   }
   if (args[path_length] != '\0' && args[path_length] != ' ')
   {
-    kprint_color("run: binary name is too long\n", COLOR_DEFAULT);
+    kprint_color("run: path is too long\n", COLOR_DEFAULT);
     return;
   }
-  path[path_length] = '\0';
+  requested_path[path_length] = '\0';
   args += path_length;
   while (*args == ' ')
   {
     args++;
   }
 
-  if (!initrd_find_file(path))
+  char path[128];
+  if (shell_resolve_path(requested_path, path, sizeof(path)) != 0)
+  {
+    kprint_color("run: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  vfs_node_t *binary = vfs_lookup(fs_root, path);
+  if (!binary || (binary->flags & FS_DIRECTORY))
   {
     kprint_color("run: binary not found: ", COLOR_DEFAULT);
     kprint_color(path, COLOR_DEFAULT);
@@ -978,7 +1199,7 @@ static void command_run(const char *args)
 
 static int execute_binary(const char *path, const char *args)
 {
-  char program_name[64];
+  char program_name[128];
   char argument_storage[MAX_BUFFER_SIZE];
   char *argv[MAX_BUFFER_SIZE / 2 + 1];
   uint32_t program_length = 0;
@@ -1373,7 +1594,13 @@ static void command_touch(const char *args)
     return;
   }
   // 1. Check if the file already exists
-  vfs_node_t *file = vfs_lookup(fs_root, args);
+  char path[128];
+  if (shell_resolve_path(args, path, sizeof(path)) != 0)
+  {
+    kprint_color("touch: path is too long\n", COLOR_DEFAULT);
+    return;
+  }
+  vfs_node_t *file = vfs_lookup(fs_root, path);
   if (file)
   {
     // File exists: update timestamp / touch operation
@@ -1382,7 +1609,7 @@ static void command_touch(const char *args)
   }
 
   // 2. Create a new empty file entry
-  vfs_node_t *new_node = vfs_create(fs_root, args, FS_FILE);
+  vfs_node_t *new_node = vfs_create(fs_root, path, FS_FILE);
   if (!new_node)
   {
     kprint_color("Failed to create file.\n", COLOR_DEFAULT);
@@ -1431,9 +1658,9 @@ static void execute_command(void)
   add_to_history(command_buffer);
 
   // 1. Parse command name vs arguments (input_args)
-  char cmd_name[64];
+  char cmd_name[128];
   int i = 0;
-  while (command_buffer[i] != '\0' && command_buffer[i] != ' ' && i < 63)
+  while (command_buffer[i] != '\0' && command_buffer[i] != ' ' && i < 127)
   {
     cmd_name[i] = command_buffer[i];
     i++;
@@ -1451,7 +1678,7 @@ static void execute_command(void)
   if (aliased)
   {
     int j = 0;
-    while (aliased[j] != '\0' && aliased[j] != ' ' && j < 63)
+    while (aliased[j] != '\0' && aliased[j] != ' ' && j < 127)
     {
       cmd_name[j] = aliased[j];
       j++;
@@ -1473,9 +1700,12 @@ static void execute_command(void)
 
   if (!found)
   {
-    if (initrd_find_file(cmd_name))
+    char path[128];
+    if (shell_resolve_path(cmd_name, path, sizeof(path)) == 0 &&
+        initrd_find_file(path) &&
+        !(initrd_find_file(path)->flags & FS_DIRECTORY))
     {
-      if (execute_binary(cmd_name, input_args) != 0)
+      if (execute_binary(path, input_args) != 0)
       {
         kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
       }
@@ -1503,7 +1733,7 @@ static void execute_script(const char *filename, int silent)
 {
   vfs_node_t *file = vfs_lookup(fs_root, filename);
 
-  if (!file)
+  if (!file || (file->flags & FS_DIRECTORY))
   {
     if (!silent)
     {
@@ -1756,7 +1986,17 @@ static void print_ipv4_address(const uint8_t address[4])
 static void print_prompt(void)
 {
   set_text_color(COLOR_PROMPT);
-  kprint_color("mini-os> ", COLOR_PROMPT);
+  kprint_color("mini-os:", COLOR_PROMPT);
+  if (current_directory[0] == '\0')
+  {
+    kputchar_color('/', COLOR_PROMPT);
+  }
+  else
+  {
+    kputchar_color('/', COLOR_PROMPT);
+    kprint_color(current_directory, COLOR_PROMPT);
+  }
+  kprint_color("> ", COLOR_PROMPT);
   set_text_color(COLOR_DEFAULT);
 }
 
@@ -1811,9 +2051,9 @@ void process_command(const char *cmd)
   }
 
   // Parse command name vs arguments
-  char cmd_name[64];
+  char cmd_name[128];
   int i = 0;
-  while (cmd[i] != '\0' && cmd[i] != ' ' && i < 63)
+  while (cmd[i] != '\0' && cmd[i] != ' ' && i < 127)
   {
     cmd_name[i] = cmd[i];
     i++;
@@ -1837,9 +2077,12 @@ void process_command(const char *cmd)
   }
 
   // 2. Run a flat binary from the RAM disk when no built-in matches.
-  if (initrd_find_file(cmd_name))
+  char path[128];
+  if (shell_resolve_path(cmd_name, path, sizeof(path)) == 0 &&
+      initrd_find_file(path) &&
+      !(initrd_find_file(path)->flags & FS_DIRECTORY))
   {
-    if (execute_binary(cmd_name, args) != 0)
+    if (execute_binary(path, args) != 0)
     {
       kprint_color("Failed to execute binary.\n", COLOR_DEFAULT);
     }
@@ -1934,6 +2177,7 @@ void shell_handle_key_up(void)
 
 void shell_init(void)
 {
+  current_directory[0] = '\0';
   buffer_index = 0;
   cursor_index = 0;
   command_buffer[0] = '\0';

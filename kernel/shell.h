@@ -19,6 +19,7 @@ void shell_init(void);
 void shell_input_char(char c);
 void shell_run_pending_command(void);
 int shell_command_busy(void);
+int shell_resolve_path(const char *path, char *resolved, uint32_t size);
 
 // Parse and execute a command string directly
 void process_command(const char *cmd);
