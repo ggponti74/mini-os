@@ -21,6 +21,29 @@ static vfs_node_t initrd_root;
 
 extern void itoa(uint32_t val, char *buf);
 
+static uint32_t initrd_node_index(const vfs_node_t *node) {
+  for (uint32_t i = 0; i < node_count; i++) {
+    if (&file_pool[i].node == node) {
+      return i;
+    }
+  }
+  return node_count;
+}
+
+static void initrd_remove_node_at(uint32_t index) {
+  for (uint32_t i = index; i + 1 < node_count; i++) {
+    file_pool[i] = file_pool[i + 1];
+    if (file_pool[i].node.flags & FS_FILE) {
+      file_pool[i].node.device_data = file_pool[i].data;
+    }
+  }
+  node_count--;
+  file_pool[node_count].node.name[0] = '\0';
+  file_pool[node_count].node.length = 0;
+  file_pool[node_count].node.flags = 0;
+  file_pool[node_count].node.device_data = NULL;
+}
+
 // Internal helper: Compare string up to max length
 static int string_equals(const char *s1, const char *s2) {
   while (*s1 && (*s1 == *s2)) {
@@ -97,30 +120,58 @@ int initrd_remove_file(const char *filename) {
   const char *target = filename;
   if (target[0] == '.' && target[1] == '/')
     target += 2;
+  while (*target == '/')
+    target++;
 
+  if (target[0] == '/') {
+    target++;
+  }
+
+  vfs_node_t *node = initrd_find_file(target);
+  if (node && (node->flags & FS_DIRECTORY)) {
+    return -2;
+  }
+  if (!node) {
+    return -1;
+  }
+
+  uint32_t index = initrd_node_index(node);
+  if (index == node_count)
+    return -1;
+  initrd_remove_node_at(index);
+  return 0;
+}
+
+int initrd_remove_directory(const char *dirname) {
+  if (!dirname)
+    return -1;
+
+  while (*dirname == ' ')
+    dirname++;
+  while (*dirname == '/')
+    dirname++;
+  if (dirname[0] == '.' && dirname[1] == '/')
+    dirname += 2;
+
+  vfs_node_t *directory = initrd_find_file(dirname);
+  if (!directory || !(directory->flags & FS_DIRECTORY))
+    return -1;
+
+  size_t length = strlen(directory->name);
   for (uint32_t i = 0; i < node_count; i++) {
-    const char *entry_name = file_pool[i].node.name;
-    if (entry_name[0] == '.' && entry_name[1] == '/')
-      entry_name += 2;
-
-    if (strcmp(entry_name, target) == 0) {
-      // Shift all subsequent entries down to fill the gap
-      for (uint32_t j = i; j < node_count - 1; j++) {
-        file_pool[j] = file_pool[j + 1];
-      }
-
-      // Clear the old last slot and decrement total count
-      node_count--;
-      file_pool[node_count].node.name[0] = '\0';
-      file_pool[node_count].node.length = 0;
-      file_pool[node_count].node.flags = 0;
-      file_pool[node_count].node.device_data = NULL;
-
-      return 0; // Success
+    const char *name = file_pool[i].node.name;
+    if (&file_pool[i].node != directory &&
+        strncmp(name, directory->name, length) == 0 &&
+        name[length] == '/') {
+      return -2;
     }
   }
 
-  return -1; // File not found
+  uint32_t index = initrd_node_index(directory);
+  if (index == node_count)
+    return -1;
+  initrd_remove_node_at(index);
+  return 0;
 }
 
 int initrd_get_file(const char *filename, uint8_t **out_data,
@@ -345,38 +396,65 @@ static uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset,
 
 static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name,
                                       uint32_t flags) {
-  (void)parent;
-  if (node_count >= MAX_NODES)
+  if (!parent || !(parent->flags & FS_DIRECTORY) || !name ||
+      (flags != FS_FILE && flags != FS_DIRECTORY) || node_count >= MAX_NODES)
     return NULL;
 
+  for (size_t i = 0; name[i] != '\0'; i++) {
+    if (name[i] == '/') {
+      return NULL;
+    }
+  }
+  if (name[0] == '\0' || strcmp(name, ".") == 0 ||
+      strcmp(name, "..") == 0) {
+    return NULL;
+  }
+
+  char full_name[sizeof(file_pool[0].node.name)];
+  size_t parent_length = strlen(parent->name);
+  size_t name_length = strlen(name);
+  size_t separator_length = parent_length > 0 ? 1 : 0;
+  if (parent_length + separator_length + name_length >= sizeof(full_name)) {
+    return NULL;
+  }
+
+  size_t offset = 0;
+  for (size_t i = 0; i < parent_length; i++) {
+    full_name[offset++] = parent->name[i];
+  }
+  if (separator_length) {
+    full_name[offset++] = '/';
+  }
+  for (size_t i = 0; i < name_length; i++) {
+    full_name[offset++] = name[i];
+  }
+  full_name[offset] = '\0';
+  if (initrd_find_file(full_name)) {
+    return NULL;
+  }
+
   initrd_file_t *item = &file_pool[node_count++];
-
-  // Strip leading "./" if present
-  if (name[0] == '.' && name[1] == '/') {
-    name += 2;
+  for (size_t i = 0; i <= offset; i++) {
+    item->node.name[i] = full_name[i];
   }
-
-  // Copy filename
-  int i = 0;
-  while (name[i] != '\0' && i < 127 && name[i] != '/') {
-    item->node.name[i] = name[i];
-    i++;
-  }
-  item->node.name[i] = '\0';
-
   item->node.flags = flags;
   item->node.length = 0;
-  item->node.read = initrd_read_file;
-  item->node.write = initrd_write_file;
-  item->node.device_data = item->data;
+  item->node.inode = node_count;
+  item->node.read = flags == FS_FILE ? initrd_read_file : NULL;
+  item->node.write = flags == FS_FILE ? initrd_write_file : NULL;
+  item->node.create = flags == FS_DIRECTORY ? initrd_create_file : NULL;
+  item->node.device_data = flags == FS_FILE ? item->data : NULL;
 
   return &item->node;
 }
 
 vfs_node_t *initrd_init(void) {
   // 1. Setup Root Directory Node
+  node_count = 0;
+  initrd_root.name[0] = '\0';
   initrd_root.flags = FS_DIRECTORY;
   initrd_root.create = initrd_create_file;
+  fs_root = &initrd_root;
 
   // 2. Parse TAR Archive from initrd_start to initrd_end
   const char *ptr = initrd_start;
@@ -388,16 +466,33 @@ vfs_node_t *initrd_init(void) {
 
     uint32_t file_size = oct2bin(header->size, 11);
 
-    // Skip directory headers and '.' / './' archive entries
-    if (header->typeflag != '5' &&
-        !(header->name[0] == '.' &&
-          (header->name[1] == '\0' ||
-           (header->name[1] == '/' && header->name[2] == '\0')))) {
-      vfs_node_t *node =
-          initrd_create_file(&initrd_root, header->name, FS_FILE);
-      if (node) {
-        const uint8_t *file_data = (const uint8_t *)(ptr + 512);
-        initrd_write_file(node, 0, file_size, file_data);
+    const char *entry_name = header->name;
+    if (entry_name[0] == '.' && entry_name[1] == '/') {
+      entry_name += 2;
+    }
+    size_t name_length = strlen(entry_name);
+    if (name_length > 0 &&
+        !(name_length == 1 && entry_name[0] == '.') &&
+        !(name_length == 2 && entry_name[0] == '.' && entry_name[1] == '.')) {
+      char path[128];
+      if (name_length < sizeof(path)) {
+        for (size_t i = 0; i <= name_length; i++) {
+          path[i] = entry_name[i];
+        }
+        if (header->typeflag == '5') {
+          while (name_length > 0 && path[name_length - 1] == '/') {
+            path[--name_length] = '\0';
+          }
+          if (name_length > 0) {
+            vfs_create(&initrd_root, path, FS_DIRECTORY);
+          }
+        } else {
+          vfs_node_t *node = vfs_create(&initrd_root, path, FS_FILE);
+          if (node) {
+            const uint8_t *file_data = (const uint8_t *)(ptr + 512);
+            initrd_write_file(node, 0, file_size, file_data);
+          }
+        }
       }
     }
 

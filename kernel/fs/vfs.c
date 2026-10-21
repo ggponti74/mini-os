@@ -63,9 +63,69 @@ vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
         return NULL;
     }
 
-    // Ensure parent node is a directory and implements the create function
-    if ((parent->flags & FS_DIRECTORY) && parent->create) {
-        return parent->create(parent, name, flags);
+    char component[128];
+    while (*name) {
+        size_t length = 0;
+        while (name[length] != '\0' && name[length] != '/') {
+            if (length >= sizeof(component) - 1) {
+                return NULL;
+            }
+            component[length] = name[length];
+            length++;
+        }
+        if (length == 0) {
+            return NULL;
+        }
+        component[length] = '\0';
+        name += length;
+
+        if (*name == '/') {
+            name++;
+            if (*name == '\0' || *name == '/') {
+                return NULL;
+            }
+            if (length == 1 && component[0] == '.') {
+                continue;
+            }
+            if (length == 2 && component[0] == '.' && component[1] == '.') {
+                return NULL;
+            }
+            char path[128];
+            size_t parent_length = 0;
+            while (parent->name[parent_length] != '\0') {
+                if (parent_length >= sizeof(path) - 1) {
+                    return NULL;
+                }
+                path[parent_length] = parent->name[parent_length];
+                parent_length++;
+            }
+            if (parent_length > 0) {
+                if (parent_length + 1 >= sizeof(path)) {
+                    return NULL;
+                }
+                path[parent_length++] = '/';
+            }
+            if (parent_length + length >= sizeof(path)) {
+                return NULL;
+            }
+            for (size_t i = 0; i < length; i++) {
+                path[parent_length + i] = component[i];
+            }
+            path[parent_length + length] = '\0';
+            parent = initrd_find_file(path);
+            if (!parent || !(parent->flags & FS_DIRECTORY)) {
+                return NULL;
+            }
+        } else {
+            if ((length == 1 && component[0] == '.') ||
+                (length == 2 && component[0] == '.' && component[1] == '.')) {
+                return NULL;
+            }
+            if ((parent->flags & FS_DIRECTORY) && parent->create) {
+                return parent->create(parent, component, flags);
+            }
+            return NULL;
+        }
     }
 
     return NULL;

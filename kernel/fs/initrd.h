@@ -40,6 +40,7 @@ int initrd_get_file(const char *filename, uint8_t **out_data, uint32_t *out_size
 int initrd_copy_file(const char *, const char *);
 int initrd_move_file(const char *, const char *);
 int initrd_remove_file(const char *);
+int initrd_remove_directory(const char *);
 
 uint32_t oct2bin(const char *str, int size) ;
 
