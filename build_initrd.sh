@@ -10,6 +10,7 @@ echo "set os=mini-os 1.0" >> initrd_root/system.cfg
 cp bin/demo initrd_root/
 cp music.cfg initrd_root/
 cp build/edit initrd_root/edit
+cp LICENSE initrd_root
 
 # Create uncompressed tar archive
 tar -cvf initrd.tar -C initrd_root .
