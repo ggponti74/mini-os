@@ -1,5 +1,3 @@
-winget install --id Microsoft.PowerShell --source winget
-
 $ENV:Path += ";D:\Windows\Git"
 $ENV:Path += ";D:\Windows\Git\bin"
 $ENV:Path += ";D:\Windows\mingw64\bin"

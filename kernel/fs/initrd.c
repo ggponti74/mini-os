@@ -388,6 +388,7 @@ void initrd_list_files(const char *directory) {
 
     char size_buf[12];
     itoa(totalLength, size_buf);
+    kprint_color("     ", COLOR_DEFAULT);
     kprint_color(size_buf, COLOR_DEFAULT);
     kprint_color(" bytes total\n", COLOR_DEFAULT); 
 }

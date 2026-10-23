@@ -1,7 +1,9 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-void *malloc();
-void free();
+#include <stddef.h>
+
+void *malloc(size_t size);
+void free(void *ptr);
 
 #endif
