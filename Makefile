@@ -3,7 +3,7 @@ ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
     MKDIR = if not exist $(call FIX_PATH,$(1)) mkdir $(call FIX_PATH,$(1))
     RM = if exist $(call FIX_PATH,$(1)) rmdir /s /q $(call FIX_PATH,$(1))
-    NASM_FMT = win32
+    NASM_FMT = elf32
     FIX_PATH = $(subst /,\,$(1))
     COPY = copy /y
     CONCAT = copy /b $(call FIX_PATH,$(1)) + $(call FIX_PATH,$(2)) $(call FIX_PATH,$(3))
@@ -33,9 +33,6 @@ endif
 
 BUILD := build
 DIST := dist
-
-# Get current UTC date and time string
-BUILD_TIMESTAMP := $(shell date -u +"%Y%m%d-%H%M")
 
 QEMU_DEBUG_FLAGS = -d int,guest_errors,cpu_reset -D $(call FIX_PATH,$(BUILD)/qemu.log) -debugcon file:$(call FIX_PATH,$(BUILD)/guest.log) -global isa-debugcon.iobase=0xe9 -no-reboot
 

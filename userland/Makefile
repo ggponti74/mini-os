@@ -2,6 +2,13 @@ CC := gcc
 AR := ar
 LD := ld
 
+ifeq ($(OS),Windows_NT)
+    FIX_PATH = $(subst /,\,$(1))
+    MKDIR_P = if not exist $(call FIX_PATH,$(1)) mkdir $(call FIX_PATH,$(1))
+else
+    MKDIR_P = mkdir -p $(1)
+endif
+
 GCC_INC := $(shell $(CC) -print-file-name=include)
 CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
 	-fno-builtin -nostdinc -O2 -isystem $(GCC_INC)
@@ -15,12 +22,18 @@ EDITOR_OBJS := $(EDITOR_OBJ_DIR)/editor_start.o \
 	$(EDITOR_OBJ_DIR)/editor_entry.o $(EDITOR_OBJ_DIR)/editor.o \
 	$(EDITOR_OBJ_DIR)/editor_syscall.o
 
+ifeq ($(OS),Windows_NT)
+    CLEAN_FILES = -del /q $(call FIX_PATH,$(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN)) >nul 2>&1
+else
+    CLEAN_FILES = rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN)
+endif
+
 .PHONY: all clean edit
 
 all: $(TARGET) edit
 
 libsys/%.o: libsys/%.c
-	mkdir -p $(dir $@)
+	@$(call MKDIR_P,$(dir $@))
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJS)
@@ -29,7 +42,7 @@ $(TARGET): $(OBJS)
 edit: $(EDIT_BIN)
 
 $(EDITOR_OBJ_DIR):
-	mkdir -p $@
+	@$(call MKDIR_P,$@)
 
 $(EDITOR_OBJ_DIR)/editor_entry.o: libsys/apps/editor_entry.c \
                                   libsys/apps/editor.h | $(EDITOR_OBJ_DIR)
@@ -52,8 +65,8 @@ $(EDIT_BIN): $(EDITOR_OBJS) flat.ld | ../build
 		-o $@ $(EDITOR_OBJS)
 
 ../build:
-	mkdir -p $@
+	@$(call MKDIR_P,$@)
 
 clean:
-	rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN)
+	$(CLEAN_FILES)
 	
