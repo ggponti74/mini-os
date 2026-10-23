@@ -338,10 +338,11 @@ void update_status_bar(void) {
     }
   }
 
-  char am_pm = 'A';
-  if (rtc.hour > 12) {
+  char am_pm = (rtc.hour >= 12) ? 'P' : 'A';
+  if (rtc.hour == 0) {
+    rtc.hour = 12;
+  } else if (rtc.hour > 12) {
     rtc.hour -= 12;
-    am_pm = 'P';
   }
 
   char dt[20];

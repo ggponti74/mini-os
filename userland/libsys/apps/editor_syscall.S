@@ -1,6 +1,8 @@
 .text
 .global editor_syscall
+#ifdef __ELF__
 .type editor_syscall, @function
+#endif
 editor_syscall:
     push %ebx
     mov 8(%esp), %eax

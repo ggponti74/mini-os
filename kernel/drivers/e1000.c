@@ -80,10 +80,10 @@ static inline void e1000_write_reg(uint32_t base, uint16_t offset,
 }
 
 void e1000_set_bar0(uint32_t value) { bar0 = value; }
-uint32_t e1000_get_bar0() { return bar0; };
+uint32_t e1000_get_bar0(void) { return bar0; }
 
 void e1000_set_mmio_base(uint32_t value) { mmio_base = value; }
-uint32_t e1000_get_mmio_base() { return mmio_base; };
+uint32_t e1000_get_mmio_base(void) { return mmio_base; }
 
 void e1000_check_hardware(void) {
   uint32_t ctrl = e1000_read_reg(mmio_base, 0x0000);

@@ -41,7 +41,4 @@ typedef uint16_t            nlink_t;  // Hard link counting tally
 typedef long off_t;   // Match host header long int definition
 typedef long time_t;  // Match host header long int definition
 
-typedef __SIZE_TYPE__        size_t;
-typedef __INT32_TYPE__      pid_t;
-
 #endif // _SYS_TYPES_H

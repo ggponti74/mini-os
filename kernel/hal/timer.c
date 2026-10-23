@@ -1,6 +1,6 @@
 #include "timer.h"
 
-#include "io.h"
+#include "hal/io.h"
 #include "pic.h"
 
 #define PIT_INPUT_HZ 1193180

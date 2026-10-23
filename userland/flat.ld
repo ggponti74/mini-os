@@ -26,6 +26,8 @@ SECTIONS
         *(.bss*)
     }
 
+    __end = .;
+
     /DISCARD/ : {
         *(.comment)
         *(.eh_frame*)

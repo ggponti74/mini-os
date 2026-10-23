@@ -72,7 +72,7 @@ static inline void rtc_read_datetime(rtc_time_t *time) {
     if (!(reg_b & 0x04)) {
         time->second = ((time->second / 16) * 10) + (time->second & 0x0F);
         time->minute = ((time->minute / 16) * 10) + (time->minute & 0x0F);
-        time->hour   = (((time->hour & 0x70) / 16) * 10) + (time->hour & 0x0F) | (time->hour & 0x80);
+        time->hour   = ((((time->hour & 0x70) / 16) * 10) + (time->hour & 0x0F)) | (time->hour & 0x80);
         time->day    = ((time->day / 16) * 10) + (time->day & 0x0F);
         time->month  = ((time->month / 16) * 10) + (time->month & 0x0F);
         time->year   = ((time->year / 16) * 10) + (time->year & 0x0F);

@@ -76,9 +76,6 @@ void kernel_main(void) {
 
   __asm__ volatile("sti");
   beep(440, 10);
-hal_network_configure_dhcp();
-
-/*
   kprint_color("Requesting a DHCP lease...\n", COLOR_DEFAULT);
   int dhcp_status = hal_network_configure_dhcp();
   if (dhcp_status == 0) {
@@ -89,7 +86,6 @@ hal_network_configure_dhcp();
     kprint_color("DHCP request failed; use 'net ip' to check status.\n",
                  COLOR_DEFAULT);
   }
-*/
 
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);
   shell_init();
