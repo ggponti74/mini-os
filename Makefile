@@ -14,6 +14,7 @@ ifeq ($(OS),Windows_NT)
     QEMU_ISO_FLAGS = -cdrom $(call FIX_PATH,$(ISO)) -vga std -m 16M
     QEMU_NET_FLAGS = -nic user,model=e1000
     QEMU_AUDIO_FLAGS ?= -audiodev dsound,id=pcspk -machine pcspk-audiodev=pcspk
+    ISO_COMMAND = powershell -ExecutionPolicy Bypass -File build_iso.ps1 -ImagePath "$(IMAGE)" -OutputPath "$(ISO)"
     INITRD_SOURCE = build_initrd.ps1
     INITRD_COMMAND = powershell -ExecutionPolicy Bypass -File build_initrd.ps1
 else
@@ -132,11 +133,15 @@ image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
 	
-# Generate bootable ISO using xorriso
+# Generate a bootable ISO
 iso: image | $(DIST)
+ifeq ($(OS),Windows_NT)
+	$(ISO_COMMAND)
+else
 	@$(call MKDIR,$(BUILD)/iso_root)
 	$(COPY) $(call FIX_PATH,$(IMAGE)) $(call FIX_PATH,$(BUILD)/iso_root/mini-os.img)
 	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
+endif
 
 # Run floppy image directly
 run: image
