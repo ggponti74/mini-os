@@ -4,7 +4,7 @@ $ENV:Path += ";D:\Windows\mingw64\bin"
 $ENV:Path += ";D:\Windows\nasm"
 $ENV:Path += ";D:\Windows\QEMU"
 
-Set-Alias -Name make -Value mingw32-make.exe
+Set-Alias -Scope Global -Name make -Value mingw32-make.exe
 
 git config --global user.email "ggponti74@hotmail.com"
 git config --global user.name "ggponti74"

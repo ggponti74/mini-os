@@ -3,6 +3,8 @@ ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
     MKDIR = if not exist $(call FIX_PATH,$(1)) mkdir $(call FIX_PATH,$(1))
     RM = if exist $(call FIX_PATH,$(1)) rmdir /s /q $(call FIX_PATH,$(1))
+    WIN_CFLAGS = -fno-leading-underscore -mno-stack-arg-probe
+    WIN_LDFLAGS = -Wl,--image-base,0
     NASM_FMT = elf32
     FIX_PATH = $(subst /,\,$(1))
     COPY = copy /y
@@ -64,7 +66,7 @@ ALL_OBJS   := $(ASM_OBJS) $(GAS_OBJS) $(C_OBJS)
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
-CFLAGS := -m32 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel
+CFLAGS := -m32 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel $(WIN_CFLAGS)
 
 .PHONY: all clean run run-iso iso boot kernel libsys image
 
@@ -119,7 +121,7 @@ $(BUILD)/%.o: kernel/%.c | $(BUILD)
 
 # Explicitly place KERNEL_ENTRY_OBJ FIRST in the linker command line
 kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
-	$(CC) -m32 -nostdlib -no-pie -Wl,--build-id=none -Wl,-e,stage2_entry -Wl,-Map=$(BUILD)/linker.map -T linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
+	$(CC) -m32 -nostdlib -no-pie $(WIN_LDFLAGS) -Wl,--build-id=none -Wl,-e,stage2_entry -Wl,-Map=$(BUILD)/linker.map -T linker.ld -o $(KERNEL_ELF) $(KERNEL_ENTRY_OBJ) $(ALL_OBJS)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
 libsys:

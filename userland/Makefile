@@ -1,10 +1,24 @@
 CC := gcc
 AR := ar
 LD := ld
+OBJCOPY := objcopy
 
-GCC_INC := $(shell $(CC) -print-file-name=include)
-CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
+ifeq ($(OS),Windows_NT)
+    SHELL := cmd.exe
+    FIX_PATH = $(subst /,\,$(1))
+    MKDIR_P = if not exist $(call FIX_PATH,$(1)) mkdir $(call FIX_PATH,$(1))
+    WIN_CFLAGS = -fno-leading-underscore -mno-stack-arg-probe
+    WIN_LDFLAGS = -Wl,--image-base,0
+    CLEAN_FILES = -del /q $(call FIX_PATH,$(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)\edit.elf) >nul 2>&1
+    CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
+	-fno-builtin -O2 $(WIN_CFLAGS)
+else
+    MKDIR_P = mkdir -p $(1)
+    CLEAN_FILES = rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)/edit.elf
+    GCC_INC := $(shell $(CC) -print-file-name=include)
+    CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
 	-fno-builtin -nostdinc -O2 -isystem $(GCC_INC)
+endif
 
 SRCS := libsys/stubs.c libsys/apps/editor.c
 OBJS := $(SRCS:.c=.o)
@@ -20,7 +34,7 @@ EDITOR_OBJS := $(EDITOR_OBJ_DIR)/editor_start.o \
 all: $(TARGET) edit
 
 libsys/%.o: libsys/%.c
-	mkdir -p $(dir $@)
+	@$(call MKDIR_P,$(dir $@))
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJS)
@@ -29,7 +43,7 @@ $(TARGET): $(OBJS)
 edit: $(EDIT_BIN)
 
 $(EDITOR_OBJ_DIR):
-	mkdir -p $@
+	@$(call MKDIR_P,$@)
 
 $(EDITOR_OBJ_DIR)/editor_entry.o: libsys/apps/editor_entry.c \
                                   libsys/apps/editor.h | $(EDITOR_OBJ_DIR)
@@ -46,14 +60,20 @@ $(EDITOR_OBJ_DIR)/editor_syscall.o: libsys/apps/editor_syscall.S \
                                     | $(EDITOR_OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+ifeq ($(OS),Windows_NT)
+$(EDIT_BIN): $(EDITOR_OBJS) flat.ld | ../build
+	$(CC) -m32 -nostdlib $(WIN_LDFLAGS) -Wl,--defsym=_GLOBAL_OFFSET_TABLE_=0 -Wl,-T,flat.ld -o $(EDITOR_OBJ_DIR)/edit.elf $(EDITOR_OBJS)
+	$(OBJCOPY) -O binary $(EDITOR_OBJ_DIR)/edit.elf $@
+else
 $(EDIT_BIN): $(EDITOR_OBJS) flat.ld | ../build
 	$(LD) -m elf_i386 --defsym=_GLOBAL_OFFSET_TABLE_=0 -T flat.ld \
 		--oformat binary \
 		-o $@ $(EDITOR_OBJS)
+endif
 
 ../build:
-	mkdir -p $@
+	@$(call MKDIR_P,$@)
 
 clean:
-	rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN)
+	$(CLEAN_FILES)
 	
