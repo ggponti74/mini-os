@@ -1,5 +1,59 @@
 #include "editor.h"
 
+#define SYS_SBRK 7
+
+typedef struct {
+  size_t size;
+  size_t padding;
+} allocation_header_t;
+
+extern int editor_syscall(int number, int arg1, int arg2, int arg3);
+
+static void *realloc(void *pointer, size_t size) {
+  size_t old_size = 0;
+  size_t old_allocation_size;
+  size_t allocation_size;
+  if (size > (size_t)-1 - 7) {
+    return NULL;
+  }
+  allocation_size = (size + 7) & ~(size_t)7;
+  if (pointer) {
+    old_size = ((allocation_header_t *)pointer)[-1].size;
+    if (size <= old_size) {
+      ((allocation_header_t *)pointer)[-1].size = size;
+      return pointer;
+    }
+
+    old_allocation_size = (old_size + 7) & ~(size_t)7;
+    int current_break = editor_syscall(SYS_SBRK, 0, 0, 0);
+    if (current_break >= 0 &&
+        (unsigned int)current_break ==
+            (unsigned int)((char *)pointer + old_allocation_size)) {
+      if (editor_syscall(SYS_SBRK,
+                         (int)(allocation_size - old_allocation_size), 0, 0) >=
+          0) {
+        ((allocation_header_t *)pointer)[-1].size = size;
+        return pointer;
+      }
+    }
+  }
+
+  int allocation = editor_syscall(
+      SYS_SBRK, (int)(sizeof(allocation_header_t) + allocation_size), 0, 0);
+  if (allocation < 0) {
+    return NULL;
+  }
+
+  allocation_header_t *header = (allocation_header_t *)allocation;
+  char *replacement = (char *)(header + 1);
+  header->size = size;
+  size_t copy_size = old_size < size ? old_size : size;
+  for (size_t i = 0; pointer && i < copy_size; i++) {
+    replacement[i] = ((char *)pointer)[i];
+  }
+  return replacement;
+}
+
 static size_t line_start(const editor_buffer_t *buffer, size_t position) {
   while (position > 0 && buffer->text[position - 1] != '\n') {
     position--;
@@ -23,17 +77,34 @@ void editor_buffer_init(editor_buffer_t *buffer) {
     return;
   }
 
-  buffer->text[0] = '\0';
+  buffer->text = NULL;
   buffer->length = 0;
+  buffer->capacity = 0;
   buffer->cursor = 0;
   buffer->preferred_column = 0;
   buffer->preferred_column_valid = 0;
 }
 
 int editor_buffer_load(editor_buffer_t *buffer, const char *text, size_t length) {
-  if (!buffer || (!text && length > 0) ||
-      length >= EDITOR_BUFFER_CAPACITY) {
+  if (!buffer || (!text && length > 0)) {
     return -1;
+  }
+
+  if (length + 1 > buffer->capacity) {
+    size_t capacity = buffer->capacity ? buffer->capacity : 64;
+    while (capacity < length + 1) {
+      if (capacity > (size_t)-1 / 2) {
+        capacity = length + 1;
+        break;
+      }
+      capacity *= 2;
+    }
+    char *text_buffer = realloc(buffer->text, capacity);
+    if (!text_buffer) {
+      return -1;
+    }
+    buffer->text = text_buffer;
+    buffer->capacity = capacity;
   }
 
   for (size_t i = 0; i < length; i++) {
@@ -47,9 +118,24 @@ int editor_buffer_load(editor_buffer_t *buffer, const char *text, size_t length)
 }
 
 int editor_buffer_insert(editor_buffer_t *buffer, char value) {
-  if (!buffer || value == '\0' ||
-      buffer->length >= EDITOR_BUFFER_CAPACITY - 1) {
+  if (!buffer) {
     return -1;
+  }
+
+  if (buffer->length + 2 > buffer->capacity) {
+    size_t capacity = buffer->capacity ? buffer->capacity * 2 : 64;
+    if (capacity < buffer->length + 2) {
+      capacity = buffer->length + 2;
+    }
+    char *text_buffer = realloc(buffer->text, capacity);
+    if (!text_buffer) {
+      return -1;
+    }
+    if (buffer->capacity == 0) {
+      text_buffer[0] = '\0';
+    }
+    buffer->text = text_buffer;
+    buffer->capacity = capacity;
   }
 
   for (size_t i = buffer->length + 1; i > buffer->cursor; i--) {
