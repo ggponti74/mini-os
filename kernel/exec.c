@@ -1,10 +1,10 @@
-// src/exec.c
+#include <stddef.h>
+#include <stdint.h>
+
 #include "display.h"
 #include "fs/initrd.h"
 #include "fs/vfs.h"
 #include "keyboard.h"
-#include <stddef.h>
-#include <stdint.h>
 
 static uint8_t binary_image[8192];
 
