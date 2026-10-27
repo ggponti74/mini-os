@@ -390,7 +390,7 @@ void initrd_list_files(const char *directory) {
     itoa(totalLength, size_buf);
     kprint_color("     ", COLOR_DEFAULT);
     kprint_color(size_buf, COLOR_DEFAULT);
-    kprint_color(" bytes total\n", COLOR_DEFAULT); 
+    kprint_color("\n", COLOR_DEFAULT); 
 }
 
 // 3. Print contents of a file using vfs_read or direct pool access

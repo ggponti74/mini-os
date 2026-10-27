@@ -5,6 +5,7 @@
 #include "../fs/initrd.h"
 #include "../fs/vfs.h"
 #include "../keyboard.h"
+#include "../memory.h"
 #include "../shell.h"
 #include "syscall.h"
 
@@ -62,6 +63,9 @@ static int open_file(const char *path, uint32_t flags) {
 
 int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                          uint32_t arg3) {
+  if (number == SYS_SBRK) {
+    return (int32_t)ksbrk((int32_t)arg1);
+  }
   if (number == SYS_EXIT) {
     return (int32_t)arg1;
   }

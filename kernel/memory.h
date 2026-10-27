@@ -47,6 +47,7 @@ void kheap_init(uintptr_t heap_start, size_t heap_size);
  * @return Pointer to the allocated memory, or NULL if out of memory.
  */
 void* kmalloc(size_t size);
+void* ksbrk(ptrdiff_t increment);
 
 /**
  * @brief Frees a block of memory. (Stubbed out for simple bump allocation)

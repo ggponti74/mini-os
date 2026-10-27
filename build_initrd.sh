@@ -8,7 +8,7 @@ echo "alias del=rm" >> initrd_root/system.cfg
 echo "sound on" >> initrd_root/system.cfg
 echo "set os=mini-os 1.0" >> initrd_root/system.cfg
 cp bin/demo initrd_root/
-cp music.cfg initrd_root/
+cp music.cfg initrd_root/ringtone
 cp build/edit initrd_root/edit
 cp LICENSE initrd_root
 

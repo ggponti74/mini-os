@@ -137,9 +137,9 @@ int editor_entry(int argc, char **argv) {
   editor_buffer_t buffer;
   const char *filename;
   const char *status = "";
-  unsigned int length = 0;
   int fd;
   int dirty = 0;
+  char chunk[512];
 
   if (argc < 2 || !argv[1] || argv[1][0] == '\0') {
     write_string("Usage: edit <file>\n");
@@ -153,10 +153,8 @@ int editor_entry(int argc, char **argv) {
   }
 
   editor_buffer_init(&buffer);
-  while (length < EDITOR_BUFFER_CAPACITY - 1) {
-    int count = editor_syscall(SYS_READ, fd,
-                               (int)(buffer.text + length),
-                               (int)(EDITOR_BUFFER_CAPACITY - 1 - length));
+  for (;;) {
+    int count = editor_syscall(SYS_READ, fd, (int)chunk, sizeof(chunk));
     if (count < 0) {
       editor_syscall(SYS_CLOSE, fd, 0, 0);
       write_string("edit: could not read file\n");
@@ -165,21 +163,16 @@ int editor_entry(int argc, char **argv) {
     if (count == 0) {
       break;
     }
-    length += (unsigned int)count;
-  }
-  if (length == EDITOR_BUFFER_CAPACITY - 1) {
-    char extra;
-    if (editor_syscall(SYS_READ, fd, (int)&extra, 1) > 0) {
-      editor_syscall(SYS_CLOSE, fd, 0, 0);
-      write_string("edit: file exceeds the 4095-byte buffer limit\n");
-      return 1;
+    for (int i = 0; i < count; i++) {
+      buffer.cursor = buffer.length;
+      if (editor_buffer_insert(&buffer, chunk[i]) != 0) {
+        editor_syscall(SYS_CLOSE, fd, 0, 0);
+        write_string("edit: could not allocate file buffer\n");
+        return 1;
+      }
     }
   }
-  if (editor_buffer_load(&buffer, buffer.text, length) != 0) {
-    editor_syscall(SYS_CLOSE, fd, 0, 0);
-    write_string("edit: could not load file\n");
-    return 1;
-  }
+  buffer.cursor = 0;
 
   redraw(&buffer, filename, status, dirty);
   for (;;) {

@@ -3,11 +3,10 @@
 
 #include <stddef.h>
 
-#define EDITOR_BUFFER_CAPACITY 4096
-
 typedef struct {
-  char text[EDITOR_BUFFER_CAPACITY];
+  char *text;
   size_t length;
+  size_t capacity;
   size_t cursor;
   size_t preferred_column;
   int preferred_column_valid;

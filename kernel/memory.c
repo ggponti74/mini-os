@@ -106,6 +106,16 @@ void *kmalloc(size_t size) {
   return allocated_ptr;
 }
 
+void *ksbrk(ptrdiff_t increment) {
+  uintptr_t previous = heap_curr;
+  if (heap_curr > heap_end || increment < 0 ||
+      (size_t)increment > heap_end - heap_curr) {
+    return (void *)-1;
+  }
+  heap_curr += (size_t)increment;
+  return (void *)previous;
+}
+
 void kfree(void *ptr) {
   /* A basic bump allocator cannot free individual blocks.
    * In a minimal system, this is often left as a no-op until
