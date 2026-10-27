@@ -23,5 +23,7 @@ void editor_buffer_up(editor_buffer_t *buffer);
 void editor_buffer_down(editor_buffer_t *buffer);
 void editor_buffer_home(editor_buffer_t *buffer);
 void editor_buffer_end(editor_buffer_t *buffer);
+void editor_buffer_document_home(editor_buffer_t *buffer);
+void editor_buffer_document_end(editor_buffer_t *buffer);
 
 #endif

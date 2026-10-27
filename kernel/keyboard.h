@@ -13,8 +13,12 @@
 #define KEY_EVENT_HOME     0x104
 #define KEY_EVENT_END      0x105
 #define KEY_EVENT_DELETE   0x106
+#define KEY_EVENT_PAGE_UP  0x107
+#define KEY_EVENT_PAGE_DOWN 0x108
 #define KEY_EVENT_CTRL_S   0x110
 #define KEY_EVENT_CTRL_Q   0x111
+#define KEY_EVENT_CTRL_HOME 0x112
+#define KEY_EVENT_CTRL_END  0x113
 
 void keyboard_init(void);
 void keyboard_handler(void);

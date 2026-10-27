@@ -253,3 +253,17 @@ void editor_buffer_end(editor_buffer_t *buffer) {
     reset_preferred_column(buffer);
   }
 }
+
+void editor_buffer_document_home(editor_buffer_t *buffer) {
+  if (buffer) {
+    buffer->cursor = 0;
+    reset_preferred_column(buffer);
+  }
+}
+
+void editor_buffer_document_end(editor_buffer_t *buffer) {
+  if (buffer) {
+    buffer->cursor = buffer->length;
+    reset_preferred_column(buffer);
+  }
+}

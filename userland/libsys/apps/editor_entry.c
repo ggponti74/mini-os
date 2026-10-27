@@ -19,8 +19,12 @@
 #define KEY_HOME 0x104
 #define KEY_END 0x105
 #define KEY_DELETE 0x106
+#define KEY_PAGE_UP 0x107
+#define KEY_PAGE_DOWN 0x108
 #define KEY_CTRL_S 0x110
 #define KEY_CTRL_Q 0x111
+#define KEY_CTRL_HOME 0x112
+#define KEY_CTRL_END 0x113
 
 #define EDITOR_ROWS 22
 #define SCREEN_COLUMNS 79
@@ -70,7 +74,8 @@ static void redraw(editor_buffer_t *buffer, const char *filename,
   if (status && status[0] != '\0') {
     write_string(status);
   } else {
-    write_string("Ctrl+S save | Ctrl+Q quit | Arrows move | Backspace/Delete edit");
+    write_string(
+        "Arrows/Page move | Home/End line | Ctrl+Home/End file | Ctrl+S save");
   }
   write_string("\n");
 
@@ -196,6 +201,22 @@ int editor_entry(int argc, char **argv) {
       break;
     case KEY_END:
       editor_buffer_end(&buffer);
+      break;
+    case KEY_PAGE_UP:
+      for (int i = 0; i < EDITOR_ROWS; i++) {
+        editor_buffer_up(&buffer);
+      }
+      break;
+    case KEY_PAGE_DOWN:
+      for (int i = 0; i < EDITOR_ROWS; i++) {
+        editor_buffer_down(&buffer);
+      }
+      break;
+    case KEY_CTRL_HOME:
+      editor_buffer_document_home(&buffer);
+      break;
+    case KEY_CTRL_END:
+      editor_buffer_document_end(&buffer);
       break;
     case KEY_DELETE:
       dirty |= editor_buffer_delete(&buffer) == 0;

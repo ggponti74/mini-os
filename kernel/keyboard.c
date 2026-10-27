@@ -67,6 +67,9 @@ static void queue_program_key(uint8_t scancode) {
     uint8_t released = scancode & 0x7F;
     if (extended_scancode) {
       extended_scancode = 0;
+      if (released == 0x1D) {
+        control_pressed = 0;
+      }
     } else if (released == 0x2A || released == 0x36) {
       shift_pressed = 0;
     } else if (released == 0x1D) {
@@ -78,12 +81,21 @@ static void queue_program_key(uint8_t scancode) {
   if (extended_scancode) {
     extended_scancode = 0;
     switch (scancode) {
-    case 0x47: queue_key(KEY_EVENT_HOME); break;
+    case 0x1D:
+      control_pressed = 1;
+      break;
+    case 0x47:
+      queue_key(control_pressed ? KEY_EVENT_CTRL_HOME : KEY_EVENT_HOME);
+      break;
     case 0x48: queue_key(KEY_EVENT_UP); break;
+    case 0x49: queue_key(KEY_EVENT_PAGE_UP); break;
     case 0x4B: queue_key(KEY_EVENT_LEFT); break;
     case 0x4D: queue_key(KEY_EVENT_RIGHT); break;
-    case 0x4F: queue_key(KEY_EVENT_END); break;
+    case 0x4F:
+      queue_key(control_pressed ? KEY_EVENT_CTRL_END : KEY_EVENT_END);
+      break;
     case 0x50: queue_key(KEY_EVENT_DOWN); break;
+    case 0x51: queue_key(KEY_EVENT_PAGE_DOWN); break;
     case 0x53: queue_key(KEY_EVENT_DELETE); break;
     }
     return;

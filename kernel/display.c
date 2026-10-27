@@ -458,6 +458,8 @@ void draw_status_bar(const char *datetime_str, int sound_enabled) {
   if (pos < 80) {
     status_row[pos++] = (uint16_t)sound_icon | bg_attr;
   }
+
+  status_row[VGA_WIDTH - 1] = blank;
 }
 
 // 1. Set cursor scanline height (Block vs Underscore)
