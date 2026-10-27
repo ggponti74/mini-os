@@ -2,6 +2,7 @@
 [bits 16]
 
 KERNEL_OFFSET equ 0x7e00
+KERNEL_SECTORS equ 1024
 
 start:
     mov [BOOT_DRIVE], dl
@@ -26,7 +27,7 @@ load_kernel:
     mov bx, KERNEL_OFFSET
     mov cx, 0x0002
     mov dh, 0
-    mov di, 128
+    mov di, KERNEL_SECTORS
 
 .read_loop:
     push cx

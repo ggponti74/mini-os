@@ -67,7 +67,7 @@ ALL_OBJS   := $(ASM_OBJS) $(GAS_OBJS) $(C_OBJS)
 NASM := nasm
 CC := gcc
 OBJCOPY := objcopy
-CFLAGS := -m32 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel $(WIN_CFLAGS)
+CFLAGS := -m32 -mno-mmx -mno-sse -mno-sse2 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel $(WIN_CFLAGS)
 
 .PHONY: all clean run run-iso iso boot kernel libsys image
 
