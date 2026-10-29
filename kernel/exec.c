@@ -6,7 +6,7 @@
 #include "fs/vfs.h"
 #include "keyboard.h"
 
-static uint8_t binary_image[8192];
+static uint8_t binary_image[INITRD_MAX_FILE_SIZE];
 
 int exec_flat_binary(const char *path, int argc, char **argv) {
 

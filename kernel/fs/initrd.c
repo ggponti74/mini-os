@@ -16,6 +16,9 @@ typedef struct {
 } initrd_file_t;
 
 static initrd_file_t file_pool[MAX_NODES];
+// Keep the regular file pool compact while allowing one file to exceed 8 KiB.
+static uint8_t extended_file_data[INITRD_MAX_FILE_SIZE];
+static int extended_file_in_use;
 static uint32_t node_count = 0;
 static vfs_node_t initrd_root;
 
@@ -31,9 +34,14 @@ static uint32_t initrd_node_index(const vfs_node_t *node) {
 }
 
 static void initrd_remove_node_at(uint32_t index) {
+  if (file_pool[index].node.device_data == extended_file_data) {
+    extended_file_in_use = 0;
+  }
   for (uint32_t i = index; i + 1 < node_count; i++) {
+    void *source_data = file_pool[i + 1].node.device_data;
     file_pool[i] = file_pool[i + 1];
-    if (file_pool[i].node.flags & FS_FILE) {
+    if ((file_pool[i].node.flags & FS_FILE) &&
+        source_data == file_pool[i + 1].data) {
       file_pool[i].node.device_data = file_pool[i].data;
     }
   }
@@ -434,12 +442,26 @@ static uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset,
                                   uint32_t size, const uint8_t *buffer) {
   if (!node || !node->device_data || !buffer)
     return 0;
-  if (offset >= MAX_FILE_SIZE)
+  uint32_t capacity = MAX_FILE_SIZE;
+  if (node->device_data == extended_file_data) {
+    capacity = INITRD_MAX_FILE_SIZE;
+  } else if ((offset >= MAX_FILE_SIZE ||
+              size > MAX_FILE_SIZE - offset) &&
+             !extended_file_in_use) {
+    uint8_t *old_data = (uint8_t *)node->device_data;
+    for (uint32_t i = 0; i < node->length; i++) {
+      extended_file_data[i] = old_data[i];
+    }
+    node->device_data = extended_file_data;
+    extended_file_in_use = 1;
+    capacity = INITRD_MAX_FILE_SIZE;
+  }
+  if (offset >= capacity)
     return 0;
   uint8_t *dest = (uint8_t *)node->device_data;
 
-  if (offset + size > MAX_FILE_SIZE)
-    size = MAX_FILE_SIZE - offset;
+  if (size > capacity - offset)
+    size = capacity - offset;
   for (uint32_t i = 0; i < size; i++)
     dest[offset + i] = buffer[i];
 
@@ -505,6 +527,7 @@ static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name,
 vfs_node_t *initrd_init(void) {
   // 1. Setup Root Directory Node
   node_count = 0;
+  extended_file_in_use = 0;
   initrd_root.name[0] = '\0';
   initrd_root.flags = FS_DIRECTORY;
   initrd_root.create = initrd_create_file;

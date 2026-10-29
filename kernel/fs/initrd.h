@@ -4,6 +4,8 @@
 
 #include "vfs.h"
 
+#define INITRD_MAX_FILE_SIZE 16384
+
 // include/fs/initrd.h
 #if defined(__WIN32__) || defined(_WIN32)
     extern const char _initrd_start[];
