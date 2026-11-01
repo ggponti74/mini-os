@@ -10,6 +10,7 @@
 #include "pic.h"
 #include "shell.h"
 #include "sound.h"
+#include "sys/metrics.h"
 
 #define HEAP_START_ADDR 0x50000
 #define KERNEL_HEAP_SIZE (256 * 1024)
@@ -75,6 +76,8 @@ void kernel_main(void) {
   hal_network_init();
   int dhcp_status = hal_network_configure_dhcp();
 
+  __asm__ volatile("sti" ::: "memory");
+
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);
   shell_init();
   update_status_bar();
@@ -83,6 +86,6 @@ void kernel_main(void) {
   while (1) {
     shell_run_pending_command();
     update_status_bar();
-    __asm__ volatile("hlt");
+    cpu_idle_hook();
   }
 }

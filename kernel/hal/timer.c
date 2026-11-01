@@ -2,6 +2,7 @@
 
 #include "hal/io.h"
 #include "pic.h"
+#include "sys/metrics.h"
 
 #define PIT_INPUT_HZ 1193180
 
@@ -23,6 +24,7 @@ void hal_timer_init(uint32_t frequency_hz) {
 
 void hal_timer_irq_handler(void) {
     timer_ticks++;
+    sys_timer_tick();
     pic_send_eoi(0);
 }
 

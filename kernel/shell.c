@@ -5,6 +5,7 @@
 #include "fs/initrd.h"
 #include "fs/vfs.h"
 #include "hal/network/network.h"
+#include "hal/timer.h"
 #include "keyboard.h"
 #include "memory.h"
 #include "rtc.h"
@@ -59,6 +60,7 @@ static void command_set_set(const char *name, const char *value_str);
 static void command_shutdown(const char *args);
 static void command_sound(const char *args);
 static void command_test(const char *args);
+static void command_test_cpu(uint32_t seconds);
 static void command_time(const char *args);
 static void command_timezone(const char *args);
 static void command_touch(const char *args);
@@ -118,7 +120,7 @@ static const struct shell_command commands[] = {
     {"set", "Set enviroment variables", command_set},
     {"shutdown", "Shut down the system", command_shutdown},
     {"sound", "Toggle the sound on or off", command_sound},
-    {"test", "Run diagnostic test", command_test},
+    {"test", "Run diagnostics, including a CPU stress test", command_test},
     {"time", "Show current system time", command_time},
     {"timezone", "Set or display time zone (+/- hours)", command_timezone},
     {"touch", "Create an empty file", command_touch},
@@ -1506,9 +1508,39 @@ static void command_test(const char *args)
 {
   if (args && *args != '\0')
   {
+    if (strncmp(args, "cpu", 3) == 0 &&
+        (args[3] == '\0' || args[3] == ' '))
+    {
+      uint32_t seconds = 30;
+      const char *duration_args = args + 3;
+      while (*duration_args == ' ')
+      {
+        duration_args++;
+      }
+      if (*duration_args != '\0')
+      {
+        if (parse_uint32_argument(&duration_args, &seconds) != 0)
+        {
+          kprint_color("Usage: test cpu [seconds] (1-300)\n", COLOR_DEFAULT);
+          return;
+        }
+        while (*duration_args == ' ')
+        {
+          duration_args++;
+        }
+        if (*duration_args != '\0' || seconds < 1 || seconds > 300)
+        {
+          kprint_color("Usage: test cpu [seconds] (1-300)\n", COLOR_DEFAULT);
+          return;
+        }
+      }
+      command_test_cpu(seconds);
+      return;
+    }
+
     if (strcmp(args, "video") != 0)
     {
-      kprint_color("Usage: test [video]\n", COLOR_DEFAULT);
+      kprint_color("Usage: test [video|cpu [seconds]]\n", COLOR_DEFAULT);
       return;
     }
 
@@ -1554,6 +1586,45 @@ static void command_test(const char *args)
   kprint_color("\033[32mGreen Text\033[0m ", COLOR_DEFAULT);
   kprint_color("\033[33mYellow Text\033[0m ", COLOR_DEFAULT);
   kprint_color("\033[34mBlue Text\033[0m\n", COLOR_DEFAULT);
+}
+
+static void command_test_cpu(uint32_t seconds)
+{
+  const uint32_t ticks_per_second = 1000;
+  const uint32_t work_iterations = 10000;
+  uint32_t start_ticks = (uint32_t)hal_timer_get_ticks();
+  uint32_t duration_ticks = seconds * ticks_per_second;
+  uint32_t next_report_ticks = ticks_per_second;
+  uint32_t elapsed_ticks;
+  volatile uint32_t workload = 0x12345678;
+
+  kprint_color("Running CPU stress test for ", COLOR_DEFAULT);
+  print_uint(seconds);
+  kprint_color(" seconds. CPU usage samples:\n", COLOR_DEFAULT);
+
+  do
+  {
+    for (uint32_t i = 0; i < work_iterations; i++)
+    {
+      workload = workload * 1664525u + 1013904223u;
+    }
+
+    elapsed_ticks = (uint32_t)hal_timer_get_ticks() - start_ticks;
+    while (elapsed_ticks >= next_report_ticks &&
+           next_report_ticks <= duration_ticks)
+    {
+      print_uint(next_report_ticks / ticks_per_second);
+      kprint_color("s: CPU ", COLOR_DEFAULT);
+      print_uint(sys_get_cpu_usage());
+      kprint_color("%\n", COLOR_DEFAULT);
+      update_status_bar();
+      next_report_ticks += ticks_per_second;
+    }
+  } while (elapsed_ticks < duration_ticks);
+
+  (void)workload;
+  kprint_color("CPU stress test complete.\n", COLOR_DEFAULT);
+  update_status_bar();
 }
 
 static void command_time(const char *args)

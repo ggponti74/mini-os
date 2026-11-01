@@ -15,7 +15,8 @@ typedef struct {
 mem_stats_t sys_get_mem_stats(void);
 uint32_t sys_get_cpu_usage(void);
 
-// Call inside your PIT IRQ0 handler every tick
+// Call once for each PIT tick and from the kernel's idle loop, respectively.
 void sys_timer_tick(void);
+void cpu_idle_hook(void);
 
 #endif
