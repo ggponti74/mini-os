@@ -5,10 +5,13 @@
 
 static int mock_errno;
 
-int* __posix_errno_location(void) {
+int *__errno_location(void) {
     return &mock_errno;
 }
-#define errno (*__posix_errno_location())
+
+int *__posix_errno_location(void) {
+    return __errno_location();
+}
 
 /* ========================================================================
    FILE OPERATIONS

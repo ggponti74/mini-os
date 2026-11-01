@@ -7,6 +7,7 @@
 #include "../keyboard.h"
 #include "../memory.h"
 #include "../shell.h"
+#include "../errno.h"
 #include "syscall.h"
 #include "stat.h"
 
@@ -34,10 +35,13 @@ static int open_file(const char *path, uint32_t flags) {
   uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
   if ((flags & ~supported_flags) != 0 || access_mode == 3 ||
       ((flags & O_TRUNC) && access_mode == O_RDONLY)) {
-    return -1;
+    return -EINVAL;
   }
-  if (!path || *path == '\0') {
-    return -1;
+  if (!path) {
+    return -EFAULT;
+  }
+  if (*path == '\0') {
+    return -ENOENT;
   }
 
   uint32_t length = 0;
@@ -45,22 +49,25 @@ static int open_file(const char *path, uint32_t flags) {
     length++;
   }
   if (length == SYSCALL_PATH_LENGTH) {
-    return -1;
+    return -ENAMETOOLONG;
   }
 
   char resolved_path[SYSCALL_PATH_LENGTH];
   if (shell_resolve_path(path, resolved_path, sizeof(resolved_path)) != 0) {
-    return -1;
+    return -ENOENT;
   }
   vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
   if (node && (flags & O_CREAT) && (flags & O_EXCL)) {
-    return -1;
+    return -EEXIST;
   }
   if (!node && (flags & OPEN_CREAT)) {
     node = vfs_create(fs_root, resolved_path, FS_FILE);
   }
-  if (!node || (node->flags & FS_DIRECTORY)) {
-    return -1;
+  if (!node) {
+    return -ENOENT;
+  }
+  if (node->flags & FS_DIRECTORY) {
+    return -EISDIR;
   }
 
   for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
@@ -79,7 +86,7 @@ static int open_file(const char *path, uint32_t flags) {
       return fd;
     }
   }
-  return -1;
+  return -EMFILE;
 }
 
 static int32_t read_stdin(uint8_t *buffer, uint32_t count) {
@@ -124,7 +131,8 @@ static int32_t read_stdin(uint8_t *buffer, uint32_t count) {
 int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                          uint32_t arg3) {
   if (number == SYS_SBRK) {
-    return (int32_t)ksbrk((int32_t)arg1);
+    void *result = ksbrk((int32_t)arg1);
+    return result == (void *)-1 ? -ENOMEM : (int32_t)result;
   }
   if (number == SYS_EXIT) {
     return (int32_t)arg1;
@@ -138,14 +146,14 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return 0;
     }
     if (!arg2) {
-      return -1;
+      return -EFAULT;
     }
     if (fd == 0) {
       return read_stdin((uint8_t *)arg2, arg3);
     }
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
         !descriptors[fd].readable) {
-      return -1;
+      return -EBADF;
     }
     uint32_t bytes = vfs_read(descriptors[fd].node, descriptors[fd].offset,
                               arg3, (uint8_t *)arg2);
@@ -155,8 +163,11 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_WRITE) {
     int fd = (int)arg1;
     const uint8_t *buffer = (const uint8_t *)arg2;
+    if (arg3 == 0) {
+      return 0;
+    }
     if (!buffer) {
-      return -1;
+      return -EFAULT;
     }
     if (fd == 1 || fd == 2) {
       for (uint32_t i = 0; i < arg3; i++) {
@@ -166,7 +177,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     }
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
         !descriptors[fd].writable) {
-      return -1;
+      return -EBADF;
     }
     if (descriptors[fd].append) {
       descriptors[fd].offset = descriptors[fd].node->length;
@@ -179,7 +190,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_CLOSE) {
     int fd = (int)arg1;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
-      return -1;
+      return -EBADF;
     }
     descriptors[fd].used = 0;
     descriptors[fd].node = NULL;
@@ -192,7 +203,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     struct stat *status = (struct stat *)arg2;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
         !status) {
-      return -1;
+      return status ? -EBADF : -EFAULT;
     }
 
     vfs_node_t *node = descriptors[fd].node;
@@ -214,8 +225,11 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     int fd = (int)arg1;
     int32_t offset = (int32_t)arg2;
     int64_t base;
+    if (fd >= 0 && fd < 3) {
+      return -ESPIPE;
+    }
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
-      return -1;
+      return -EBADF;
     }
 
     switch (arg3) {
@@ -229,12 +243,12 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       base = descriptors[fd].node->length;
       break;
     default:
-      return -1;
+      return -EINVAL;
     }
 
     int64_t result = base + offset;
     if (result < 0 || result > INT32_MAX) {
-      return -1;
+      return result < 0 ? -EINVAL : -EOVERFLOW;
     }
     descriptors[fd].offset = (uint32_t)result;
     return (int32_t)result;
@@ -258,12 +272,12 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     int fd = (int)arg1;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
         !descriptors[fd].writable) {
-      return -1;
+      return -EBADF;
     }
     descriptors[fd].node->length = 0;
     descriptors[fd].offset = 0;
     return 0;
   }
 
-  return -1;
+  return -ENOSYS;
 }

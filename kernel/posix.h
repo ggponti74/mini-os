@@ -1,9 +1,7 @@
 #ifndef POSIX_H
 #define POSIX_H
 
-// Custom minimal errno declaration since we aren't using Newlib headers
-#define ENOSYS 38 // Function not implemented
-#define EINVAL 22 // Invalid argument
+#include "errno.h"
 
 int *__posix_errno_location(void);
 int open(const char *pathname, int flags, ...);
