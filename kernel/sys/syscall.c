@@ -20,6 +20,7 @@ typedef struct {
   uint8_t used;
   uint8_t readable;
   uint8_t writable;
+  uint8_t append;
 } syscall_fd_t;
 
 static syscall_fd_t descriptors[SYSCALL_FD_COUNT];
@@ -29,6 +30,12 @@ static uint32_t stdin_line_offset;
 static uint8_t stdin_line_ready;
 
 static int open_file(const char *path, uint32_t flags) {
+  uint32_t access_mode = flags & O_ACCMODE;
+  uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND;
+  if ((flags & ~supported_flags) != 0 || access_mode == 3 ||
+      ((flags & O_TRUNC) && access_mode == O_RDONLY)) {
+    return -1;
+  }
   if (!path || *path == '\0') {
     return -1;
   }
@@ -56,11 +63,16 @@ static int open_file(const char *path, uint32_t flags) {
   for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
     if (!descriptors[fd].used) {
       descriptors[fd].node = node;
-      descriptors[fd].offset = 0;
+      descriptors[fd].offset = (flags & O_APPEND) ? node->length : 0;
       descriptors[fd].used = 1;
-      descriptors[fd].readable = (flags & 3) != OPEN_WRONLY;
+      descriptors[fd].readable = access_mode != O_WRONLY;
       descriptors[fd].writable =
-          (flags & 3) == OPEN_WRONLY || (flags & 3) == OPEN_RDWR;
+          access_mode == O_WRONLY || access_mode == O_RDWR;
+      descriptors[fd].append = (flags & O_APPEND) != 0;
+      if (flags & O_TRUNC) {
+        node->length = 0;
+        descriptors[fd].offset = 0;
+      }
       return fd;
     }
   }
@@ -153,6 +165,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
         !descriptors[fd].writable) {
       return -1;
     }
+    if (descriptors[fd].append) {
+      descriptors[fd].offset = descriptors[fd].node->length;
+    }
     uint32_t bytes = vfs_write(descriptors[fd].node, descriptors[fd].offset,
                                arg3, buffer);
     descriptors[fd].offset += bytes;
@@ -166,6 +181,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     descriptors[fd].used = 0;
     descriptors[fd].node = NULL;
     descriptors[fd].offset = 0;
+    descriptors[fd].append = 0;
     return 0;
   }
   if (number == SYS_FSTAT) {

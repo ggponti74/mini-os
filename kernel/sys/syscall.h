@@ -2,6 +2,8 @@
 #ifndef MINI_OS_SYSCALL_H
 #define MINI_OS_SYSCALL_H
 
+#include "../fcntl.h"
+
 #define SYS_EXIT   1
 #define SYS_FORK   2
 #define SYS_READ   3
@@ -20,8 +22,8 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-#define OPEN_WRONLY 0x01
-#define OPEN_RDWR   0x02
-#define OPEN_CREAT  0x100
+#define OPEN_WRONLY O_WRONLY
+#define OPEN_RDWR   O_RDWR
+#define OPEN_CREAT  O_CREAT
 
 #endif
