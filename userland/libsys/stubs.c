@@ -5,36 +5,38 @@
 extern char __end[]; // Defined by linker script marking kernel/userland end
 static char *heap_end = NULL;
 
-// 1. Process Exit Stub
-void _exit(int status) {
+static int syscall3(int number, int arg1, int arg2, int arg3) {
     __asm__ volatile (
         "int $0x80"
-        :
-        : "a"(1), "b"(status)
+        : "+a"(number)
+        : "b"(arg1), "c"(arg2), "d"(arg3)
+        : "memory"
     );
+    return number;
+}
+
+// 1. Process Exit Stub
+void _exit(int status) {
+    syscall3(1, status, 0, 0);
     while (1) { __asm__ volatile("hlt"); }
+}
+
+int _open(const char *pathname, int flags, ...) {
+    return syscall3(5, (int)pathname, flags, 0);
 }
 
 // 2. Read Stub (POSIX compliant signature)
 int _read(int fd, void *buf, size_t count) {
-    int bytes_read;
-    __asm__ volatile (
-        "int $0x80"
-        : "=a"(bytes_read)
-        : "a"(3), "b"(fd), "c"(buf), "d"(count)
-    );
-    return bytes_read;
+    return syscall3(3, fd, (int)buf, (int)count);
 }
 
 // 3. Write Stub (POSIX compliant signature)
 int _write(int fd, const void *buf, size_t count) {
-    int bytes_written;
-    __asm__ volatile (
-        "int $0x80"
-        : "=a"(bytes_written)
-        : "a"(4), "b"(fd), "c"(buf), "d"(count)
-    );
-    return bytes_written;
+    return syscall3(4, fd, (int)buf, (int)count);
+}
+
+int _close(int fd) {
+    return syscall3(6, fd, 0, 0);
 }
 
 void *_sbrk(ptrdiff_t incr) {
