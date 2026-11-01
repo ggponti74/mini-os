@@ -1,6 +1,8 @@
 // userland/libsys/stubs.c
 #include <stddef.h>
 
+#define SYS_LSEEK 13
+
 // 4. Heap Expansion Stub (_sbrk for malloc)
 extern char __end[]; // Defined by linker script marking kernel/userland end
 static char *heap_end = NULL;
@@ -37,6 +39,10 @@ int _write(int fd, const void *buf, size_t count) {
 
 int _close(int fd) {
     return syscall3(6, fd, 0, 0);
+}
+
+long _lseek(int fd, long offset, int whence) {
+    return syscall3(SYS_LSEEK, fd, (int)offset, whence);
 }
 
 void *_sbrk(ptrdiff_t incr) {

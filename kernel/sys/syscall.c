@@ -114,6 +114,35 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     descriptors[fd].offset = 0;
     return 0;
   }
+  if (number == SYS_LSEEK) {
+    int fd = (int)arg1;
+    int32_t offset = (int32_t)arg2;
+    int64_t base;
+    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
+      return -1;
+    }
+
+    switch (arg3) {
+    case SEEK_SET:
+      base = 0;
+      break;
+    case SEEK_CUR:
+      base = descriptors[fd].offset;
+      break;
+    case SEEK_END:
+      base = descriptors[fd].node->length;
+      break;
+    default:
+      return -1;
+    }
+
+    int64_t result = base + offset;
+    if (result < 0 || result > INT32_MAX) {
+      return -1;
+    }
+    descriptors[fd].offset = (uint32_t)result;
+    return (int32_t)result;
+  }
   if (number == SYS_GETKEY) {
     int key;
     while ((key = keyboard_read_key()) < 0) {

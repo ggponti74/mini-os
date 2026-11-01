@@ -14,6 +14,11 @@
 #define SYS_CLEAR  10
 #define SYS_CURSOR 11
 #define SYS_FTRUNCATE 12
+#define SYS_LSEEK 13
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
 #define OPEN_WRONLY 0x01
 #define OPEN_RDWR   0x02

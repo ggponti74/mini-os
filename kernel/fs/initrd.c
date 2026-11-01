@@ -462,6 +462,8 @@ static uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset,
 
   if (size > capacity - offset)
     size = capacity - offset;
+  for (uint32_t i = node->length; i < offset; i++)
+    dest[i] = 0;
   for (uint32_t i = 0; i < size; i++)
     dest[offset + i] = buffer[i];
 
