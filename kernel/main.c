@@ -73,19 +73,7 @@ void kernel_main(void) {
 
   kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();
-
-  __asm__ volatile("sti");
-  beep(440, 10);
-  kprint_color("Requesting a DHCP lease...\n", COLOR_DEFAULT);
   int dhcp_status = hal_network_configure_dhcp();
-  if (dhcp_status == 0) {
-    kprint_color("DHCP lease acquired.\n", COLOR_DEFAULT);
-  } else if (dhcp_status == -1) {
-    kprint_color("No supported network device found.\n", COLOR_DEFAULT);
-  } else {
-    kprint_color("DHCP request failed; use 'net ip' to check status.\n",
-                 COLOR_DEFAULT);
-  }
 
   kprint_color("System ready, starting shell...\n\n", COLOR_DEFAULT);
   shell_init();
