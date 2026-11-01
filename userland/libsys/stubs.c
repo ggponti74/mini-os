@@ -2,11 +2,8 @@
 #include <stddef.h>
 #include <sys/stat.h>
 
+#define SYS_SBRK 7
 #define SYS_LSEEK 13
-
-// 4. Heap Expansion Stub (_sbrk for malloc)
-extern char __end[]; // Defined by linker script marking kernel/userland end
-static char *heap_end = NULL;
 
 static int syscall3(int number, int arg1, int arg2, int arg3) {
     __asm__ volatile (
@@ -51,12 +48,9 @@ long _lseek(int fd, long offset, int whence) {
 }
 
 void *_sbrk(ptrdiff_t incr) {
-    if (heap_end == NULL) {
-        heap_end = __end;
+    int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
+    if (previous_break == -1) {
+        return (void *)-1;
     }
-    
-    char *prev_heap_end = heap_end;
-    // Simple bump allocation check against limits if necessary
-    heap_end += incr;
-    return (void *)prev_heap_end;
+    return (void *)previous_break;
 }

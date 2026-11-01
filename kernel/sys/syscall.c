@@ -12,6 +12,7 @@
 
 #define SYSCALL_FD_COUNT 8
 #define SYSCALL_PATH_LENGTH 128
+#define STDIN_LINE_CAPACITY 128
 
 typedef struct {
   vfs_node_t *node;
@@ -22,6 +23,10 @@ typedef struct {
 } syscall_fd_t;
 
 static syscall_fd_t descriptors[SYSCALL_FD_COUNT];
+static uint8_t stdin_line[STDIN_LINE_CAPACITY];
+static uint32_t stdin_line_length;
+static uint32_t stdin_line_offset;
+static uint8_t stdin_line_ready;
 
 static int open_file(const char *path, uint32_t flags) {
   if (!path || *path == '\0') {
@@ -62,6 +67,45 @@ static int open_file(const char *path, uint32_t flags) {
   return -1;
 }
 
+static int32_t read_stdin(uint8_t *buffer, uint32_t count) {
+  while (!stdin_line_ready) {
+    int key;
+    while ((key = keyboard_read_key()) < 0) {
+      __asm__ volatile("pause");
+    }
+
+    if (key == '\b' || key == 0x7F) {
+      if (stdin_line_length > 0) {
+        stdin_line_length--;
+        kputchar_color('\b', COLOR_DEFAULT);
+      }
+    } else if (key == '\n' || key == '\r') {
+      if (stdin_line_length < STDIN_LINE_CAPACITY) {
+        stdin_line[stdin_line_length++] = '\n';
+      }
+      kputchar_color('\n', COLOR_DEFAULT);
+      stdin_line_ready = 1;
+    } else if ((key == '\t' || (key >= ' ' && key <= '~')) &&
+               stdin_line_length < STDIN_LINE_CAPACITY - 1) {
+      stdin_line[stdin_line_length++] = (uint8_t)key;
+      kputchar_color((char)key, COLOR_DEFAULT);
+    }
+  }
+
+  uint32_t available = stdin_line_length - stdin_line_offset;
+  uint32_t bytes = count < available ? count : available;
+  for (uint32_t i = 0; i < bytes; i++) {
+    buffer[i] = stdin_line[stdin_line_offset + i];
+  }
+  stdin_line_offset += bytes;
+  if (stdin_line_offset == stdin_line_length) {
+    stdin_line_length = 0;
+    stdin_line_offset = 0;
+    stdin_line_ready = 0;
+  }
+  return (int32_t)bytes;
+}
+
 int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                          uint32_t arg3) {
   if (number == SYS_SBRK) {
@@ -75,8 +119,17 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   }
   if (number == SYS_READ) {
     int fd = (int)arg1;
+    if (arg3 == 0) {
+      return 0;
+    }
+    if (!arg2) {
+      return -1;
+    }
+    if (fd == 0) {
+      return read_stdin((uint8_t *)arg2, arg3);
+    }
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
-        !descriptors[fd].readable || !arg2) {
+        !descriptors[fd].readable) {
       return -1;
     }
     uint32_t bytes = vfs_read(descriptors[fd].node, descriptors[fd].offset,
