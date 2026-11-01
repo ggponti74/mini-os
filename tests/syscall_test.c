@@ -53,6 +53,11 @@ static void reset_file(void) {
 static void test_open_read_seek_and_stat(void) {
   uint8_t buffer[8] = {0};
   struct stat status;
+  CHECK(syscall_dispatch(SYS_FSTAT, 0, (uint32_t)&status, 0) == 0);
+  CHECK(S_ISCHR(status.st_mode));
+  CHECK(status.st_size == 0);
+  CHECK(syscall_dispatch(SYS_FSTAT, 1, (uint32_t)&status, 0) == 0);
+  CHECK(S_ISCHR(status.st_mode));
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
 
   CHECK(fd == 3);

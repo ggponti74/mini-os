@@ -28,6 +28,7 @@ struct stat {
 // Functional Helper Validations
 #define S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
 #define S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
+#define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
 
 // Native Access Mask Parameters
 #define S_IRWXU  00700    // User execution read, write permissions

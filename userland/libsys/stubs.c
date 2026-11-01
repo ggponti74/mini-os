@@ -58,6 +58,14 @@ int _fstat(int fd, struct stat *status) {
     return syscall_result(syscall3(8, fd, (int)status, 0));
 }
 
+int _isatty(int fd) {
+    struct stat status;
+    if (_fstat(fd, &status) < 0) {
+        return 0;
+    }
+    return S_ISCHR(status.st_mode);
+}
+
 long _lseek(int fd, long offset, int whence) {
     return syscall_result(syscall3(SYS_LSEEK, fd, (int)offset, whence));
 }

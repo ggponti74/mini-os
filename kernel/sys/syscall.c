@@ -201,24 +201,33 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_FSTAT) {
     int fd = (int)arg1;
     struct stat *status = (struct stat *)arg2;
-    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
-        !status) {
-      return status ? -EBADF : -EFAULT;
+    if (!status) {
+      return -EFAULT;
     }
 
-    vfs_node_t *node = descriptors[fd].node;
     status->st_dev = 0;
-    status->st_ino = node->inode;
-    status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
-                      S_IRUSR | S_IWUSR;
     status->st_nlink = 1;
     status->st_uid = 0;
     status->st_gid = 0;
     status->st_rdev = 0;
-    status->st_size = node->length;
     status->st_atime = 0;
     status->st_mtime = 0;
     status->st_ctime = 0;
+    if (fd >= 0 && fd < 3) {
+      status->st_ino = 0;
+      status->st_mode = S_IFCHR | S_IRUSR | S_IWUSR;
+      status->st_size = 0;
+      return 0;
+    }
+    if (fd >= SYSCALL_FD_COUNT || fd < 0 || !descriptors[fd].used) {
+      return -EBADF;
+    }
+
+    vfs_node_t *node = descriptors[fd].node;
+    status->st_ino = node->inode;
+    status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
+                      S_IRUSR | S_IWUSR;
+    status->st_size = node->length;
     return 0;
   }
   if (number == SYS_LSEEK) {
