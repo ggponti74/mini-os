@@ -31,7 +31,7 @@ static uint8_t stdin_line_ready;
 
 static int open_file(const char *path, uint32_t flags) {
   uint32_t access_mode = flags & O_ACCMODE;
-  uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND;
+  uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
   if ((flags & ~supported_flags) != 0 || access_mode == 3 ||
       ((flags & O_TRUNC) && access_mode == O_RDONLY)) {
     return -1;
@@ -53,6 +53,9 @@ static int open_file(const char *path, uint32_t flags) {
     return -1;
   }
   vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+  if (node && (flags & O_CREAT) && (flags & O_EXCL)) {
+    return -1;
+  }
   if (!node && (flags & OPEN_CREAT)) {
     node = vfs_create(fs_root, resolved_path, FS_FILE);
   }
