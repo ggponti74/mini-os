@@ -1591,22 +1591,47 @@ static void command_test(const char *args)
 static void command_test_cpu(uint32_t seconds)
 {
   const uint32_t ticks_per_second = 1000;
+  const uint32_t load_window_ticks = 100;
   const uint32_t work_iterations = 10000;
   uint32_t start_ticks = (uint32_t)hal_timer_get_ticks();
   uint32_t duration_ticks = seconds * ticks_per_second;
   uint32_t next_report_ticks = ticks_per_second;
   uint32_t elapsed_ticks;
+  uint32_t load_percent = 100;
   volatile uint32_t workload = 0x12345678;
 
   kprint_color("Running CPU stress test for ", COLOR_DEFAULT);
   print_uint(seconds);
-  kprint_color(" seconds. CPU usage samples:\n", COLOR_DEFAULT);
+  kprint_color(" seconds. Use +/- or Up/Down to adjust load by 10%.\n",
+               COLOR_DEFAULT);
 
   do
   {
-    for (uint32_t i = 0; i < work_iterations; i++)
+    int key;
+    while ((key = keyboard_read_key()) >= 0)
     {
-      workload = workload * 1664525u + 1013904223u;
+      if ((key == '+' || key == '=' || key == KEY_EVENT_UP) &&
+          load_percent < 100)
+      {
+        load_percent += 10;
+        if (load_percent > 100)
+        {
+          load_percent = 100;
+        }
+      }
+      else if ((key == '-' || key == '_' || key == KEY_EVENT_DOWN) &&
+               load_percent > 0)
+      {
+        load_percent -= 10;
+      }
+      else
+      {
+        continue;
+      }
+
+      kprint_color("CPU stress load: ", COLOR_DEFAULT);
+      print_uint(load_percent);
+      kprint_color("%\n", COLOR_DEFAULT);
     }
 
     elapsed_ticks = (uint32_t)hal_timer_get_ticks() - start_ticks;
@@ -1619,6 +1644,18 @@ static void command_test_cpu(uint32_t seconds)
       kprint_color("%\n", COLOR_DEFAULT);
       update_status_bar();
       next_report_ticks += ticks_per_second;
+    }
+
+    if (elapsed_ticks % load_window_ticks < load_percent)
+    {
+      for (uint32_t i = 0; i < work_iterations; i++)
+      {
+        workload = workload * 1664525u + 1013904223u;
+      }
+    }
+    else
+    {
+      cpu_idle_hook();
     }
   } while (elapsed_ticks < duration_ticks);
 

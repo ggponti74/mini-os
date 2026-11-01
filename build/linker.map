@@ -19,7 +19,7 @@ Discarded input sections
  .comment       0x00000000       0x2e build/posix.o
  .eh_frame      0x00000000       0xe0 build/posix.o
  .comment       0x00000000       0x2e build/shell.o
- .eh_frame      0x00000000     0x1ebc build/shell.o
+ .eh_frame      0x00000000     0x1ed4 build/shell.o
  .comment       0x00000000       0x2e build/sound.o
  .eh_frame      0x00000000       0x74 build/sound.o
  .comment       0x00000000       0x2e build/string.o
@@ -85,7 +85,7 @@ LOAD build/hal/network/network.o
 LOAD build/hal/network/ping.o
                 0x00007e00                        . = 0x7e00
 
-.text           0x00007e00     0x9d10
+.text           0x00007e00     0x9df0
  *(.boot_entry)
  .boot_entry    0x00007e00       0x1d build/kernel_entry.o
                 0x00007e00                stage2_entry
@@ -175,233 +175,233 @@ LOAD build/hal/network/ping.o
                 0x00009e30                kill
                 0x00009e40                brk
  *fill*         0x00009e56        0xa 
- .text          0x00009e60     0x3ee1 build/shell.o
-                0x0000c080                shell_resolve_path
-                0x0000d010                print_dec
-                0x0000d0a0                process_command
-                0x0000d470                shell_command_busy
-                0x0000d490                shell_get_timezone
-                0x0000d4a0                shell_handle_key_insert
-                0x0000d4c0                shell_init
-                0x0000d520                shell_refresh_line
-                0x0000d5c0                shell_handle_key_left
-                0x0000d5e0                shell_handle_key_right
-                0x0000d600                shell_input_char
-                0x0000d860                shell_handle_key_up
-                0x0000d8d0                shell_handle_key_down
-                0x0000d990                shell_run_pending_command
- *fill*         0x0000dd41        0xf 
- .text          0x0000dd50       0xb8 build/sound.o
-                0x0000dd50                play_sound
-                0x0000dd90                nosound
-                0x0000dda0                beep
-                0x0000ddf0                sound_init
- *fill*         0x0000de08        0x8 
- .text          0x0000de10      0x15e build/string.o
-                0x0000de10                strlen
-                0x0000de40                strcpy
-                0x0000de70                memcpy
-                0x0000dea0                strncmp
-                0x0000def0                strcmp
-                0x0000df30                memset
- *fill*         0x0000df6e        0x2 
- .text          0x0000df70       0x6e build/vga.o
-                0x0000df70                vga_clear_screen
-                0x0000dfa0                vga_print_at
- *fill*         0x0000dfde        0x2 
- .text          0x0000dfe0      0x418 build/drivers/e1000.o
-                0x0000e1a0                e1000_set_bar0
-                0x0000e1b0                e1000_get_bar0
-                0x0000e1c0                e1000_set_mmio_base
-                0x0000e1d0                e1000_get_mmio_base
-                0x0000e1e0                e1000_check_hardware
-                0x0000e220                e1000_get_mac_address
-                0x0000e240                e1000_initialize
- *fill*         0x0000e3f8        0x8 
- .text          0x0000e400      0x15e build/drivers/pci.o
-                0x0000e400                pci_config_read
-                0x0000e440                pci_get_vendor_id
-                0x0000e470                pci_get_device_id
-                0x0000e4b0                pci_get_class_id
-                0x0000e4f0                pci_get_bar0
-                0x0000e520                pci_config_write
- *fill*         0x0000e55e        0x2 
- .text          0x0000e560     0x1190 build/fs/initrd.o
-                0x0000eb10                initrd_copy_file
-                0x0000ebf0                initrd_move_file
-                0x0000ed60                initrd_remove_file
-                0x0000ee10                initrd_remove_directory
-                0x0000ef30                initrd_get_file
-                0x0000f050                oct2bin
-                0x0000f090                initrd_find_file
-                0x0000f0a0                initrd_list_files
-                0x0000f430                initrd_cat_file
-                0x0000f510                initrd_init
- .text          0x0000f6f0      0x35b build/fs/vfs.o
-                0x0000f6f0                vfs_read
-                0x0000f760                vfs_write
-                0x0000f7d0                vfs_lookup
-                0x0000f840                vfs_create
- *fill*         0x0000fa4b        0x5 
- .text          0x0000fa50       0x11 build/hal/memory.o
-                0x0000fa50                malloc
-                0x0000fa60                free
- *fill*         0x0000fa61        0xf 
- .text          0x0000fa70       0xe1 build/hal/timer.o
-                0x0000fa70                hal_timer_init
-                0x0000fac0                hal_timer_irq_handler
-                0x0000faf0                hal_timer_get_ticks
-                0x0000fb00                hal_sleep
- *fill*         0x0000fb51        0xf 
- .text          0x0000fb60       0xb6 build/sys/metrics.o
-                0x0000fb60                sys_get_mem_stats
-                0x0000fb90                cpu_idle_hook
-                0x0000fba0                sys_timer_tick
-                0x0000fc10                sys_get_cpu_usage
- *fill*         0x0000fc16        0xa 
- .text          0x0000fc20      0x31e build/sys/syscall.o
-                0x0000fc20                syscall_dispatch
- *fill*         0x0000ff3e        0x2 
- .text          0x0000ff40      0xb74 build/hal/network/dhcp.o
-                0x00010990                dhcp_request_ipv4
- *fill*         0x00010ab4        0xc 
- .text          0x00010ac0      0x2b1 build/hal/network/network.o
-                0x00010ac0                hal_network_init
-                0x00010ba0                hal_network_register_device
-                0x00010bc0                hal_network_send
-                0x00010bf0                hal_network_poll
-                0x00010c20                hal_network_configure_dhcp
-                0x00010cb0                hal_network_get_ipv4
-                0x00010ce0                hal_network_get_mac
-                0x00010d20                hal_network_ping_ipv4
-                0x00010d70                hal_network_receive_callback
- *fill*         0x00010d71        0xf 
- .text          0x00010d80      0xd90 build/hal/network/ping.o
-                0x000117c0                network_ping_ipv4
+ .text          0x00009e60     0x3fc1 build/shell.o
+                0x0000c160                shell_resolve_path
+                0x0000d0f0                print_dec
+                0x0000d180                process_command
+                0x0000d550                shell_command_busy
+                0x0000d570                shell_get_timezone
+                0x0000d580                shell_handle_key_insert
+                0x0000d5a0                shell_init
+                0x0000d600                shell_refresh_line
+                0x0000d6a0                shell_handle_key_left
+                0x0000d6c0                shell_handle_key_right
+                0x0000d6e0                shell_input_char
+                0x0000d940                shell_handle_key_up
+                0x0000d9b0                shell_handle_key_down
+                0x0000da70                shell_run_pending_command
+ *fill*         0x0000de21        0xf 
+ .text          0x0000de30       0xb8 build/sound.o
+                0x0000de30                play_sound
+                0x0000de70                nosound
+                0x0000de80                beep
+                0x0000ded0                sound_init
+ *fill*         0x0000dee8        0x8 
+ .text          0x0000def0      0x15e build/string.o
+                0x0000def0                strlen
+                0x0000df20                strcpy
+                0x0000df50                memcpy
+                0x0000df80                strncmp
+                0x0000dfd0                strcmp
+                0x0000e010                memset
+ *fill*         0x0000e04e        0x2 
+ .text          0x0000e050       0x6e build/vga.o
+                0x0000e050                vga_clear_screen
+                0x0000e080                vga_print_at
+ *fill*         0x0000e0be        0x2 
+ .text          0x0000e0c0      0x418 build/drivers/e1000.o
+                0x0000e280                e1000_set_bar0
+                0x0000e290                e1000_get_bar0
+                0x0000e2a0                e1000_set_mmio_base
+                0x0000e2b0                e1000_get_mmio_base
+                0x0000e2c0                e1000_check_hardware
+                0x0000e300                e1000_get_mac_address
+                0x0000e320                e1000_initialize
+ *fill*         0x0000e4d8        0x8 
+ .text          0x0000e4e0      0x15e build/drivers/pci.o
+                0x0000e4e0                pci_config_read
+                0x0000e520                pci_get_vendor_id
+                0x0000e550                pci_get_device_id
+                0x0000e590                pci_get_class_id
+                0x0000e5d0                pci_get_bar0
+                0x0000e600                pci_config_write
+ *fill*         0x0000e63e        0x2 
+ .text          0x0000e640     0x1190 build/fs/initrd.o
+                0x0000ebf0                initrd_copy_file
+                0x0000ecd0                initrd_move_file
+                0x0000ee40                initrd_remove_file
+                0x0000eef0                initrd_remove_directory
+                0x0000f010                initrd_get_file
+                0x0000f130                oct2bin
+                0x0000f170                initrd_find_file
+                0x0000f180                initrd_list_files
+                0x0000f510                initrd_cat_file
+                0x0000f5f0                initrd_init
+ .text          0x0000f7d0      0x35b build/fs/vfs.o
+                0x0000f7d0                vfs_read
+                0x0000f840                vfs_write
+                0x0000f8b0                vfs_lookup
+                0x0000f920                vfs_create
+ *fill*         0x0000fb2b        0x5 
+ .text          0x0000fb30       0x11 build/hal/memory.o
+                0x0000fb30                malloc
+                0x0000fb40                free
+ *fill*         0x0000fb41        0xf 
+ .text          0x0000fb50       0xe1 build/hal/timer.o
+                0x0000fb50                hal_timer_init
+                0x0000fba0                hal_timer_irq_handler
+                0x0000fbd0                hal_timer_get_ticks
+                0x0000fbe0                hal_sleep
+ *fill*         0x0000fc31        0xf 
+ .text          0x0000fc40       0xb6 build/sys/metrics.o
+                0x0000fc40                sys_get_mem_stats
+                0x0000fc70                cpu_idle_hook
+                0x0000fc80                sys_timer_tick
+                0x0000fcf0                sys_get_cpu_usage
+ *fill*         0x0000fcf6        0xa 
+ .text          0x0000fd00      0x31e build/sys/syscall.o
+                0x0000fd00                syscall_dispatch
+ *fill*         0x0001001e        0x2 
+ .text          0x00010020      0xb74 build/hal/network/dhcp.o
+                0x00010a70                dhcp_request_ipv4
+ *fill*         0x00010b94        0xc 
+ .text          0x00010ba0      0x2b1 build/hal/network/network.o
+                0x00010ba0                hal_network_init
+                0x00010c80                hal_network_register_device
+                0x00010ca0                hal_network_send
+                0x00010cd0                hal_network_poll
+                0x00010d00                hal_network_configure_dhcp
+                0x00010d90                hal_network_get_ipv4
+                0x00010dc0                hal_network_get_mac
+                0x00010e00                hal_network_ping_ipv4
+                0x00010e50                hal_network_receive_callback
+ *fill*         0x00010e51        0xf 
+ .text          0x00010e60      0xd90 build/hal/network/ping.o
+                0x000118a0                network_ping_ipv4
 
-.iplt           0x00011b10        0x0
- .iplt          0x00011b10        0x0 build/kernel_entry.o
+.iplt           0x00011bf0        0x0
+ .iplt          0x00011bf0        0x0 build/kernel_entry.o
 
-.rodata         0x00011b20     0x187e
+.rodata         0x00011c00     0x189e
  *(.rodata*)
- .rodata        0x00011b20      0x1c1 build/display.o
+ .rodata        0x00011c00      0x1c1 build/display.o
  .rodata.str1.1
-                0x00011ce1      0xbf5 build/display.o
+                0x00011dc1      0xbe9 build/display.o
                                  0x1c (size before relaxing)
- .rodata.cst2   0x000128d6        0x4 build/idt.o
+ .rodata.cst2   0x000129aa        0x4 build/idt.o
                                   0x2 (size before relaxing)
- *fill*         0x000128da        0x6 
- .rodata        0x000128e0      0x220 build/keyboard.o
+ *fill*         0x000129ae       0x12 
+ .rodata        0x000129c0      0x220 build/keyboard.o
  .rodata.str1.1
-                0x00012b00       0xa2 build/main.o
+                0x00012be0       0xa2 build/main.o
  .rodata.str1.4
-                0x00012b00      0x661 build/main.o
+                0x00012be0      0x699 build/main.o
                                  0xa6 (size before relaxing)
  .rodata.str1.1
-                0x00013161      0xb89 build/shell.o
+                0x00013279      0xb7d build/shell.o
  .rodata.str1.4
-                0x00013161      0x5b9 build/shell.o
- *fill*         0x00013161       0x1f 
- .rodata        0x00013180      0x1b4 build/shell.o
+                0x00013279      0x5f1 build/shell.o
+ *fill*         0x00013279        0x7 
+ .rodata        0x00013280      0x1b4 build/shell.o
  .rodata.str1.1
-                0x00013334       0x28 build/fs/initrd.o
- .rodata        0x00013334       0x34 build/sys/syscall.o
- .rodata        0x00013368       0x1a build/hal/network/dhcp.o
- *fill*         0x00013382        0x2 
- .rodata        0x00013384       0x1a build/hal/network/ping.o
- .rodata.cst2   0x0001339e        0x2 build/hal/network/ping.o
+                0x00013434       0x28 build/fs/initrd.o
+ .rodata        0x00013434       0x34 build/sys/syscall.o
+ .rodata        0x00013468       0x1a build/hal/network/dhcp.o
+ *fill*         0x00013482        0x2 
+ .rodata        0x00013484       0x1a build/hal/network/ping.o
+ .rodata.cst2   0x0001349e        0x2 build/hal/network/ping.o
 
-.rel.dyn        0x000133a0        0x0
- .rel.got       0x000133a0        0x0 build/kernel_entry.o
- .rel.iplt      0x000133a0        0x0 build/kernel_entry.o
- .rel.data      0x000133a0        0x0 build/kernel_entry.o
+.rel.dyn        0x000134a0        0x0
+ .rel.got       0x000134a0        0x0 build/kernel_entry.o
+ .rel.iplt      0x000134a0        0x0 build/kernel_entry.o
+ .rel.data      0x000134a0        0x0 build/kernel_entry.o
 
-.data           0x000133a0     0x5014
+.data           0x000134a0     0x5014
  *(.data*)
- .data          0x000133a0     0x5000 build/fs/initrd_data.o
-                0x000133a0                initrd_start
-                0x000183a0                initrd_end
- .data          0x000183a0        0x8 build/display.o
- .data          0x000183a8        0x0 build/exec.o
- .data          0x000183a8        0x0 build/idt.o
- .data          0x000183a8        0x0 build/keyboard.o
- .data          0x000183a8        0x4 build/main.o
-                0x000183a8                heap_start_address
- .data          0x000183ac        0x0 build/memory.o
- .data          0x000183ac        0x0 build/pic.o
- .data          0x000183ac        0x0 build/pmm.o
- .data          0x000183ac        0x0 build/posix.o
- .data          0x000183ac        0x8 build/shell.o
- .data          0x000183b4        0x0 build/sound.o
- .data          0x000183b4        0x0 build/string.o
- .data          0x000183b4        0x0 build/vga.o
- .data          0x000183b4        0x0 build/drivers/e1000.o
- .data          0x000183b4        0x0 build/drivers/pci.o
- .data          0x000183b4        0x0 build/fs/initrd.o
- .data          0x000183b4        0x0 build/fs/vfs.o
- .data          0x000183b4        0x0 build/hal/memory.o
- .data          0x000183b4        0x0 build/hal/timer.o
- .data          0x000183b4        0x0 build/sys/metrics.o
- .data          0x000183b4        0x0 build/sys/syscall.o
- .data          0x000183b4        0x0 build/hal/network/dhcp.o
- .data          0x000183b4        0x0 build/hal/network/network.o
- .data          0x000183b4        0x0 build/hal/network/ping.o
+ .data          0x000134a0     0x5000 build/fs/initrd_data.o
+                0x000134a0                initrd_start
+                0x000184a0                initrd_end
+ .data          0x000184a0        0x8 build/display.o
+ .data          0x000184a8        0x0 build/exec.o
+ .data          0x000184a8        0x0 build/idt.o
+ .data          0x000184a8        0x0 build/keyboard.o
+ .data          0x000184a8        0x4 build/main.o
+                0x000184a8                heap_start_address
+ .data          0x000184ac        0x0 build/memory.o
+ .data          0x000184ac        0x0 build/pic.o
+ .data          0x000184ac        0x0 build/pmm.o
+ .data          0x000184ac        0x0 build/posix.o
+ .data          0x000184ac        0x8 build/shell.o
+ .data          0x000184b4        0x0 build/sound.o
+ .data          0x000184b4        0x0 build/string.o
+ .data          0x000184b4        0x0 build/vga.o
+ .data          0x000184b4        0x0 build/drivers/e1000.o
+ .data          0x000184b4        0x0 build/drivers/pci.o
+ .data          0x000184b4        0x0 build/fs/initrd.o
+ .data          0x000184b4        0x0 build/fs/vfs.o
+ .data          0x000184b4        0x0 build/hal/memory.o
+ .data          0x000184b4        0x0 build/hal/timer.o
+ .data          0x000184b4        0x0 build/sys/metrics.o
+ .data          0x000184b4        0x0 build/sys/syscall.o
+ .data          0x000184b4        0x0 build/hal/network/dhcp.o
+ .data          0x000184b4        0x0 build/hal/network/network.o
+ .data          0x000184b4        0x0 build/hal/network/ping.o
 
-.got            0x000183b4        0x0
- .got           0x000183b4        0x0 build/kernel_entry.o
+.got            0x000184b4        0x0
+ .got           0x000184b4        0x0 build/kernel_entry.o
 
-.got.plt        0x000183b4        0x0
- .got.plt       0x000183b4        0x0 build/kernel_entry.o
+.got.plt        0x000184b4        0x0
+ .got.plt       0x000184b4        0x0 build/kernel_entry.o
 
-.igot.plt       0x000183b4        0x0
- .igot.plt      0x000183b4        0x0 build/kernel_entry.o
+.igot.plt       0x000184b4        0x0
+ .igot.plt      0x000184b4        0x0 build/kernel_entry.o
 
-.bss            0x000183c0    0x56688
+.bss            0x000184c0    0x56688
  *(COMMON)
  *(.bss*)
- .bss           0x000183c0        0x0 build/fs/initrd_data.o
- .bss           0x000183c0        0xe build/display.o
- *fill*         0x000183ce       0x12 
- .bss           0x000183e0     0x4000 build/exec.o
- .bss           0x0001c3e0      0x820 build/idt.o
-                0x0001c3e0                idtp
-                0x0001c400                idt
- .bss           0x0001cc00      0x12c build/keyboard.o
-                0x0001cc00                waiting_for_pause
- .bss           0x0001cd2c        0x0 build/main.o
- .bss           0x0001cd2c       0x1c build/memory.o
-                0x0001cd2c                free_memory_pages
-                0x0001cd30                total_memory_pages
- .bss           0x0001cd48        0x0 build/pic.o
- .bss           0x0001cd48        0x0 build/pmm.o
- .bss           0x0001cd48        0x8 build/posix.o
- *fill*         0x0001cd50       0x10 
- .bss           0x0001cd60     0x15e0 build/shell.o
-                0x0001cd60                saved_screen
- .bss           0x0001e340        0x0 build/sound.o
- .bss           0x0001e340        0x0 build/string.o
- .bss           0x0001e340        0x0 build/vga.o
- .bss           0x0001e340     0xb100 build/drivers/e1000.o
-                0x0001e340                mmio_base
-                0x0001e344                bar0
- .bss           0x00029440        0x0 build/drivers/pci.o
- .bss           0x00029440    0x45540 build/fs/initrd.o
- .bss           0x0006e980        0x4 build/fs/vfs.o
-                0x0006e980                fs_root
- .bss           0x0006e984        0x0 build/hal/memory.o
- .bss           0x0006e984        0x4 build/hal/timer.o
- .bss           0x0006e988        0xc build/sys/metrics.o
- *fill*         0x0006e994        0xc 
- .bss           0x0006e9a0       0x60 build/sys/syscall.o
- .bss           0x0006ea00        0x0 build/hal/network/dhcp.o
- .bss           0x0006ea00       0x48 build/hal/network/network.o
- .bss           0x0006ea48        0x0 build/hal/network/ping.o
+ .bss           0x000184c0        0x0 build/fs/initrd_data.o
+ .bss           0x000184c0        0xe build/display.o
+ *fill*         0x000184ce       0x12 
+ .bss           0x000184e0     0x4000 build/exec.o
+ .bss           0x0001c4e0      0x820 build/idt.o
+                0x0001c4e0                idtp
+                0x0001c500                idt
+ .bss           0x0001cd00      0x12c build/keyboard.o
+                0x0001cd00                waiting_for_pause
+ .bss           0x0001ce2c        0x0 build/main.o
+ .bss           0x0001ce2c       0x1c build/memory.o
+                0x0001ce2c                free_memory_pages
+                0x0001ce30                total_memory_pages
+ .bss           0x0001ce48        0x0 build/pic.o
+ .bss           0x0001ce48        0x0 build/pmm.o
+ .bss           0x0001ce48        0x8 build/posix.o
+ *fill*         0x0001ce50       0x10 
+ .bss           0x0001ce60     0x15e0 build/shell.o
+                0x0001ce60                saved_screen
+ .bss           0x0001e440        0x0 build/sound.o
+ .bss           0x0001e440        0x0 build/string.o
+ .bss           0x0001e440        0x0 build/vga.o
+ .bss           0x0001e440     0xb100 build/drivers/e1000.o
+                0x0001e440                mmio_base
+                0x0001e444                bar0
+ .bss           0x00029540        0x0 build/drivers/pci.o
+ .bss           0x00029540    0x45540 build/fs/initrd.o
+ .bss           0x0006ea80        0x4 build/fs/vfs.o
+                0x0006ea80                fs_root
+ .bss           0x0006ea84        0x0 build/hal/memory.o
+ .bss           0x0006ea84        0x4 build/hal/timer.o
+ .bss           0x0006ea88        0xc build/sys/metrics.o
+ *fill*         0x0006ea94        0xc 
+ .bss           0x0006eaa0       0x60 build/sys/syscall.o
+ .bss           0x0006eb00        0x0 build/hal/network/dhcp.o
+ .bss           0x0006eb00       0x48 build/hal/network/network.o
+ .bss           0x0006eb48        0x0 build/hal/network/ping.o
 
 /DISCARD/
  *(.note.gnu.build-id)
  *(.comment)
  *(.eh_frame*)
-                0x0006ea48                        kernel_end_symbol = .
+                0x0006eb48                        kernel_end_symbol = .
 OUTPUT(build/kernel.elf elf32-i386)
 
 .note.GNU-stack
