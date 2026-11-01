@@ -69,7 +69,7 @@ CC := gcc
 OBJCOPY := objcopy
 CFLAGS := -m32 -mno-mmx -mno-sse -mno-sse2 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel $(WIN_CFLAGS)
 
-.PHONY: all clean run run-iso iso boot kernel libsys image
+.PHONY: all clean run run-iso iso boot kernel libsys image test
 
 all: image
 
@@ -127,6 +127,24 @@ kernel: $(KERNEL_ENTRY_OBJ) $(ALL_OBJS) | $(BUILD)
 
 libsys:
 	$(MAKE) -C userland
+
+ifeq ($(OS),Windows_NT)
+test:
+	@echo Syscall tests require a Linux 32-bit runtime.
+	@exit /b 1
+else
+$(BUILD)/syscall_test: tests/syscall_test.c kernel/sys/syscall.c \
+                      kernel/sys/syscall.h kernel/fcntl.h kernel/errno.h \
+                      kernel/display.h kernel/fs/initrd.h kernel/fs/vfs.h \
+                      kernel/keyboard.h kernel/memory.h kernel/shell.h \
+                      kernel/sys/stat.h | $(BUILD)
+	$(CC) -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin \
+		-nostdlib -static -O0 -Ikernel -Wl,-e,_start -o $@ \
+		kernel/sys/syscall.c tests/syscall_test.c
+
+test: $(BUILD)/syscall_test
+	./$(BUILD)/syscall_test
+endif
 
 # Make image depend on the actual binary file
 image: boot kernel | $(DIST)

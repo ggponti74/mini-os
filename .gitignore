@@ -3,3 +3,4 @@
 *.elf
 *.img
 *.iso
+/build/syscall_test

@@ -2,6 +2,7 @@
 #ifndef MINI_OS_SYSCALL_H
 #define MINI_OS_SYSCALL_H
 
+#include <stdint.h>
 #include "../fcntl.h"
 
 #define SYS_EXIT   1
@@ -25,5 +26,8 @@
 #define OPEN_WRONLY O_WRONLY
 #define OPEN_RDWR   O_RDWR
 #define OPEN_CREAT  O_CREAT
+
+int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
+                         uint32_t arg3);
 
 #endif
