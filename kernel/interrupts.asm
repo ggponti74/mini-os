@@ -91,4 +91,6 @@ syscall_stub:
     mov [esi + 28], eax
     popa
     iretd
+
+section .note.GNU-stack noalloc noexec nowrite progbits
     

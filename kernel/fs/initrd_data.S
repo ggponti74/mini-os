@@ -18,3 +18,5 @@ _initrd_end:
 #else
 initrd_end:
 #endif
+
+.section .note.GNU-stack,"",@progbits
