@@ -1,5 +1,6 @@
 // userland/libsys/stubs.c
 #include <stddef.h>
+#include <sys/stat.h>
 
 #define SYS_LSEEK 13
 
@@ -39,6 +40,10 @@ int _write(int fd, const void *buf, size_t count) {
 
 int _close(int fd) {
     return syscall3(6, fd, 0, 0);
+}
+
+int _fstat(int fd, struct stat *status) {
+    return syscall3(8, fd, (int)status, 0);
 }
 
 long _lseek(int fd, long offset, int whence) {

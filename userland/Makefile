@@ -11,13 +11,13 @@ ifeq ($(OS),Windows_NT)
     WIN_LDFLAGS = -Wl,--image-base,0
     CLEAN_FILES = -del /q $(call FIX_PATH,$(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)\edit.elf) >nul 2>&1
     CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
-	-fno-builtin -O2 $(WIN_CFLAGS)
+	-fno-builtin -I../kernel -O2 $(WIN_CFLAGS)
 else
     MKDIR_P = mkdir -p $(1)
     CLEAN_FILES = rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)/edit.elf
     GCC_INC := $(shell $(CC) -print-file-name=include)
     CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
-	-fno-builtin -nostdinc -O2 -isystem $(GCC_INC)
+	-fno-builtin -nostdinc -I../kernel -O2 -isystem $(GCC_INC)
 endif
 
 SRCS := libsys/stubs.c libsys/apps/editor.c
