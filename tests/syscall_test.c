@@ -130,6 +130,12 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_UNLINK, (uint32_t)"tmpdir", 0, 0) == -EISDIR);
   CHECK(vfs_lookup(fs_root, "tmpdir") != NULL);
   CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"tmpdir", 0, 0) == 0);
+
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"file", F_OK, 0) == 0);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"missing", F_OK, 0) == -ENOENT);
+  CHECK(syscall_dispatch(SYS_RENAME, (uint32_t)"file", (uint32_t)"renamed", 0) == 0);
+  CHECK(vfs_lookup(fs_root, "renamed") != NULL);
+  CHECK(vfs_lookup(fs_root, "file") == NULL);
 }
 
 static void test_standard_input_and_sbrk(void) {
@@ -223,7 +229,10 @@ int shell_resolve_path(const char *path, char *resolved, uint32_t size) {
 
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
   (void)root;
-  if (strings_equal(path, "file") && file_node.flags != 0) {
+  if (strings_equal(path, file_node.name) && file_node.flags != 0) {
+    return &file_node;
+  }
+  if (strings_equal(path, "file") && file_node.flags != 0 && file_node.name[0] == '\0') {
     return &file_node;
   }
   if (strings_equal(path, "dir") && directory_node.flags != 0) {
@@ -277,6 +286,20 @@ vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
     return node;
   }
   return NULL;
+}
+
+int initrd_move_file(const char *old_name, const char *new_name) {
+  if (!old_name || !new_name || !*new_name) {
+    return -1;
+  }
+  if (strings_equal(old_name, "file") && !strings_equal(new_name, "file")) {
+    file_node.name[0] = '\0';
+    for (size_t i = 0; new_name[i] != '\0' && i < sizeof(file_node.name) - 1; i++) {
+      file_node.name[i] = new_name[i];
+    }
+    return 0;
+  }
+  return -1;
 }
 
 int initrd_remove_file(const char *filename) {

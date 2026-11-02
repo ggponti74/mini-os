@@ -142,6 +142,35 @@ int unlink(const char *pathname) {
     return 0;
 }
 
+int access(const char *pathname, int mode) {
+    if (!pathname) {
+        errno = EFAULT;
+        return -1;
+    }
+    int result = posix_syscall3(SYS_ACCESS, (uint32_t)(uintptr_t)pathname,
+                                (uint32_t)mode, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
+int rename(const char *oldpath, const char *newpath) {
+    if (!oldpath || !newpath) {
+        errno = EFAULT;
+        return -1;
+    }
+    int result = posix_syscall3(SYS_RENAME,
+                                (uint32_t)(uintptr_t)oldpath,
+                                (uint32_t)(uintptr_t)newpath, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
 int isatty(int fd) {
     struct stat status;
     if (fstat(fd, &status) < 0) {

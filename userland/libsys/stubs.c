@@ -12,6 +12,15 @@
 #define SYS_MKDIR 14
 #define SYS_RMDIR 15
 #define SYS_UNLINK 16
+#define SYS_ACCESS 17
+#define SYS_RENAME 18
+
+#ifndef F_OK
+#define F_OK 0
+#define R_OK 4
+#define W_OK 2
+#define X_OK 1
+#endif
 
 static int syscall_errno;
 
@@ -119,6 +128,14 @@ int _unlink(const char *pathname) {
     return syscall_result(syscall3(SYS_UNLINK, (int)pathname, 0, 0));
 }
 
+int _access(const char *pathname, int mode) {
+    return syscall_result(syscall3(SYS_ACCESS, (int)pathname, mode, 0));
+}
+
+int _rename(const char *oldpath, const char *newpath) {
+    return syscall_result(syscall3(SYS_RENAME, (int)oldpath, (int)newpath, 0));
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -181,6 +198,14 @@ int rmdir(const char *pathname) {
 
 int unlink(const char *pathname) {
     return _unlink(pathname);
+}
+
+int access(const char *pathname, int mode) {
+    return _access(pathname, mode);
+}
+
+int rename(const char *oldpath, const char *newpath) {
+    return _rename(oldpath, newpath);
 }
 
 void *sbrk(ptrdiff_t incr) {

@@ -21,6 +21,13 @@
 #define SYS_MKDIR 14
 #define SYS_RMDIR 15
 #define SYS_UNLINK 16
+#define SYS_ACCESS 17
+#define SYS_RENAME 18
+
+#define F_OK 0
+#define R_OK 4
+#define W_OK 2
+#define X_OK 1
 
 #define SEEK_SET 0
 #define SEEK_CUR 1

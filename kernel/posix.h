@@ -13,6 +13,8 @@ int stat(const char *path, struct stat *status);
 int mkdir(const char *pathname, mode_t mode);
 int rmdir(const char *pathname);
 int unlink(const char *pathname);
+int access(const char *pathname, int mode);
+int rename(const char *oldpath, const char *newpath);
 int isatty(int fd);
 off_t lseek(int fd, off_t offset, int whence);
 int ftruncate(int fd, off_t length);

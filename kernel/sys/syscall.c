@@ -331,6 +331,42 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     }
     return -ENOENT;
   }
+  if (number == SYS_ACCESS) {
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    if (!arg1 || !((const char *)arg1)[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path((const char *)arg1, resolved_path,
+                          sizeof(resolved_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    if (!vfs_lookup(fs_root, resolved_path)) {
+      return -ENOENT;
+    }
+    if (arg2 == F_OK || (arg2 & (R_OK | W_OK | X_OK))) {
+      return 0;
+    }
+    return -EINVAL;
+  }
+  if (number == SYS_RENAME) {
+    char old_path[SYSCALL_PATH_LENGTH];
+    char new_path[SYSCALL_PATH_LENGTH];
+    if (!arg1 || !((const char *)arg1)[0] || !arg2 || !((const char *)arg2)[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path((const char *)arg1, old_path, sizeof(old_path)) != 0 ||
+        shell_resolve_path((const char *)arg2, new_path, sizeof(new_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    if (!vfs_lookup(fs_root, old_path)) {
+      return -ENOENT;
+    }
+    int result = initrd_move_file(old_path, new_path);
+    if (result == 0) {
+      return 0;
+    }
+    return -EACCES;
+  }
   if (number == SYS_GETKEY) {
     int key;
     while ((key = keyboard_read_key()) < 0) {
