@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../display.h"
+#include "../memory_layout.h"
 #include "initrd.h"
 #include "vfs.h"
 
@@ -17,7 +18,7 @@ typedef struct {
 
 static initrd_file_t file_pool[MAX_NODES];
 // Keep the regular file pool compact while allowing one file to exceed 8 KiB.
-static uint8_t extended_file_data[INITRD_MAX_FILE_SIZE];
+static uint8_t *extended_file_data;
 static int extended_file_in_use;
 static uint32_t node_count = 0;
 static vfs_node_t initrd_root;
@@ -530,6 +531,7 @@ vfs_node_t *initrd_init(void) {
   // 1. Setup Root Directory Node
   node_count = 0;
   extended_file_in_use = 0;
+  extended_file_data = (uint8_t *)INITRD_FILE_STORAGE_BASE;
   initrd_root.name[0] = '\0';
   initrd_root.flags = FS_DIRECTORY;
   initrd_root.create = initrd_create_file;

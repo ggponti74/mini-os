@@ -15,6 +15,13 @@
     }                                                                          \
   } while (0)
 
+_Static_assert(sizeof(struct stat) == 72 &&
+                   offsetof(struct stat, st_size) == 16 &&
+                   offsetof(struct stat, st_atim) == 20 &&
+                   offsetof(struct stat, st_blksize) == 56 &&
+                   offsetof(struct stat, st_blocks) == 60,
+               "Newlib i686 stat ABI");
+
 static int failures;
 static uint8_t file_data[256];
 static vfs_node_t file_node;
@@ -56,6 +63,8 @@ static void test_open_read_seek_and_stat(void) {
   CHECK(syscall_dispatch(SYS_FSTAT, 0, (uint32_t)&status, 0) == 0);
   CHECK(S_ISCHR(status.st_mode));
   CHECK(status.st_size == 0);
+  CHECK(status.st_blksize == 512);
+  CHECK(status.st_blocks == 0);
   CHECK(syscall_dispatch(SYS_FSTAT, 1, (uint32_t)&status, 0) == 0);
   CHECK(S_ISCHR(status.st_mode));
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
@@ -71,6 +80,8 @@ static void test_open_read_seek_and_stat(void) {
   CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
   CHECK(status.st_ino == 42);
   CHECK(status.st_size == 3);
+  CHECK(status.st_blksize == 512);
+  CHECK(status.st_blocks == 1);
   CHECK(S_ISREG(status.st_mode));
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == -EBADF);

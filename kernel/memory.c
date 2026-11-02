@@ -5,6 +5,8 @@
 static uint32_t *pmm_bitmap = NULL;
 static size_t pmm_total_frames = 0;
 static size_t pmm_bitmap_size = 0;
+static uintptr_t pmm_usable_start_address = 0;
+static uintptr_t pmm_ram_size = 0;
 
 /* Global metrics counters */
 uint32_t total_memory_pages = 0;
@@ -16,8 +18,9 @@ uint32_t free_memory_pages = 0;
 
 void pmm_init(uintptr_t ram_size, uintptr_t kernel_end) {
 
+  pmm_ram_size = ram_size;
   pmm_total_frames = ram_size / PAGE_SIZE;
-  pmm_bitmap_size = pmm_total_frames / 32;
+  pmm_bitmap_size = (pmm_total_frames + 31) / 32;
   total_memory_pages = (uint32_t)pmm_total_frames;
   free_memory_pages = 0;
 
@@ -30,9 +33,11 @@ void pmm_init(uintptr_t ram_size, uintptr_t kernel_end) {
   }
 
   /* Calculate where usable memory starts (after kernel + bitmap) */
-  uintptr_t usable_start = kernel_end + (pmm_bitmap_size * sizeof(uint32_t));
-  usable_start = (usable_start + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
-  size_t start_frame = usable_start / PAGE_SIZE;
+  pmm_usable_start_address =
+      kernel_end + (pmm_bitmap_size * sizeof(uint32_t));
+  pmm_usable_start_address =
+      (pmm_usable_start_address + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+  size_t start_frame = pmm_usable_start_address / PAGE_SIZE;
 
   /* Free up the usable memory frames for the allocator */
   for (size_t frame = start_frame; frame < pmm_total_frames; frame++) {
@@ -41,20 +46,46 @@ void pmm_init(uintptr_t ram_size, uintptr_t kernel_end) {
 
   /* --- EXPLICITLY RESERVE FRAME 0 --- */
   // Force frame 0 to be marked as allocated so pmm_alloc_frame never returns 0
-  pmm_bitmap[0] |= (1 << 0);
+  pmm_bitmap[0] |= (1u << 0);
   if (free_memory_pages > 0) {
     free_memory_pages--;
   }
   
 }
 
+uintptr_t pmm_get_usable_start(void) { return pmm_usable_start_address; }
+
+void pmm_reserve_range(uintptr_t start, size_t length) {
+  if (length == 0 || start >= pmm_ram_size) {
+    return;
+  }
+
+  uintptr_t end = start + length;
+  if (end < start || end > pmm_ram_size) {
+    end = pmm_ram_size;
+  }
+
+  size_t first_frame = start / PAGE_SIZE;
+  size_t end_frame = (end + PAGE_SIZE - 1) / PAGE_SIZE;
+  for (size_t frame = first_frame; frame < end_frame; frame++) {
+    size_t index = BITMAP_INDEX(frame);
+    uint32_t mask = 1u << BITMAP_OFFSET(frame);
+    if (index < pmm_bitmap_size && !(pmm_bitmap[index] & mask)) {
+      pmm_bitmap[index] |= mask;
+      if (free_memory_pages > 0) {
+        free_memory_pages--;
+      }
+    }
+  }
+}
+
 uintptr_t pmm_alloc_frame(void) {
   for (size_t i = 0; i < pmm_bitmap_size; i++) {
     if (pmm_bitmap[i] != 0xFFFFFFFF) { /* Has at least one free bit (0) */
       for (int bit = 0; bit < 32; bit++) {
-        if (!(pmm_bitmap[i] & (1 << bit))) {
+        if (!(pmm_bitmap[i] & (1u << bit))) {
           size_t frame = (i * 32) + bit;
-          pmm_bitmap[i] |= (1 << bit); /* Mark as used */
+          pmm_bitmap[i] |= (1u << bit); /* Mark as used */
           if (free_memory_pages > 0) {
             free_memory_pages--;
           }
@@ -72,8 +103,8 @@ void pmm_free_frame(uintptr_t frame_addr) {
   size_t off = BITMAP_OFFSET(frame);
 
   if (idx < pmm_bitmap_size) {
-    if (pmm_bitmap[idx] & (1 << off)) {
-      pmm_bitmap[idx] &= ~(1 << off); /* Mark as free (0) */
+    if (pmm_bitmap[idx] & (1u << off)) {
+      pmm_bitmap[idx] &= ~(1u << off); /* Mark as free (0) */
       free_memory_pages++;
     }
   }

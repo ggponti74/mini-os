@@ -69,7 +69,7 @@ CC := gcc
 OBJCOPY := objcopy
 CFLAGS := -m32 -mno-mmx -mno-sse -mno-sse2 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel $(WIN_CFLAGS)
 
-.PHONY: all clean run run-iso iso boot kernel libsys image test
+.PHONY: all clean run run-iso iso boot kernel libsys image test newlib-smoke
 
 all: image
 
@@ -107,8 +107,13 @@ $(BUILD)/edit: userland/Makefile userland/libsys/apps/editor.c \
                  userland/flat.ld | $(BUILD)
 	$(MAKE) -C userland edit
 
-initrd.tar: $(BUILD)/edit $(INITRD_SOURCE) bin/demo music.cfg
+INITRD_OPTIONAL_APPS := $(wildcard $(BUILD)/newlib-smoke)
+
+initrd.tar: $(BUILD)/edit $(INITRD_OPTIONAL_APPS) $(INITRD_SOURCE) bin/demo music.cfg
 	$(INITRD_COMMAND)
+
+newlib-smoke:
+	$(MAKE) -C userland newlib-smoke
 	
 # GCC GNU assembly (.S)
 $(BUILD)/%.o: kernel/%.S | $(BUILD)

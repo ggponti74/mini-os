@@ -5,9 +5,9 @@
 #define O_WRONLY 0x01
 #define O_RDWR   0x02
 #define O_ACCMODE 0x03
-#define O_CREAT  0x100
-#define O_TRUNC  0x200
-#define O_APPEND 0x400
+#define O_APPEND 0x0008
+#define O_CREAT  0x0200
+#define O_TRUNC  0x0400
 #define O_EXCL   0x800
 
 #endif

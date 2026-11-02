@@ -5,8 +5,7 @@
 #include "fs/initrd.h"
 #include "fs/vfs.h"
 #include "keyboard.h"
-
-static uint8_t binary_image[INITRD_MAX_FILE_SIZE];
+#include "memory_layout.h"
 
 int exec_flat_binary(const char *path, int argc, char **argv) {
 
@@ -22,10 +21,11 @@ int exec_flat_binary(const char *path, int argc, char **argv) {
     return -1;
   }
 
-  if (file->length > sizeof(binary_image)) {
+  if (file->length > USER_APP_MAX_SIZE) {
     return -3;
   }
 
+  uint8_t *binary_image = (uint8_t *)USER_APP_LOAD_BASE;
   if (vfs_read(file, 0, file->length, binary_image) != file->length) {
     return -3;
   }

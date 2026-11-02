@@ -78,3 +78,46 @@ void *_sbrk(ptrdiff_t incr) {
     }
     return (void *)previous_break;
 }
+
+int open(const char *pathname, int flags, ...) {
+    return _open(pathname, flags);
+}
+
+int read(int fd, void *buf, size_t count) {
+    return _read(fd, buf, count);
+}
+
+int write(int fd, const void *buf, size_t count) {
+    return _write(fd, buf, count);
+}
+
+int close(int fd) {
+    return _close(fd);
+}
+
+int fstat(int fd, struct stat *status) {
+    return _fstat(fd, status);
+}
+
+int isatty(int fd) {
+    return _isatty(fd);
+}
+
+long lseek(int fd, long offset, int whence) {
+    return _lseek(fd, offset, whence);
+}
+
+void *sbrk(ptrdiff_t incr) {
+    return _sbrk(incr);
+}
+
+int getpid(void) {
+    return 1;
+}
+
+int kill(int pid, int signal) {
+    (void)pid;
+    (void)signal;
+    errno = ENOSYS;
+    return -1;
+}

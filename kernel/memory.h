@@ -18,6 +18,8 @@ extern uint32_t free_memory_pages;
  * @param kernel_end The first physical address after the kernel image.
  */
 void pmm_init(uintptr_t ram_size, uintptr_t kernel_end);
+uintptr_t pmm_get_usable_start(void);
+void pmm_reserve_range(uintptr_t start, size_t length);
 
 /**
  * @brief Allocates a single physical page frame.

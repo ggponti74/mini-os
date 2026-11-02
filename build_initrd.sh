@@ -10,6 +10,9 @@ echo "set os=mini-os 1.0" >> initrd_root/system.cfg
 cp bin/demo initrd_root/
 cp music.cfg initrd_root/ringtone
 cp build/edit initrd_root/edit
+if [[ -f build/newlib-smoke ]]; then
+    cp build/newlib-smoke initrd_root/newlib-smoke
+fi
 cp LICENSE initrd_root
 
 # Create uncompressed tar archive

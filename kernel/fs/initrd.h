@@ -4,7 +4,7 @@
 
 #include "vfs.h"
 
-#define INITRD_MAX_FILE_SIZE 16384
+#define INITRD_MAX_FILE_SIZE (256u * 1024u)
 
 // include/fs/initrd.h
 #if defined(__WIN32__) || defined(_WIN32)

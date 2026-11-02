@@ -2,6 +2,11 @@ CC := gcc
 AR := ar
 LD := ld
 OBJCOPY := objcopy
+NEWLIB_PREFIX ?= $(HOME)/.local/opt/i686-elf
+NEWLIB_CC ?= $(NEWLIB_PREFIX)/bin/i686-elf-gcc
+NEWLIB_OBJCOPY ?= $(NEWLIB_PREFIX)/bin/i686-elf-objcopy
+NEWLIB_SMOKE_BIN := ../build/newlib-smoke
+NEWLIB_SMOKE_ELF := $(NEWLIB_SMOKE_BIN).elf
 
 ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
@@ -9,12 +14,12 @@ ifeq ($(OS),Windows_NT)
     MKDIR_P = if not exist $(call FIX_PATH,$(1)) mkdir $(call FIX_PATH,$(1))
     WIN_CFLAGS = -fno-leading-underscore -mno-stack-arg-probe
     WIN_LDFLAGS = -Wl,--image-base,0
-    CLEAN_FILES = -del /q $(call FIX_PATH,$(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)\edit.elf) >nul 2>&1
+    CLEAN_FILES = -del /q $(call FIX_PATH,$(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)\edit.elf $(NEWLIB_SMOKE_BIN) $(NEWLIB_SMOKE_ELF)) >nul 2>&1
     CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
 	-fno-builtin -I../kernel -O2 $(WIN_CFLAGS)
 else
     MKDIR_P = mkdir -p $(1)
-    CLEAN_FILES = rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)/edit.elf
+    CLEAN_FILES = rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)/edit.elf $(NEWLIB_SMOKE_BIN) $(NEWLIB_SMOKE_ELF)
     GCC_INC := $(shell $(CC) -print-file-name=include)
     CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
 	-fno-builtin -nostdinc -I../kernel -O2 -isystem $(GCC_INC)
@@ -29,7 +34,7 @@ EDITOR_OBJS := $(EDITOR_OBJ_DIR)/editor_start.o \
 	$(EDITOR_OBJ_DIR)/editor_entry.o $(EDITOR_OBJ_DIR)/editor.o \
 	$(EDITOR_OBJ_DIR)/editor_syscall.o
 
-.PHONY: all clean edit
+.PHONY: all clean edit newlib-smoke
 
 all: $(TARGET) edit
 
@@ -41,6 +46,17 @@ $(TARGET): $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 
 edit: $(EDIT_BIN)
+
+newlib-smoke: $(NEWLIB_SMOKE_BIN)
+
+$(NEWLIB_SMOKE_BIN): newlib_start.S newlib_smoke.c newlib_smoke.ld \
+                     libsys/stubs.c | ../build
+	$(NEWLIB_CC) -m32 -ffreestanding -fno-pic -fno-pie \
+		-fno-stack-protector -fno-builtin -O2 -nostdlib -static \
+		-Wl,--build-id=none -Wl,-T,newlib_smoke.ld -Wl,-e,_start \
+		-o $(NEWLIB_SMOKE_ELF) newlib_start.S newlib_smoke.c \
+		libsys/stubs.c -Wl,--start-group -lc -lgcc -Wl,--end-group
+	$(NEWLIB_OBJCOPY) -O binary $(NEWLIB_SMOKE_ELF) $@
 
 $(EDITOR_OBJ_DIR):
 	@$(call MKDIR_P,$@)

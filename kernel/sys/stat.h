@@ -3,37 +3,45 @@
 
 #include <sys/types.h>
 
-// Minimum structural compliance parameters mandated by POSIX
-struct stat {
-    dev_t     st_dev;     // Device number identification
-    ino_t     st_ino;     // File structural serial number
-    mode_t    st_mode;    // Active file type and permission layout
-    nlink_t   st_nlink;   // Total hard connections mapped
-    uid_t     st_uid;     // User descriptor
-    gid_t     st_gid;     // Group descriptor
-    dev_t     st_rdev;    // Device structural ID (if explicitly classified)
-    off_t     st_size;    // Volumetric size metrics computed in bytes
-    time_t    st_atime;   // Last accessible time indicator
-    time_t    st_mtime;   // System write/modification marker
-    time_t    st_ctime;   // Structural attribute updating timestamp
+struct timespec {
+    time_t tv_sec;
+    long tv_nsec;
 };
 
-// Encoding Layout Enforcements
-#define S_IFMT   0xF000   // System masking format configuration
-#define S_IFDIR  0x4000   // Directory designation
-#define S_IFCHR  0x2000   // Character asset designator
-#define S_IFBLK  0x6000   // Block asset designator
-#define S_IFREG  0x8000   // Standard text/binary file
+struct stat {
+    dev_t st_dev;
+    ino_t st_ino;
+    mode_t st_mode;
+    nlink_t st_nlink;
+    uid_t st_uid;
+    gid_t st_gid;
+    dev_t st_rdev;
+    off_t st_size;
+    struct timespec st_atim;
+    struct timespec st_mtim;
+    struct timespec st_ctim;
+    blksize_t st_blksize;
+    blkcnt_t st_blocks;
+    long st_spare4[2];
+};
 
-// Functional Helper Validations
+#define st_atime st_atim.tv_sec
+#define st_mtime st_mtim.tv_sec
+#define st_ctime st_ctim.tv_sec
+
+#define S_IFMT   0170000
+#define S_IFDIR  0040000
+#define S_IFCHR  0020000
+#define S_IFBLK  0060000
+#define S_IFREG  0100000
+
 #define S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
 #define S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
 #define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
 
-// Native Access Mask Parameters
-#define S_IRWXU  00700    // User execution read, write permissions
-#define S_IRUSR  00400    // User read access
-#define S_IWUSR  00200    // User write access
-#define S_IXUSR  00100    // User execution routing
+#define S_IRWXU  00700
+#define S_IRUSR  00400
+#define S_IWUSR  00200
+#define S_IXUSR  00100
 
-#endif // _SYS_STAT_H
+#endif

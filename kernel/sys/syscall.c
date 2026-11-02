@@ -210,9 +210,16 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     status->st_uid = 0;
     status->st_gid = 0;
     status->st_rdev = 0;
-    status->st_atime = 0;
-    status->st_mtime = 0;
-    status->st_ctime = 0;
+    status->st_atim.tv_sec = 0;
+    status->st_atim.tv_nsec = 0;
+    status->st_mtim.tv_sec = 0;
+    status->st_mtim.tv_nsec = 0;
+    status->st_ctim.tv_sec = 0;
+    status->st_ctim.tv_nsec = 0;
+    status->st_blksize = 512;
+    status->st_blocks = 0;
+    status->st_spare4[0] = 0;
+    status->st_spare4[1] = 0;
     if (fd >= 0 && fd < 3) {
       status->st_ino = 0;
       status->st_mode = S_IFCHR | S_IRUSR | S_IWUSR;
@@ -228,6 +235,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
                       S_IRUSR | S_IWUSR;
     status->st_size = node->length;
+    status->st_blocks = (node->length + 511) / 512;
     return 0;
   }
   if (number == SYS_LSEEK) {

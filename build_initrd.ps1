@@ -9,6 +9,9 @@ Add-Content -Encoding Ascii -Path "initrd_root\system.cfg" -Value "set os=mini-o
 Copy-Item -Path "bin\demo" -Destination "initrd_root\demo"
 Copy-Item -Path "music.cfg" -Destination "initrd_root\ringtone"
 Copy-Item -Path "build\edit" -Destination "initrd_root\edit"
+if (Test-Path "build\newlib-smoke") {
+    Copy-Item -Path "build\newlib-smoke" -Destination "initrd_root\newlib-smoke"
+}
 Copy-Item -Path "LICENSE" -Destination "initrd_root\LICENSE"
 
 # Using tar.exe available natively in modern Windows

@@ -15,9 +15,9 @@
 #define EMFILE 24
 #define ENOSPC 28
 #define ESPIPE 29
-#define ENAMETOOLONG 36
-#define ENOSYS 38
-#define EOVERFLOW 75
+#define ENOSYS 88
+#define ENAMETOOLONG 91
+#define EOVERFLOW 139
 
 int *__errno_location(void);
 

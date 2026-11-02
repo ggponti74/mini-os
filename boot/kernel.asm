@@ -13,8 +13,8 @@ stage2_entry:
     mov gs, ax
     mov ss, ax
 
-    ; 2. Initialize Stack Pointer (0x90000)
-    mov ebp, 0x90000
+    ; 2. Initialize Stack Pointer (0x2F0000)
+    mov ebp, 0x2F0000
     mov esp, ebp
 
     ; 3. Call C Kernel Entry

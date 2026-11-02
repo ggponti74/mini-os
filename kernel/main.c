@@ -5,6 +5,7 @@
 
 #include "keyboard.h"
 #include "memory.h"
+#include "memory_layout.h"
 #include "hal/network/network.h"
 #include "hal/timer.h"
 #include "pic.h"
@@ -12,16 +13,7 @@
 #include "sound.h"
 #include "sys/metrics.h"
 
-#define HEAP_START_ADDR 0x50000
-#define KERNEL_HEAP_SIZE (256 * 1024)
-
 extern char kernel_end_symbol[];
-
-// Find where your kernel ends (or after your PMM bitmap) and initialize:
-// extern uintptr_t kernel_end_symbol; // or your kernel end address
-
-uintptr_t heap_start_address =
-    (uintptr_t)&kernel_end_symbol; // adjust to your setup
 
 static inline void serial_outb(unsigned short port, unsigned char val) {
   __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
@@ -67,10 +59,16 @@ void kernel_main(void) {
   // touch/cat can use it
 
   kprint_color("Initializing PMM...\n", COLOR_DEFAULT);
-  pmm_init(0x1000000, 0x100000);
+  pmm_init(MINI_OS_RAM_SIZE, (uintptr_t)kernel_end_symbol);
 
   kprint_color("Initializing memory...\n", COLOR_DEFAULT);
-  kheap_init(HEAP_START_ADDR, KERNEL_HEAP_SIZE);
+  uintptr_t heap_start = pmm_get_usable_start();
+  kheap_init(heap_start, KERNEL_HEAP_SIZE);
+  pmm_reserve_range(heap_start, KERNEL_HEAP_SIZE);
+  pmm_reserve_range(KERNEL_STACK_BASE,
+                    KERNEL_STACK_TOP - KERNEL_STACK_BASE);
+  pmm_reserve_range(INITRD_FILE_STORAGE_BASE, INITRD_MAX_FILE_SIZE);
+  pmm_reserve_range(USER_APP_LOAD_BASE, USER_APP_MAX_SIZE);
 
   kprint_color("Initializing network support...\n", COLOR_DEFAULT);
   hal_network_init();
