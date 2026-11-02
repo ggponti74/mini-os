@@ -10,7 +10,7 @@
 #define SYS_FTRUNCATE 12
 
 #define OPEN_RDWR 2
-#define OPEN_CREAT 0x100
+#define OPEN_CREAT 0x0200
 
 #define KEY_UP 0x100
 #define KEY_DOWN 0x101

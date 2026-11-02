@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$ToolchainPath = (Join-Path $env:LOCALAPPDATA "mini-os-toolchains\i686-elf-15.2.0")
+    [string]$ToolchainPath = (Join-Path $env:LOCALAPPDATA "mini-os-toolchains\i686-elf-15.2.0"),
+    [ValidateSet("kernel", "image", "iso")]
+    [string]$Target = "kernel"
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,18 +37,23 @@ $makeArguments = @(
     "NASM=nasm",
     "WIN_CFLAGS=",
     "WIN_LDFLAGS=",
-    "iso"
+    "WINDOWS_CROSS_BUILD=1",
+    $Target
 )
 
 Push-Location $repositoryRoot
 try {
     & $makeCommand.Source @makeArguments
     if ($LASTEXITCODE -ne 0) {
-        throw "ISO build failed with exit code $LASTEXITCODE."
+        throw "$Target build failed with exit code $LASTEXITCODE."
     }
 }
 finally {
     Pop-Location
 }
 
-Write-Host "ISO created at $(Join-Path $repositoryRoot 'dist\mini-os.iso')"
+switch ($Target) {
+    "kernel" { Write-Host "Kernel built at $(Join-Path $repositoryRoot 'build\kernel.bin')" }
+    "image" { Write-Host "Disk image created at $(Join-Path $repositoryRoot 'dist\mini-os.img')" }
+    "iso" { Write-Host "ISO created at $(Join-Path $repositoryRoot 'dist\mini-os.iso')" }
+}

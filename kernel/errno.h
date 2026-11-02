@@ -21,6 +21,9 @@
 
 int *__errno_location(void);
 
+#ifdef errno
+#undef errno
+#endif
 #define errno (*__errno_location())
 
 #endif

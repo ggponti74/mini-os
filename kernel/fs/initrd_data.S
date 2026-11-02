@@ -19,4 +19,6 @@ _initrd_end:
 initrd_end:
 #endif
 
+#if !defined(_WIN32) && !defined(__WIN32__)
 .section .note.GNU-stack,"",@progbits
+#endif

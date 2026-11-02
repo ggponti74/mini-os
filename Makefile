@@ -70,8 +70,14 @@ OBJCOPY := objcopy
 CFLAGS := -m32 -mno-mmx -mno-sse -mno-sse2 -ffreestanding -fno-pie -fno-pic -fno-stack-protector -c -O2 -Ikernel $(WIN_CFLAGS)
 
 .PHONY: all clean run run-iso iso boot kernel libsys image test newlib-smoke
+.DEFAULT_GOAL := all
 
-all: image
+ifeq ($(OS),Windows_NT)
+all:
+	powershell -ExecutionPolicy Bypass -File tools/build-windows.ps1 -Target kernel
+else
+all: kernel
+endif
 
 $(BOOT_BIN): $(BOOT_SRC) | $(BUILD)
 	$(NASM) -f bin $(BOOT_SRC) -o $(BOOT_BIN)
@@ -156,11 +162,16 @@ image: boot kernel | $(DIST)
 	$(call CONCAT,$(BOOT_BIN),$(KERNEL_BIN),$(IMAGE))
 	$(call PAD_IMAGE,$(IMAGE))
 	
-# Generate a bootable ISO
-iso: image | $(DIST)
 ifeq ($(OS),Windows_NT)
+ifeq ($(WINDOWS_CROSS_BUILD),1)
+iso: image | $(DIST)
 	$(ISO_COMMAND)
 else
+iso:
+	powershell -ExecutionPolicy Bypass -File tools/build-windows.ps1 -Target iso
+endif
+else
+iso: image | $(DIST)
 	@$(call MKDIR,$(BUILD)/iso_root)
 	$(COPY) $(call FIX_PATH,$(IMAGE)) $(call FIX_PATH,$(BUILD)/iso_root/mini-os.img)
 	xorriso -as mkisofs -b mini-os.img -o $(ISO) $(BUILD)/iso_root
