@@ -25,6 +25,8 @@
 #define SYS_RENAME 18
 #define SYS_CHMOD 19
 #define SYS_FCHMOD 20
+#define SYS_CHDIR 21
+#define SYS_GETCWD 22
 
 #define F_OK 0
 #define R_OK 4

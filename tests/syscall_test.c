@@ -138,6 +138,10 @@ static void test_open_flags_and_errors(void) {
   CHECK(vfs_lookup(fs_root, "file") == NULL);
   CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0644, 0) == 0);
   CHECK(syscall_dispatch(SYS_FCHMOD, 3, (uint32_t)0600, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
+  char cwd[32] = {0};
+  CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
+  CHECK(cwd[0] == '/');
 }
 
 static void test_standard_input_and_sbrk(void) {

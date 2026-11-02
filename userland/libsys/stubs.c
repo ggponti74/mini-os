@@ -144,6 +144,19 @@ int _fchmod(int fd, mode_t mode) {
     return syscall_result(syscall3(SYS_FCHMOD, fd, (int)mode, 0));
 }
 
+int _chdir(const char *path) {
+    return syscall_result(syscall3(SYS_CHDIR, (int)path, 0, 0));
+}
+
+char *_getcwd(char *buf, size_t size) {
+    int result = syscall3(SYS_GETCWD, (int)buf, (int)size, 0);
+    if (result < 0) {
+        errno = -result;
+        return NULL;
+    }
+    return buf;
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -222,6 +235,14 @@ int chmod(const char *pathname, mode_t mode) {
 
 int fchmod(int fd, mode_t mode) {
     return _fchmod(fd, mode);
+}
+
+int chdir(const char *path) {
+    return _chdir(path);
+}
+
+char *getcwd(char *buf, size_t size) {
+    return _getcwd(buf, size);
 }
 
 void *sbrk(ptrdiff_t incr) {

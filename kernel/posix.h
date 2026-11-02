@@ -17,6 +17,8 @@ int access(const char *pathname, int mode);
 int rename(const char *oldpath, const char *newpath);
 int chmod(const char *pathname, mode_t mode);
 int fchmod(int fd, mode_t mode);
+int chdir(const char *path);
+char *getcwd(char *buf, size_t size);
 int isatty(int fd);
 off_t lseek(int fd, off_t offset, int whence);
 int ftruncate(int fd, off_t length);

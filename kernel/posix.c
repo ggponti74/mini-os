@@ -194,6 +194,33 @@ int fchmod(int fd, mode_t mode) {
     return 0;
 }
 
+int chdir(const char *path) {
+    if (!path) {
+        errno = EFAULT;
+        return -1;
+    }
+    int result = posix_syscall3(SYS_CHDIR, (uint32_t)(uintptr_t)path, 0, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
+char *getcwd(char *buf, size_t size) {
+    if (!buf || size == 0) {
+        errno = EINVAL;
+        return NULL;
+    }
+    int result = posix_syscall3(SYS_GETCWD, (uint32_t)(uintptr_t)buf,
+                                (uint32_t)size, 0);
+    if (result < 0) {
+        errno = -result;
+        return NULL;
+    }
+    return buf;
+}
+
 int isatty(int fd) {
     struct stat status;
     if (fstat(fd, &status) < 0) {
