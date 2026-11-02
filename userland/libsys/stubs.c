@@ -136,6 +136,14 @@ int _rename(const char *oldpath, const char *newpath) {
     return syscall_result(syscall3(SYS_RENAME, (int)oldpath, (int)newpath, 0));
 }
 
+int _chmod(const char *pathname, mode_t mode) {
+    return syscall_result(syscall3(SYS_CHMOD, (int)pathname, (int)mode, 0));
+}
+
+int _fchmod(int fd, mode_t mode) {
+    return syscall_result(syscall3(SYS_FCHMOD, fd, (int)mode, 0));
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -206,6 +214,14 @@ int access(const char *pathname, int mode) {
 
 int rename(const char *oldpath, const char *newpath) {
     return _rename(oldpath, newpath);
+}
+
+int chmod(const char *pathname, mode_t mode) {
+    return _chmod(pathname, mode);
+}
+
+int fchmod(int fd, mode_t mode) {
+    return _fchmod(fd, mode);
 }
 
 void *sbrk(ptrdiff_t incr) {

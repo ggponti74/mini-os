@@ -136,6 +136,8 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_RENAME, (uint32_t)"file", (uint32_t)"renamed", 0) == 0);
   CHECK(vfs_lookup(fs_root, "renamed") != NULL);
   CHECK(vfs_lookup(fs_root, "file") == NULL);
+  CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0644, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCHMOD, 3, (uint32_t)0600, 0) == 0);
 }
 
 static void test_standard_input_and_sbrk(void) {

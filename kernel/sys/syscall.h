@@ -23,6 +23,8 @@
 #define SYS_UNLINK 16
 #define SYS_ACCESS 17
 #define SYS_RENAME 18
+#define SYS_CHMOD 19
+#define SYS_FCHMOD 20
 
 #define F_OK 0
 #define R_OK 4

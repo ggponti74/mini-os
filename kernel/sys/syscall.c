@@ -367,6 +367,27 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     }
     return -EACCES;
   }
+  if (number == SYS_CHMOD) {
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    if (!arg1 || !((const char *)arg1)[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path((const char *)arg1, resolved_path,
+                          sizeof(resolved_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    if (!vfs_lookup(fs_root, resolved_path)) {
+      return -ENOENT;
+    }
+    return 0;
+  }
+  if (number == SYS_FCHMOD) {
+    int fd = (int)arg1;
+    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
+      return -EBADF;
+    }
+    return 0;
+  }
   if (number == SYS_GETKEY) {
     int key;
     while ((key = keyboard_read_key()) < 0) {

@@ -171,6 +171,29 @@ int rename(const char *oldpath, const char *newpath) {
     return 0;
 }
 
+int chmod(const char *pathname, mode_t mode) {
+    if (!pathname) {
+        errno = EFAULT;
+        return -1;
+    }
+    int result = posix_syscall3(SYS_CHMOD, (uint32_t)(uintptr_t)pathname,
+                                (uint32_t)mode, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
+int fchmod(int fd, mode_t mode) {
+    int result = posix_syscall3(SYS_FCHMOD, (uint32_t)fd, (uint32_t)mode, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
 int isatty(int fd) {
     struct stat status;
     if (fstat(fd, &status) < 0) {
