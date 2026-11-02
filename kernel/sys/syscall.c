@@ -18,13 +18,19 @@
 typedef struct {
   vfs_node_t *node;
   uint32_t offset;
-  uint8_t used;
   uint8_t readable;
   uint8_t writable;
   uint8_t append;
+  uint8_t references;
+} syscall_open_file_t;
+
+typedef struct {
+  syscall_open_file_t *file;
+  uint8_t used;
 } syscall_fd_t;
 
 static syscall_fd_t descriptors[SYSCALL_FD_COUNT];
+static syscall_open_file_t open_files[SYSCALL_FD_COUNT];
 static uint8_t stdin_line[STDIN_LINE_CAPACITY];
 static uint32_t stdin_line_length;
 static uint32_t stdin_line_offset;
@@ -72,16 +78,27 @@ static int open_file(const char *path, uint32_t flags) {
 
   for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
     if (!descriptors[fd].used) {
-      descriptors[fd].node = node;
-      descriptors[fd].offset = (flags & O_APPEND) ? node->length : 0;
+      syscall_open_file_t *file = NULL;
+      for (int i = 0; i < SYSCALL_FD_COUNT; i++) {
+        if (open_files[i].references == 0) {
+          file = &open_files[i];
+          break;
+        }
+      }
+      if (!file) {
+        return -EMFILE;
+      }
+      file->node = node;
+      file->offset = (flags & O_APPEND) ? node->length : 0;
+      file->readable = access_mode != O_WRONLY;
+      file->writable = access_mode == O_WRONLY || access_mode == O_RDWR;
+      file->append = (flags & O_APPEND) != 0;
+      file->references = 1;
+      descriptors[fd].file = file;
       descriptors[fd].used = 1;
-      descriptors[fd].readable = access_mode != O_WRONLY;
-      descriptors[fd].writable =
-          access_mode == O_WRONLY || access_mode == O_RDWR;
-      descriptors[fd].append = (flags & O_APPEND) != 0;
       if (flags & O_TRUNC) {
         node->length = 0;
-        descriptors[fd].offset = 0;
+        file->offset = 0;
       }
       return fd;
     }
@@ -152,12 +169,13 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return read_stdin((uint8_t *)arg2, arg3);
     }
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
-        !descriptors[fd].readable) {
+        !descriptors[fd].file->readable) {
       return -EBADF;
     }
-    uint32_t bytes = vfs_read(descriptors[fd].node, descriptors[fd].offset,
+    uint32_t bytes = vfs_read(descriptors[fd].file->node,
+                              descriptors[fd].file->offset,
                               arg3, (uint8_t *)arg2);
-    descriptors[fd].offset += bytes;
+    descriptors[fd].file->offset += bytes;
     return (int32_t)bytes;
   }
   if (number == SYS_WRITE) {
@@ -176,15 +194,15 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return (int32_t)arg3;
     }
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
-        !descriptors[fd].writable) {
+        !descriptors[fd].file->writable) {
       return -EBADF;
     }
-    if (descriptors[fd].append) {
-      descriptors[fd].offset = descriptors[fd].node->length;
+    if (descriptors[fd].file->append) {
+      descriptors[fd].file->offset = descriptors[fd].file->node->length;
     }
-    uint32_t bytes = vfs_write(descriptors[fd].node, descriptors[fd].offset,
-                               arg3, buffer);
-    descriptors[fd].offset += bytes;
+    uint32_t bytes = vfs_write(descriptors[fd].file->node,
+                               descriptors[fd].file->offset, arg3, buffer);
+    descriptors[fd].file->offset += bytes;
     return (int32_t)bytes;
   }
   if (number == SYS_CLOSE) {
@@ -192,10 +210,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
       return -EBADF;
     }
+    descriptors[fd].file->references--;
+    descriptors[fd].file = NULL;
     descriptors[fd].used = 0;
-    descriptors[fd].node = NULL;
-    descriptors[fd].offset = 0;
-    descriptors[fd].append = 0;
     return 0;
   }
   if (number == SYS_FSTAT) {
@@ -230,7 +247,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return -EBADF;
     }
 
-    vfs_node_t *node = descriptors[fd].node;
+    vfs_node_t *node = descriptors[fd].file->node;
     status->st_ino = node->inode;
     status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
                       S_IRUSR | S_IWUSR;
@@ -254,10 +271,10 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       base = 0;
       break;
     case SEEK_CUR:
-      base = descriptors[fd].offset;
+      base = descriptors[fd].file->offset;
       break;
     case SEEK_END:
-      base = descriptors[fd].node->length;
+      base = descriptors[fd].file->node->length;
       break;
     default:
       return -EINVAL;
@@ -267,7 +284,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (result < 0 || result > INT32_MAX) {
       return result < 0 ? -EINVAL : -EOVERFLOW;
     }
-    descriptors[fd].offset = (uint32_t)result;
+    descriptors[fd].file->offset = (uint32_t)result;
     return (int32_t)result;
   }
   if (number == SYS_MKDIR) {
@@ -428,7 +445,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
       if (!descriptors[fd].used) {
         descriptors[fd] = descriptors[oldfd];
-        descriptors[fd].used = 1;
+        descriptors[fd].file->references++;
         return fd;
       }
     }
@@ -447,14 +464,34 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return newfd;
     }
     if (descriptors[newfd].used) {
+      descriptors[newfd].file->references--;
       descriptors[newfd].used = 0;
-      descriptors[newfd].node = NULL;
-      descriptors[newfd].offset = 0;
-      descriptors[newfd].append = 0;
+      descriptors[newfd].file = NULL;
     }
     descriptors[newfd] = descriptors[oldfd];
-    descriptors[newfd].used = 1;
+    descriptors[newfd].file->references++;
     return newfd;
+  }
+  if (number == SYS_FCNTL) {
+    int fd = (int)arg1;
+    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
+      return -EBADF;
+    }
+    syscall_open_file_t *file = descriptors[fd].file;
+    if (arg2 == F_GETFL) {
+      uint32_t access_mode = file->readable
+                                 ? (file->writable ? O_RDWR : O_RDONLY)
+                                 : O_WRONLY;
+      return (int32_t)(access_mode | (file->append ? O_APPEND : 0));
+    }
+    if (arg2 == F_SETFL) {
+      if (arg3 & ~(O_ACCMODE | O_APPEND)) {
+        return -EINVAL;
+      }
+      file->append = (arg3 & O_APPEND) != 0;
+      return 0;
+    }
+    return -EINVAL;
   }
   if (number == SYS_GETKEY) {
     int key;
@@ -474,11 +511,11 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_FTRUNCATE) {
     int fd = (int)arg1;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
-        !descriptors[fd].writable) {
+        !descriptors[fd].file->writable) {
       return -EBADF;
     }
-    descriptors[fd].node->length = 0;
-    descriptors[fd].offset = 0;
+    descriptors[fd].file->node->length = 0;
+    descriptors[fd].file->offset = 0;
     return 0;
   }
 

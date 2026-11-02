@@ -239,6 +239,23 @@ int dup2(int oldfd, int newfd) {
     return result;
 }
 
+int fcntl(int fd, int command, ...) {
+    uint32_t argument = 0;
+    if (command == F_SETFL) {
+        va_list args;
+        va_start(args, command);
+        argument = (uint32_t)va_arg(args, int);
+        va_end(args);
+    }
+    int result = posix_syscall3(SYS_FCNTL, (uint32_t)fd,
+                                (uint32_t)command, argument);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
 int isatty(int fd) {
     struct stat status;
     if (fstat(fd, &status) < 0) {

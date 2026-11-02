@@ -29,6 +29,7 @@
 #define SYS_GETCWD 22
 #define SYS_DUP 23
 #define SYS_DUP2 24
+#define SYS_FCNTL 25
 
 #define F_OK 0
 #define R_OK 4

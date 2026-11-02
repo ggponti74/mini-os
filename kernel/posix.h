@@ -21,6 +21,7 @@ int chdir(const char *path);
 char *getcwd(char *buf, size_t size);
 int dup(int oldfd);
 int dup2(int oldfd, int newfd);
+int fcntl(int fd, int command, ...);
 int isatty(int fd);
 off_t lseek(int fd, off_t offset, int whence);
 int ftruncate(int fd, off_t length);

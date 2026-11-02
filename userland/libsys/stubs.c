@@ -21,6 +21,12 @@
 #define SYS_GETCWD 22
 #define SYS_DUP 23
 #define SYS_DUP2 24
+#define SYS_FCNTL 25
+
+#ifndef F_GETFL
+#define F_GETFL 3
+#define F_SETFL 4
+#endif
 
 #ifndef F_OK
 #define F_OK 0
@@ -172,6 +178,17 @@ int _dup2(int oldfd, int newfd) {
     return syscall_result(syscall3(SYS_DUP2, oldfd, newfd, 0));
 }
 
+int _fcntl(int fd, int command, ...) {
+    int argument = 0;
+    if (command == F_SETFL) {
+        va_list ap;
+        va_start(ap, command);
+        argument = va_arg(ap, int);
+        va_end(ap);
+    }
+    return syscall_result(syscall3(SYS_FCNTL, fd, command, argument));
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -266,6 +283,17 @@ int dup(int oldfd) {
 
 int dup2(int oldfd, int newfd) {
     return _dup2(oldfd, newfd);
+}
+
+int fcntl(int fd, int command, ...) {
+    int argument = 0;
+    if (command == F_SETFL) {
+        va_list ap;
+        va_start(ap, command);
+        argument = va_arg(ap, int);
+        va_end(ap);
+    }
+    return syscall_result(syscall3(SYS_FCNTL, fd, command, argument));
 }
 
 void *sbrk(ptrdiff_t incr) {
