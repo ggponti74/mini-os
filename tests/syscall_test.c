@@ -118,9 +118,15 @@ static void test_open_flags_and_errors(void) {
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
       (O_WRONLY | O_APPEND));
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
     CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
     CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
     CHECK(file_data[0] == 'y' && file_node.length == 4);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDWR | O_APPEND) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+      (O_RDWR | O_APPEND));
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDONLY) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_RDONLY);
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
            O_WRONLY | O_APPEND) == 0);
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==

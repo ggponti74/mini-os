@@ -488,6 +488,17 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       if (arg3 & ~(O_ACCMODE | O_APPEND)) {
         return -EINVAL;
       }
+      uint32_t access_mode = file->readable
+                                 ? (file->writable ? O_RDWR : O_RDONLY)
+                                 : O_WRONLY;
+      if (arg3 & O_ACCMODE) {
+        access_mode = arg3 & O_ACCMODE;
+        if (access_mode == O_ACCMODE) {
+          return -EINVAL;
+        }
+        file->readable = access_mode != O_WRONLY;
+        file->writable = access_mode == O_WRONLY || access_mode == O_RDWR;
+      }
       file->append = (arg3 & O_APPEND) != 0;
       return 0;
     }
