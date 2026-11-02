@@ -19,6 +19,8 @@ int chmod(const char *pathname, mode_t mode);
 int fchmod(int fd, mode_t mode);
 int chdir(const char *path);
 char *getcwd(char *buf, size_t size);
+int dup(int oldfd);
+int dup2(int oldfd, int newfd);
 int isatty(int fd);
 off_t lseek(int fd, off_t offset, int whence);
 int ftruncate(int fd, off_t length);

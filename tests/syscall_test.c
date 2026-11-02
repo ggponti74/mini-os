@@ -142,6 +142,14 @@ static void test_open_flags_and_errors(void) {
   char cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
   CHECK(cwd[0] == '/');
+
+  int original_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
+  CHECK(original_fd >= 3);
+  int dup_fd = syscall_dispatch(SYS_DUP, original_fd, 0, 0);
+  CHECK(dup_fd >= 3 && dup_fd != original_fd);
+  CHECK(syscall_dispatch(SYS_CLOSE, original_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_DUP2, dup_fd, 3, 0) == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, dup_fd, 0, 0) == 0);
 }
 
 static void test_standard_input_and_sbrk(void) {

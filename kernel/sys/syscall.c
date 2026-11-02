@@ -420,6 +420,42 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     buffer[length] = '\0';
     return 0;
   }
+  if (number == SYS_DUP) {
+    int oldfd = (int)arg1;
+    if (oldfd < 3 || oldfd >= SYSCALL_FD_COUNT || !descriptors[oldfd].used) {
+      return -EBADF;
+    }
+    for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
+      if (!descriptors[fd].used) {
+        descriptors[fd] = descriptors[oldfd];
+        descriptors[fd].used = 1;
+        return fd;
+      }
+    }
+    return -EMFILE;
+  }
+  if (number == SYS_DUP2) {
+    int oldfd = (int)arg1;
+    int newfd = (int)arg2;
+    if (oldfd < 3 || oldfd >= SYSCALL_FD_COUNT || !descriptors[oldfd].used) {
+      return -EBADF;
+    }
+    if (newfd < 3 || newfd >= SYSCALL_FD_COUNT) {
+      return -EBADF;
+    }
+    if (oldfd == newfd) {
+      return newfd;
+    }
+    if (descriptors[newfd].used) {
+      descriptors[newfd].used = 0;
+      descriptors[newfd].node = NULL;
+      descriptors[newfd].offset = 0;
+      descriptors[newfd].append = 0;
+    }
+    descriptors[newfd] = descriptors[oldfd];
+    descriptors[newfd].used = 1;
+    return newfd;
+  }
   if (number == SYS_GETKEY) {
     int key;
     while ((key = keyboard_read_key()) < 0) {

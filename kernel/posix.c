@@ -221,6 +221,24 @@ char *getcwd(char *buf, size_t size) {
     return buf;
 }
 
+int dup(int oldfd) {
+    int result = posix_syscall3(SYS_DUP, (uint32_t)oldfd, 0, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+int dup2(int oldfd, int newfd) {
+    int result = posix_syscall3(SYS_DUP2, (uint32_t)oldfd, (uint32_t)newfd, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
 int isatty(int fd) {
     struct stat status;
     if (fstat(fd, &status) < 0) {

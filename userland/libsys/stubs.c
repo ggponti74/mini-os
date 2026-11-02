@@ -7,6 +7,7 @@
 #include <sys/types.h>
 
 #define SYS_SBRK 7
+#define SYS_FSTAT 8
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -14,6 +15,12 @@
 #define SYS_UNLINK 16
 #define SYS_ACCESS 17
 #define SYS_RENAME 18
+#define SYS_CHMOD 19
+#define SYS_FCHMOD 20
+#define SYS_CHDIR 21
+#define SYS_GETCWD 22
+#define SYS_DUP 23
+#define SYS_DUP2 24
 
 #ifndef F_OK
 #define F_OK 0
@@ -157,6 +164,14 @@ char *_getcwd(char *buf, size_t size) {
     return buf;
 }
 
+int _dup(int oldfd) {
+    return syscall_result(syscall3(SYS_DUP, oldfd, 0, 0));
+}
+
+int _dup2(int oldfd, int newfd) {
+    return syscall_result(syscall3(SYS_DUP2, oldfd, newfd, 0));
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -243,6 +258,14 @@ int chdir(const char *path) {
 
 char *getcwd(char *buf, size_t size) {
     return _getcwd(buf, size);
+}
+
+int dup(int oldfd) {
+    return _dup(oldfd);
+}
+
+int dup2(int oldfd, int newfd) {
+    return _dup2(oldfd, newfd);
 }
 
 void *sbrk(ptrdiff_t incr) {
