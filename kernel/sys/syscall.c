@@ -270,6 +270,67 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     descriptors[fd].offset = (uint32_t)result;
     return (int32_t)result;
   }
+  if (number == SYS_MKDIR) {
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    if (!arg1 || !((const char *)arg1)[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path((const char *)arg1, resolved_path,
+                          sizeof(resolved_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    if (vfs_lookup(fs_root, resolved_path)) {
+      return -EEXIST;
+    }
+    if (!vfs_create(fs_root, resolved_path, FS_DIRECTORY)) {
+      return -EACCES;
+    }
+    return 0;
+  }
+  if (number == SYS_RMDIR) {
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    if (!arg1 || !((const char *)arg1)[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path((const char *)arg1, resolved_path,
+                          sizeof(resolved_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    vfs_node_t *directory = vfs_lookup(fs_root, resolved_path);
+    if (!directory || !(directory->flags & FS_DIRECTORY)) {
+      return -ENOENT;
+    }
+    int result = initrd_remove_directory(resolved_path);
+    if (result == 0) {
+      return 0;
+    }
+    if (result == -2) {
+      return -ENOTEMPTY;
+    }
+    return -ENOENT;
+  }
+  if (number == SYS_UNLINK) {
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    if (!arg1 || !((const char *)arg1)[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path((const char *)arg1, resolved_path,
+                          sizeof(resolved_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) {
+      return -ENOENT;
+    }
+    if (node->flags & FS_DIRECTORY) {
+      return -EISDIR;
+    }
+    int result = initrd_remove_file(resolved_path);
+    if (result == 0) {
+      return 0;
+    }
+    return -ENOENT;
+  }
   if (number == SYS_GETKEY) {
     int key;
     while ((key = keyboard_read_key()) < 0) {

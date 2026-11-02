@@ -27,6 +27,8 @@ static uint8_t file_data[256];
 static vfs_node_t file_node;
 static vfs_node_t directory_node;
 static vfs_node_t created_node;
+static vfs_node_t directory_nodes[8];
+static uint32_t directory_count;
 static int created_exists;
 static uint8_t created_data[256];
 static int keyboard_keys[8];
@@ -119,6 +121,15 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0) ==
         3);
   CHECK(file_node.length == 0);
+
+  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0, 0) == 0);
+  CHECK(vfs_lookup(fs_root, "newdir") != NULL);
+  CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"newdir", 0, 0) == 0);
+  CHECK(vfs_lookup(fs_root, "newdir") == NULL);
+  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"tmpdir", 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_UNLINK, (uint32_t)"tmpdir", 0, 0) == -EISDIR);
+  CHECK(vfs_lookup(fs_root, "tmpdir") != NULL);
+  CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"tmpdir", 0, 0) == 0);
 }
 
 static void test_standard_input_and_sbrk(void) {
@@ -212,29 +223,96 @@ int shell_resolve_path(const char *path, char *resolved, uint32_t size) {
 
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
   (void)root;
-  if (strings_equal(path, "file")) {
+  if (strings_equal(path, "file") && file_node.flags != 0) {
     return &file_node;
   }
-  if (strings_equal(path, "dir")) {
+  if (strings_equal(path, "dir") && directory_node.flags != 0) {
     return &directory_node;
   }
   if (strings_equal(path, "created") && created_exists) {
     return &created_node;
+  }
+  for (uint32_t i = 0; i < directory_count; i++) {
+    if (directory_nodes[i].flags != 0 && strings_equal(path, directory_nodes[i].name)) {
+      return &directory_nodes[i];
+    }
   }
   return NULL;
 }
 
 vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
   (void)parent;
-  if (!strings_equal(name, "created") || flags != FS_FILE || created_exists) {
-    return NULL;
+  if (flags == FS_FILE) {
+    if (!strings_equal(name, "created") || created_exists) {
+      return NULL;
+    }
+    created_exists = 1;
+    created_node.flags = FS_FILE;
+    created_node.length = 0;
+    created_node.inode = 99;
+    created_node.device_data = created_data;
+    return &created_node;
   }
-  created_exists = 1;
-  created_node.flags = FS_FILE;
-  created_node.length = 0;
-  created_node.inode = 99;
-  created_node.device_data = created_data;
-  return &created_node;
+  if (flags == FS_DIRECTORY) {
+    for (uint32_t i = 0; i < directory_count; i++) {
+      if (directory_nodes[i].flags != 0 &&
+          strings_equal(name, directory_nodes[i].name)) {
+        return NULL;
+      }
+    }
+    if (directory_count >= sizeof(directory_nodes) / sizeof(directory_nodes[0])) {
+      return NULL;
+    }
+    vfs_node_t *node = &directory_nodes[directory_count++];
+    for (size_t i = 0; i < sizeof(node->name); i++) {
+      node->name[i] = 0;
+    }
+    for (size_t i = 0; name[i] != '\0' && i < sizeof(node->name) - 1; i++) {
+      node->name[i] = name[i];
+    }
+    node->flags = FS_DIRECTORY;
+    node->length = 0;
+    node->inode = 200 + directory_count;
+    node->device_data = NULL;
+    return node;
+  }
+  return NULL;
+}
+
+int initrd_remove_file(const char *filename) {
+  if (!filename) {
+    return -1;
+  }
+  if (strings_equal(filename, "file")) {
+    file_node.flags = 0;
+    file_node.length = 0;
+    file_node.inode = 0;
+    return 0;
+  }
+  if (strings_equal(filename, "created") && created_exists) {
+    created_node.flags = 0;
+    created_node.length = 0;
+    created_node.inode = 0;
+    created_exists = 0;
+    return 0;
+  }
+  return -1;
+}
+
+int initrd_remove_directory(const char *dirname) {
+  if (!dirname) {
+    return -1;
+  }
+  for (uint32_t i = 0; i < directory_count; i++) {
+    if (directory_nodes[i].flags != 0 && strings_equal(dirname, directory_nodes[i].name)) {
+      directory_nodes[i].flags = 0;
+      directory_nodes[i].name[0] = '\0';
+      directory_nodes[i].length = 0;
+      directory_nodes[i].inode = 0;
+      return 0;
+    }
+  }
+  return -1;
 }
 
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,

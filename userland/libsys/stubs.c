@@ -9,6 +9,9 @@
 #define SYS_SBRK 7
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
+#define SYS_MKDIR 14
+#define SYS_RMDIR 15
+#define SYS_UNLINK 16
 
 static int syscall_errno;
 
@@ -103,6 +106,19 @@ int _ftruncate(int fd, off_t length) {
     return syscall_result(syscall3(SYS_FTRUNCATE, fd, (int)length, 0));
 }
 
+int _mkdir(const char *pathname, mode_t mode) {
+    (void)mode;
+    return syscall_result(syscall3(SYS_MKDIR, (int)pathname, 0, 0));
+}
+
+int _rmdir(const char *pathname) {
+    return syscall_result(syscall3(SYS_RMDIR, (int)pathname, 0, 0));
+}
+
+int _unlink(const char *pathname) {
+    return syscall_result(syscall3(SYS_UNLINK, (int)pathname, 0, 0));
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -153,6 +169,18 @@ long lseek(int fd, long offset, int whence) {
 
 int ftruncate(int fd, off_t length) {
     return _ftruncate(fd, length);
+}
+
+int mkdir(const char *pathname, mode_t mode) {
+    return _mkdir(pathname, mode);
+}
+
+int rmdir(const char *pathname) {
+    return _rmdir(pathname);
+}
+
+int unlink(const char *pathname) {
+    return _unlink(pathname);
 }
 
 void *sbrk(ptrdiff_t incr) {

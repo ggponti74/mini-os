@@ -18,6 +18,9 @@
 #define SYS_CURSOR 11
 #define SYS_FTRUNCATE 12
 #define SYS_LSEEK 13
+#define SYS_MKDIR 14
+#define SYS_RMDIR 15
+#define SYS_UNLINK 16
 
 #define SEEK_SET 0
 #define SEEK_CUR 1

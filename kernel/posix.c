@@ -114,6 +114,34 @@ int stat(const char *path, struct stat *status) {
     return 0;
 }
 
+int mkdir(const char *pathname, mode_t mode) {
+    (void)mode;
+    int result = posix_syscall3(SYS_MKDIR, (uint32_t)(uintptr_t)pathname, 0, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
+int rmdir(const char *pathname) {
+    int result = posix_syscall3(SYS_RMDIR, (uint32_t)(uintptr_t)pathname, 0, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
+int unlink(const char *pathname) {
+    int result = posix_syscall3(SYS_UNLINK, (uint32_t)(uintptr_t)pathname, 0, 0);
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return 0;
+}
+
 int isatty(int fd) {
     struct stat status;
     if (fstat(fd, &status) < 0) {
