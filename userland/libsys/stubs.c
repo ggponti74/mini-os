@@ -1,10 +1,14 @@
 // userland/libsys/stubs.c
 #include <stddef.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #define SYS_SBRK 7
 #define SYS_LSEEK 13
+#define SYS_FTRUNCATE 12
 
 static int syscall_errno;
 
@@ -37,7 +41,14 @@ void _exit(int status) {
 }
 
 int _open(const char *pathname, int flags, ...) {
-    return syscall_result(syscall3(5, (int)pathname, flags, 0));
+    va_list ap;
+    int mode = 0;
+    if (flags & O_CREAT) {
+        va_start(ap, flags);
+        mode = va_arg(ap, int);
+        va_end(ap);
+    }
+    return syscall_result(syscall3(5, (int)pathname, flags, mode));
 }
 
 // 2. Read Stub (POSIX compliant signature)
@@ -58,6 +69,24 @@ int _fstat(int fd, struct stat *status) {
     return syscall_result(syscall3(8, fd, (int)status, 0));
 }
 
+int _stat(const char *path, struct stat *status) {
+    int fd = _open(path, O_RDONLY, 0);
+    if (fd < 0) {
+        return -1;
+    }
+
+    int result = _fstat(fd, status);
+    int close_result = _close(fd);
+    if (result < 0) {
+        return -1;
+    }
+    if (close_result < 0) {
+        errno = EBADF;
+        return -1;
+    }
+    return 0;
+}
+
 int _isatty(int fd) {
     struct stat status;
     if (_fstat(fd, &status) < 0) {
@@ -70,6 +99,10 @@ long _lseek(int fd, long offset, int whence) {
     return syscall_result(syscall3(SYS_LSEEK, fd, (int)offset, whence));
 }
 
+int _ftruncate(int fd, off_t length) {
+    return syscall_result(syscall3(SYS_FTRUNCATE, fd, (int)length, 0));
+}
+
 void *_sbrk(ptrdiff_t incr) {
     int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
     if (previous_break < 0) {
@@ -80,7 +113,14 @@ void *_sbrk(ptrdiff_t incr) {
 }
 
 int open(const char *pathname, int flags, ...) {
-    return _open(pathname, flags);
+    va_list ap;
+    int mode = 0;
+    if (flags & O_CREAT) {
+        va_start(ap, flags);
+        mode = va_arg(ap, int);
+        va_end(ap);
+    }
+    return syscall_result(syscall3(5, (int)pathname, flags, mode));
 }
 
 int read(int fd, void *buf, size_t count) {
@@ -99,12 +139,20 @@ int fstat(int fd, struct stat *status) {
     return _fstat(fd, status);
 }
 
+int stat(const char *path, struct stat *status) {
+    return _stat(path, status);
+}
+
 int isatty(int fd) {
     return _isatty(fd);
 }
 
 long lseek(int fd, long offset, int whence) {
     return _lseek(fd, offset, whence);
+}
+
+int ftruncate(int fd, off_t length) {
+    return _ftruncate(fd, length);
 }
 
 void *sbrk(ptrdiff_t incr) {
