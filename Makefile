@@ -118,8 +118,14 @@ INITRD_OPTIONAL_APPS := $(wildcard $(BUILD)/newlib-smoke)
 initrd.tar: $(BUILD)/edit $(INITRD_OPTIONAL_APPS) $(INITRD_SOURCE) bin/demo music.cfg
 	$(INITRD_COMMAND)
 
+ifeq ($(OS),Windows_NT)
+newlib-smoke:
+	powershell -ExecutionPolicy Bypass -File tools/build-windows.ps1 -Target newlib-smoke
+else
 newlib-smoke:
 	$(MAKE) -C userland newlib-smoke
+	$(MAKE) -B initrd.tar
+endif
 	
 # GCC GNU assembly (.S)
 $(BUILD)/%.o: kernel/%.S | $(BUILD)

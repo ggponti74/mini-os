@@ -15,13 +15,13 @@ ifeq ($(OS),Windows_NT)
     WIN_CFLAGS = -fno-leading-underscore -mno-stack-arg-probe
     WIN_LDFLAGS = -Wl,--image-base,0
     CLEAN_FILES = -del /q $(call FIX_PATH,$(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)\edit.elf $(NEWLIB_SMOKE_BIN) $(NEWLIB_SMOKE_ELF)) >nul 2>&1
-    CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
+    CFLAGS := -m32 -mno-mmx -mno-sse -mno-sse2 -ffreestanding -fPIC -fno-stack-protector \
 	-fno-builtin -I../kernel -O2 $(WIN_CFLAGS)
 else
     MKDIR_P = mkdir -p $(1)
     CLEAN_FILES = rm -f $(OBJS) $(TARGET) $(EDITOR_OBJS) $(EDIT_BIN) $(EDITOR_OBJ_DIR)/edit.elf $(NEWLIB_SMOKE_BIN) $(NEWLIB_SMOKE_ELF)
     GCC_INC := $(shell $(CC) -print-file-name=include)
-    CFLAGS := -m32 -ffreestanding -fPIC -fno-stack-protector \
+    CFLAGS := -m32 -mno-mmx -mno-sse -mno-sse2 -ffreestanding -fPIC -fno-stack-protector \
 	-fno-builtin -nostdinc -I../kernel -O2 -isystem $(GCC_INC)
 endif
 
@@ -33,6 +33,8 @@ EDITOR_OBJ_DIR := ../build/userland
 EDITOR_OBJS := $(EDITOR_OBJ_DIR)/editor_start.o \
 	$(EDITOR_OBJ_DIR)/editor_entry.o $(EDITOR_OBJ_DIR)/editor.o \
 	$(EDITOR_OBJ_DIR)/editor_syscall.o
+
+$(EDITOR_OBJS): Makefile
 
 .PHONY: all clean edit newlib-smoke
 

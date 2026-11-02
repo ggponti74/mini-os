@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$ToolchainPath = (Join-Path $env:LOCALAPPDATA "mini-os-toolchains\i686-elf-15.2.0"),
-    [ValidateSet("kernel", "image", "iso")]
+    [ValidateSet("kernel", "image", "iso", "newlib-smoke")]
     [string]$Target = "kernel"
 )
 
@@ -34,6 +34,8 @@ $env:PATH = "$compilerBin;$nasmBin;$env:PATH"
 $makeArguments = @(
     "CC=i686-elf-gcc",
     "OBJCOPY=i686-elf-objcopy",
+    "NEWLIB_CC=i686-elf-gcc",
+    "NEWLIB_OBJCOPY=i686-elf-objcopy",
     "NASM=nasm",
     "WIN_CFLAGS=",
     "WIN_LDFLAGS=",
@@ -56,4 +58,5 @@ switch ($Target) {
     "kernel" { Write-Host "Kernel built at $(Join-Path $repositoryRoot 'build\kernel.bin')" }
     "image" { Write-Host "Disk image created at $(Join-Path $repositoryRoot 'dist\mini-os.img')" }
     "iso" { Write-Host "ISO created at $(Join-Path $repositoryRoot 'dist\mini-os.iso')" }
+    "newlib-smoke" { Write-Host "Newlib smoke test added to initrd.tar. Run make iso to build the test ISO." }
 }
