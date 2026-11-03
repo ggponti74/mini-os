@@ -18,6 +18,7 @@
 #define SYS_CURSOR 11
 #define SYS_FTRUNCATE 12
 #define SYS_LSEEK 13
+#define SYS_APP_SBRK 14
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -29,5 +30,6 @@
 
 int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                          uint32_t arg3);
+void syscall_reset_app_heap(void);
 
 #endif

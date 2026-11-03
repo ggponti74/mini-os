@@ -3,8 +3,12 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-#define SYS_SBRK 7
 #define SYS_LSEEK 13
+#define SYS_APP_SBRK 14
+
+#include "memory_layout.h"
+
+extern char _end[];
 
 static int syscall_errno;
 
@@ -71,7 +75,8 @@ long _lseek(int fd, long offset, int whence) {
 }
 
 void *_sbrk(ptrdiff_t incr) {
-    int previous_break = syscall3(SYS_SBRK, (int)incr, 0, 0);
+    int previous_break = syscall3(SYS_APP_SBRK, (int)incr, (int)_end,
+                                  USER_APP_HEAP_LIMIT);
     if (previous_break < 0) {
         errno = -previous_break;
         return (void *)-1;

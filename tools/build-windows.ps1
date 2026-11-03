@@ -39,9 +39,13 @@ $makeArguments = @(
     "NASM=nasm",
     "WIN_CFLAGS=",
     "WIN_LDFLAGS=",
-    "WINDOWS_CROSS_BUILD=1",
-    $Target
+    "WINDOWS_CROSS_BUILD=1"
 )
+if ($Target -eq "newlib-smoke") {
+    $makeArguments += @("-C", "userland", "newlib-smoke")
+} else {
+    $makeArguments += $Target
+}
 
 Push-Location $repositoryRoot
 try {
@@ -58,5 +62,11 @@ switch ($Target) {
     "kernel" { Write-Host "Kernel built at $(Join-Path $repositoryRoot 'build\kernel.bin')" }
     "image" { Write-Host "Disk image created at $(Join-Path $repositoryRoot 'dist\mini-os.img')" }
     "iso" { Write-Host "ISO created at $(Join-Path $repositoryRoot 'dist\mini-os.iso')" }
-    "newlib-smoke" { Write-Host "Newlib smoke test added to initrd.tar. Run make iso to build the test ISO." }
+    "newlib-smoke" {
+        & (Join-Path $repositoryRoot "build_initrd.ps1")
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to refresh initrd.tar with the Newlib smoke test."
+        }
+        Write-Host "Newlib smoke test added to initrd.tar. Run make iso to build the test ISO."
+    }
 }

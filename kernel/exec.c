@@ -6,6 +6,7 @@
 #include "fs/vfs.h"
 #include "keyboard.h"
 #include "memory_layout.h"
+#include "sys/syscall.h"
 
 int exec_flat_binary(const char *path, int argc, char **argv) {
 
@@ -31,7 +32,10 @@ int exec_flat_binary(const char *path, int argc, char **argv) {
   }
 
   keyboard_clear_queue();
+  syscall_reset_app_heap();
   typedef int (*binary_main_t)(int argc, char **argv);
   binary_main_t entry = (binary_main_t)binary_image;
-  return entry(argc, argv);
+  int result = entry(argc, argv);
+  syscall_reset_app_heap();
+  return result;
 }

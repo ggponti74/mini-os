@@ -14,8 +14,11 @@ make iso
 ```
 
 The sample is added to the initrd when present and exercises Newlib `printf`,
-`malloc`, and the supported file syscalls. `make newlib-smoke` builds the
-executable and refreshes the initrd; `make iso` then builds the test ISO with
-the sample included. Run `newlib-smoke` from the OS shell to return to the
-prompt after it completes. This validates a narrow static Newlib target; it
-is not full POSIX conformance or a general ELF process loader.
+`sbrk`, `malloc`, `calloc`, `realloc`, and the supported file syscalls. Flat
+applications receive a separate heap beginning after their linked image and
+BSS, bounded by the reserved application memory region. This keeps Newlib
+allocations out of the kernel heap. `make newlib-smoke` builds the executable
+and refreshes the initrd; `make iso` then builds the test ISO with the sample
+included. Run `newlib-smoke` from the OS shell to return to the prompt after it
+completes. This validates a narrow static Newlib target; it is not full POSIX
+conformance or a general ELF process loader.

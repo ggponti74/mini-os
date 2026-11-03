@@ -152,6 +152,7 @@ test:
 else
 $(BUILD)/syscall_test: tests/syscall_test.c kernel/sys/syscall.c \
                       kernel/sys/syscall.h kernel/fcntl.h kernel/errno.h \
+                      kernel/memory_layout.h \
                       kernel/display.h kernel/fs/initrd.h kernel/fs/vfs.h \
                       kernel/keyboard.h kernel/memory.h kernel/shell.h \
                       kernel/sys/stat.h | $(BUILD)

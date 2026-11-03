@@ -53,8 +53,9 @@ newlib-smoke: $(NEWLIB_SMOKE_BIN)
 
 $(NEWLIB_SMOKE_BIN): newlib_start.S newlib_smoke.c newlib_smoke.ld \
                      libsys/stubs.c | ../build
-	$(NEWLIB_CC) -m32 -ffreestanding -fno-pic -fno-pie \
-		-fno-stack-protector -fno-builtin -O2 -nostdlib -static \
+	$(NEWLIB_CC) -m32 -mno-mmx -mno-sse -mno-sse2 \
+		-ffreestanding -fno-pic -fno-pie -fno-stack-protector \
+		-fno-builtin -I../kernel -O2 -nostdlib -static \
 		-Wl,--build-id=none -Wl,-T,newlib_smoke.ld -Wl,-e,_start \
 		-o $(NEWLIB_SMOKE_ELF) newlib_start.S newlib_smoke.c \
 		libsys/stubs.c -Wl,--start-group -lc -lgcc -Wl,--end-group

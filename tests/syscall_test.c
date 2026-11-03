@@ -5,6 +5,7 @@
 #include "errno.h"
 #include "fs/vfs.h"
 #include "memory.h"
+#include "memory_layout.h"
 #include "sys/stat.h"
 #include "sys/syscall.h"
 
@@ -143,7 +144,49 @@ static void test_standard_input_and_sbrk(void) {
   CHECK(syscall_dispatch(SYS_SBRK, 16, 0, 0) == 0x1000);
   CHECK(syscall_dispatch(SYS_SBRK, 0, 0, 0) == 0x1010);
   CHECK(syscall_dispatch(SYS_SBRK, 1, 0, 0) == -ENOMEM);
+  CHECK(heap_break == 0x1010);
   CHECK(syscall_dispatch(0x7fffffff, 0, 0, 0) == -ENOSYS);
+}
+
+static void test_app_sbrk(void) {
+  const uint32_t base = USER_APP_LOAD_BASE + 0x1000;
+  const uint32_t next_base = USER_APP_LOAD_BASE + 0x2000;
+
+  syscall_reset_app_heap();
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base - 1, USER_APP_HEAP_LIMIT) ==
+        -EINVAL);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT - 1) ==
+        -EINVAL);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT) ==
+        (int32_t)base);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 16, base, USER_APP_HEAP_LIMIT) ==
+        (int32_t)base);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT) ==
+        (int32_t)(base + 16));
+  CHECK(syscall_dispatch(SYS_APP_SBRK, -8, base, USER_APP_HEAP_LIMIT) ==
+        (int32_t)(base + 16));
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT) ==
+        (int32_t)(base + 8));
+  CHECK(syscall_dispatch(SYS_APP_SBRK, -9, base, USER_APP_HEAP_LIMIT) ==
+        -ENOMEM);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0x7fffffff, base,
+                         USER_APP_HEAP_LIMIT) == -ENOMEM);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT) ==
+        (int32_t)(base + 8));
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base + 1, USER_APP_HEAP_LIMIT) ==
+        -EINVAL);
+  CHECK(heap_break == 0x1010);
+
+  syscall_reset_app_heap();
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, USER_APP_HEAP_LIMIT,
+                         USER_APP_HEAP_LIMIT) ==
+        (int32_t)USER_APP_HEAP_LIMIT);
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 1, USER_APP_HEAP_LIMIT,
+                         USER_APP_HEAP_LIMIT) == -ENOMEM);
+  syscall_reset_app_heap();
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, next_base,
+                         USER_APP_HEAP_LIMIT) == (int32_t)next_base);
+  syscall_reset_app_heap();
 }
 
 static int32_t test_main(void) {
@@ -156,6 +199,7 @@ static int32_t test_main(void) {
   test_open_read_seek_and_stat();
   test_open_flags_and_errors();
   test_standard_input_and_sbrk();
+  test_app_sbrk();
 
   return failures;
 }

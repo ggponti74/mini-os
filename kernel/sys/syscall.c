@@ -6,6 +6,7 @@
 #include "../fs/vfs.h"
 #include "../keyboard.h"
 #include "../memory.h"
+#include "../memory_layout.h"
 #include "../shell.h"
 #include "../errno.h"
 #include "syscall.h"
@@ -29,6 +30,48 @@ static uint8_t stdin_line[STDIN_LINE_CAPACITY];
 static uint32_t stdin_line_length;
 static uint32_t stdin_line_offset;
 static uint8_t stdin_line_ready;
+static uint32_t app_heap_base;
+static uint32_t app_heap_break;
+static uint32_t app_heap_limit;
+static uint8_t app_heap_initialized;
+
+void syscall_reset_app_heap(void) {
+  app_heap_base = 0;
+  app_heap_break = 0;
+  app_heap_limit = 0;
+  app_heap_initialized = 0;
+}
+
+static int32_t app_sbrk(int32_t increment, uint32_t base, uint32_t limit) {
+  if (!app_heap_initialized) {
+    if (base < USER_APP_LOAD_BASE || base > USER_APP_HEAP_LIMIT ||
+        limit != USER_APP_HEAP_LIMIT) {
+      return -EINVAL;
+    }
+    app_heap_base = base;
+    app_heap_break = base;
+    app_heap_limit = limit;
+    app_heap_initialized = 1;
+  } else if (base != app_heap_base || limit != app_heap_limit) {
+    return -EINVAL;
+  }
+
+  uint32_t previous_break = app_heap_break;
+  if (increment >= 0) {
+    uint32_t amount = (uint32_t)increment;
+    if (amount > app_heap_limit - app_heap_break) {
+      return -ENOMEM;
+    }
+    app_heap_break += amount;
+  } else {
+    uint32_t amount = 0u - (uint32_t)increment;
+    if (amount > app_heap_break - app_heap_base) {
+      return -ENOMEM;
+    }
+    app_heap_break -= amount;
+  }
+  return (int32_t)previous_break;
+}
 
 static int open_file(const char *path, uint32_t flags) {
   uint32_t access_mode = flags & O_ACCMODE;
@@ -133,6 +176,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_SBRK) {
     void *result = ksbrk((int32_t)arg1);
     return result == (void *)-1 ? -ENOMEM : (int32_t)result;
+  }
+  if (number == SYS_APP_SBRK) {
+    return app_sbrk((int32_t)arg1, arg2, arg3);
   }
   if (number == SYS_EXIT) {
     return (int32_t)arg1;
