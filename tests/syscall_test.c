@@ -28,6 +28,8 @@ static uint8_t file_data[256];
 static vfs_node_t file_node;
 static vfs_node_t directory_node;
 static vfs_node_t created_node;
+static vfs_node_t directory_nodes[8];
+static uint32_t directory_count;
 static int created_exists;
 static uint8_t created_data[256];
 static int keyboard_keys[8];
@@ -84,6 +86,16 @@ static void test_open_read_seek_and_stat(void) {
   CHECK(status.st_blksize == 512);
   CHECK(status.st_blocks == 1);
   CHECK(S_ISREG(status.st_mode));
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  int duplicate_fd = syscall_dispatch(SYS_DUP, fd, 0, 0);
+  CHECK(duplicate_fd >= 3 && duplicate_fd != fd);
+  CHECK(syscall_dispatch(SYS_READ, fd, (uint32_t)buffer, 1) == 1);
+  CHECK(buffer[0] == 'a');
+  CHECK(syscall_dispatch(SYS_READ, duplicate_fd, (uint32_t)buffer, 1) == 1);
+  CHECK(buffer[0] == 'b');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_CLOSE, duplicate_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_LSEEK, 1, 0, SEEK_SET) == -ESPIPE);
@@ -104,6 +116,22 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
   CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"x", 1) == 1);
   CHECK(file_node.length == 4 && file_data[3] == 'x');
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+      (O_WRONLY | O_APPEND));
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
+    CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+    CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
+    CHECK(file_data[0] == 'y' && file_node.length == 4);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDWR | O_APPEND) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+      (O_RDWR | O_APPEND));
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDONLY) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_RDONLY);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+           O_WRONLY | O_APPEND) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+      (O_WRONLY | O_APPEND));
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
@@ -120,6 +148,35 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0) ==
         3);
   CHECK(file_node.length == 0);
+
+  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0, 0) == 0);
+  CHECK(vfs_lookup(fs_root, "newdir") != NULL);
+  CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"newdir", 0, 0) == 0);
+  CHECK(vfs_lookup(fs_root, "newdir") == NULL);
+  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"tmpdir", 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_UNLINK, (uint32_t)"tmpdir", 0, 0) == -EISDIR);
+  CHECK(vfs_lookup(fs_root, "tmpdir") != NULL);
+  CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"tmpdir", 0, 0) == 0);
+
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"file", F_OK, 0) == 0);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"missing", F_OK, 0) == -ENOENT);
+  CHECK(syscall_dispatch(SYS_RENAME, (uint32_t)"file", (uint32_t)"renamed", 0) == 0);
+  CHECK(vfs_lookup(fs_root, "renamed") != NULL);
+  CHECK(vfs_lookup(fs_root, "file") == NULL);
+  CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0644, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCHMOD, 3, (uint32_t)0600, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
+  char cwd[32] = {0};
+  CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
+  CHECK(cwd[0] == '/');
+
+  int original_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
+  CHECK(original_fd >= 3);
+  int dup_fd = syscall_dispatch(SYS_DUP, original_fd, 0, 0);
+  CHECK(dup_fd >= 3 && dup_fd != original_fd);
+  CHECK(syscall_dispatch(SYS_CLOSE, original_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_DUP2, dup_fd, 3, 0) == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, dup_fd, 0, 0) == 0);
 }
 
 static void test_standard_input_and_sbrk(void) {
@@ -256,29 +313,113 @@ int shell_resolve_path(const char *path, char *resolved, uint32_t size) {
 
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
   (void)root;
-  if (strings_equal(path, "file")) {
+  if (strings_equal(path, file_node.name) && file_node.flags != 0) {
     return &file_node;
   }
-  if (strings_equal(path, "dir")) {
+  if (strings_equal(path, "file") && file_node.flags != 0 && file_node.name[0] == '\0') {
+    return &file_node;
+  }
+  if (strings_equal(path, "dir") && directory_node.flags != 0) {
     return &directory_node;
   }
   if (strings_equal(path, "created") && created_exists) {
     return &created_node;
+  }
+  for (uint32_t i = 0; i < directory_count; i++) {
+    if (directory_nodes[i].flags != 0 && strings_equal(path, directory_nodes[i].name)) {
+      return &directory_nodes[i];
+    }
   }
   return NULL;
 }
 
 vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
   (void)parent;
-  if (!strings_equal(name, "created") || flags != FS_FILE || created_exists) {
-    return NULL;
+  if (flags == FS_FILE) {
+    if (!strings_equal(name, "created") || created_exists) {
+      return NULL;
+    }
+    created_exists = 1;
+    created_node.flags = FS_FILE;
+    created_node.length = 0;
+    created_node.inode = 99;
+    created_node.device_data = created_data;
+    return &created_node;
   }
-  created_exists = 1;
-  created_node.flags = FS_FILE;
-  created_node.length = 0;
-  created_node.inode = 99;
-  created_node.device_data = created_data;
-  return &created_node;
+  if (flags == FS_DIRECTORY) {
+    for (uint32_t i = 0; i < directory_count; i++) {
+      if (directory_nodes[i].flags != 0 &&
+          strings_equal(name, directory_nodes[i].name)) {
+        return NULL;
+      }
+    }
+    if (directory_count >= sizeof(directory_nodes) / sizeof(directory_nodes[0])) {
+      return NULL;
+    }
+    vfs_node_t *node = &directory_nodes[directory_count++];
+    for (size_t i = 0; i < sizeof(node->name); i++) {
+      node->name[i] = 0;
+    }
+    for (size_t i = 0; name[i] != '\0' && i < sizeof(node->name) - 1; i++) {
+      node->name[i] = name[i];
+    }
+    node->flags = FS_DIRECTORY;
+    node->length = 0;
+    node->inode = 200 + directory_count;
+    node->device_data = NULL;
+    return node;
+  }
+  return NULL;
+}
+
+int initrd_move_file(const char *old_name, const char *new_name) {
+  if (!old_name || !new_name || !*new_name) {
+    return -1;
+  }
+  if (strings_equal(old_name, "file") && !strings_equal(new_name, "file")) {
+    file_node.name[0] = '\0';
+    for (size_t i = 0; new_name[i] != '\0' && i < sizeof(file_node.name) - 1; i++) {
+      file_node.name[i] = new_name[i];
+    }
+    return 0;
+  }
+  return -1;
+}
+
+int initrd_remove_file(const char *filename) {
+  if (!filename) {
+    return -1;
+  }
+  if (strings_equal(filename, "file")) {
+    file_node.flags = 0;
+    file_node.length = 0;
+    file_node.inode = 0;
+    return 0;
+  }
+  if (strings_equal(filename, "created") && created_exists) {
+    created_node.flags = 0;
+    created_node.length = 0;
+    created_node.inode = 0;
+    created_exists = 0;
+    return 0;
+  }
+  return -1;
+}
+
+int initrd_remove_directory(const char *dirname) {
+  if (!dirname) {
+    return -1;
+  }
+  for (uint32_t i = 0; i < directory_count; i++) {
+    if (directory_nodes[i].flags != 0 && strings_equal(dirname, directory_nodes[i].name)) {
+      directory_nodes[i].flags = 0;
+      directory_nodes[i].name[0] = '\0';
+      directory_nodes[i].length = 0;
+      directory_nodes[i].inode = 0;
+      return 0;
+    }
+  }
+  return -1;
 }
 
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,

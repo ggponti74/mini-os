@@ -18,7 +18,23 @@
 #define SYS_CURSOR 11
 #define SYS_FTRUNCATE 12
 #define SYS_LSEEK 13
-#define SYS_APP_SBRK 14
+#define SYS_MKDIR 14
+#define SYS_RMDIR 15
+#define SYS_UNLINK 16
+#define SYS_ACCESS 17
+#define SYS_RENAME 18
+#define SYS_CHMOD 19
+#define SYS_FCHMOD 20
+#define SYS_CHDIR 21
+#define SYS_GETCWD 22
+#define SYS_DUP 23
+#define SYS_DUP2 24
+#define SYS_FCNTL 25
+
+#define F_OK 0
+#define R_OK 4
+#define W_OK 2
+#define X_OK 1
 
 #define SEEK_SET 0
 #define SEEK_CUR 1

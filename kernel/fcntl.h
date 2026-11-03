@@ -10,4 +10,7 @@
 #define O_TRUNC  0x0400
 #define O_EXCL   0x800
 
+#define F_GETFL 3
+#define F_SETFL 4
+
 #endif
