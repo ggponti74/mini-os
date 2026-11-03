@@ -1,0 +1,9 @@
+--- a/kernel/sys/syscall.h
++++ b/kernel/sys/syscall.h
+@@ -30,6 +30,7 @@
+ #define SYS_DUP2 24
+ #define SYS_FCNTL 25
++#define SYS_APP_SBRK 26
+ 
+ #define F_OK 0
+ #define R_OK 4
