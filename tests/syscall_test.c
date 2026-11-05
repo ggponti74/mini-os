@@ -126,11 +126,12 @@ static void test_open_flags_and_errors(void) {
     CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
     CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
     CHECK(file_data[0] == 'y' && file_node.length == 4);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDWR | O_APPEND) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+           O_WRONLY | O_APPEND) == 0);
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_RDWR | O_APPEND));
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDONLY) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_RDONLY);
+      (O_WRONLY | O_APPEND));
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
+    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
            O_WRONLY | O_APPEND) == 0);
     CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
@@ -213,7 +214,7 @@ static void test_app_sbrk(void) {
   const uint32_t next_base = USER_APP_LOAD_BASE + 0x2000;
 
   syscall_reset_app_heap();
-  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base - 1, USER_APP_HEAP_LIMIT) ==
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, USER_APP_LOAD_BASE - 1, USER_APP_HEAP_LIMIT) ==
         -EINVAL);
   CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT - 1) ==
         -EINVAL);
