@@ -16,6 +16,9 @@
     }                                                                          \
   } while (0)
 
+_Static_assert(SYS_APP_SBRK == 26 && SYS_APP_SBRK != SYS_SBRK,
+               "application heap syscall number");
+
 _Static_assert(sizeof(struct stat) == 72 &&
                    offsetof(struct stat, st_size) == 16 &&
                    offsetof(struct stat, st_atim) == 20 &&
