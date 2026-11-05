@@ -9,10 +9,28 @@
 #include "sys/stat.h"
 #include "sys/syscall.h"
 
+static void report_check_failure(unsigned line) {
+  const char prefix[] = "CHECK failed at line ";
+  for (unsigned i = 0; prefix[i] != '\0'; i++) {
+    __asm__ volatile("outb %0, $0xe9" : : "a"((uint8_t)prefix[i]));
+  }
+  char digits[10];
+  unsigned count = 0;
+  do {
+    digits[count++] = (char)('0' + line % 10);
+    line /= 10;
+  } while (line != 0 && count < sizeof(digits));
+  while (count != 0) {
+    __asm__ volatile("outb %0, $0xe9" : : "a"((uint8_t)digits[--count]));
+  }
+  __asm__ volatile("outb %0, $0xe9" : : "a"((uint8_t)'\\n'));
+}
+
 #define CHECK(condition)                                                       \
   do {                                                                         \
     if (!(condition)) {                                                        \
       failures++;                                                              \
+      report_check_failure(__LINE__);                                         \
     }                                                                          \
   } while (0)
 
