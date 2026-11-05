@@ -41,6 +41,9 @@ jobs:
           grub-mkrescue --version
           qemu-system-i386 --version | head -n 1
 
+      - name: Run syscall unit tests
+        run: make test
+
       - name: Build bootable ISO
         run: make iso
 
