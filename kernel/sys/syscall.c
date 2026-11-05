@@ -194,7 +194,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     void *result = ksbrk((int32_t)arg1);
     return result == (void *)-1 ? -ENOMEM : (int32_t)result;
   }
-  if (number == SYS_APP_SBRK) {
+  if (number == SYS_SBRK) {
     return app_sbrk((int32_t)arg1, arg2, arg3);
   }
   if (number == SYS_EXIT) {
