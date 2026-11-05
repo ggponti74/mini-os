@@ -10,9 +10,11 @@
 #include "sys/syscall.h"
 
 static void report_check_failure(unsigned line) {
+  char message[40];
   const char prefix[] = "CHECK failed at line ";
+  unsigned length = 0;
   for (unsigned i = 0; prefix[i] != '\0'; i++) {
-    __asm__ volatile("outb %0, $0xe9" : : "a"((uint8_t)prefix[i]));
+    message[length++] = prefix[i];
   }
   char digits[10];
   unsigned count = 0;
@@ -21,9 +23,13 @@ static void report_check_failure(unsigned line) {
     line /= 10;
   } while (line != 0 && count < sizeof(digits));
   while (count != 0) {
-    __asm__ volatile("outb %0, $0xe9" : : "a"((uint8_t)digits[--count]));
+    message[length++] = digits[--count];
   }
-  __asm__ volatile("outb %0, $0xe9" : : "a"((uint8_t)'\\n'));
+  message[length++] = '\n';
+  int result;
+  __asm__ volatile("int $0x80" : "=a"(result)
+                   : "0"(4), "b"(1), "c"(message), "d"(length)
+                   : "memory");
 }
 
 #define CHECK(condition)                                                       \
