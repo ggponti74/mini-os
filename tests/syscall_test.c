@@ -149,9 +149,19 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | 0x8000, 0) ==
         -EINVAL);
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0) == -EISDIR);
-  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0) ==
-        3);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0);
+  CHECK(fd == 3);
   CHECK(file_node.length == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  reset_file();
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 1, 0) == -ENOSYS);
+  CHECK(file_node.length == 3);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == 0);
+  CHECK(file_node.length == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0, 0) == 0);
   CHECK(vfs_lookup(fs_root, "newdir") != NULL);
