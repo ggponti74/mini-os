@@ -9,10 +9,24 @@
 #include "sys/stat.h"
 #include "sys/syscall.h"
 
+static void report_failure(int line) {
+  char message[16];
+  int n = 0;
+  message[n++] = 'F'; message[n++] = 'A'; message[n++] = 'I';
+  message[n++] = 'L'; message[n++] = ' ';
+  char digits[10]; int count = 0;
+  do { digits[count++] = '0' + line % 10; line /= 10; } while (line);
+  while (count) message[n++] = digits[--count];
+  message[n++] = '\\n';
+  int syscall_number = 4;
+  __asm__ volatile ("int $0x80" : "+a"(syscall_number)
+                    : "b"(2), "c"(message), "d"(n) : "memory");
+}
 #define CHECK(condition)                                                       \
   do {                                                                         \
     if (!(condition)) {                                                        \
       failures++;                                                              \
+      report_failure(__LINE__);                                                \
     }                                                                          \
   } while (0)
 
