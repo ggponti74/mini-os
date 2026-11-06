@@ -106,6 +106,7 @@ static void test_open_read_seek_and_stat(void) {
 
 static void test_open_flags_and_errors(void) {
   int fd;
+  uint8_t read_probe = 0;
 
   reset_file();
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY | O_TRUNC, 0);
@@ -119,23 +120,22 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
   CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"x", 1) == 1);
   CHECK(file_node.length == 4 && file_data[3] == 'x');
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_WRONLY | O_APPEND));
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
-    CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
-    CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
-    CHECK(file_data[0] == 'y' && file_node.length == 4);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
-           O_WRONLY | O_APPEND) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_WRONLY | O_APPEND));
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
-           O_WRONLY | O_APPEND) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+                         O_RDWR | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_READ, fd, (uint32_t)&read_probe, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDONLY) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
+  CHECK(file_data[0] == 'y' && file_node.length == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+                         O_RDWR | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
