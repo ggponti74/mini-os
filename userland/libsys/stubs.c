@@ -316,6 +316,25 @@ int _kill(int pid, int signal) {
     return -1;
 }
 
+int _fork(void) {
+    errno = ENOSYS;
+    return -1;
+}
+
+int _execve(const char *pathname, char *const argv[], char *const envp[]) {
+    (void)pathname;
+    (void)argv;
+    (void)envp;
+    errno = ENOSYS;
+    return -1;
+}
+
+int _wait(int *status) {
+    (void)status;
+    errno = ENOSYS;
+    return -1;
+}
+
 int getpid(void) {
     return _getpid();
 }
