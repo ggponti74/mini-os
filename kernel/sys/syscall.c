@@ -149,6 +149,28 @@ static int open_file(const char *path, uint32_t flags) {
   return -EMFILE;
 }
 
+static void fill_node_stat(struct stat *status, const vfs_node_t *node) {
+  status->st_dev = 0;
+  status->st_ino = node->inode;
+  status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
+                    S_IRUSR | S_IWUSR;
+  status->st_nlink = 1;
+  status->st_uid = 0;
+  status->st_gid = 0;
+  status->st_rdev = 0;
+  status->st_size = node->length;
+  status->st_atim.tv_sec = 0;
+  status->st_atim.tv_nsec = 0;
+  status->st_mtim.tv_sec = 0;
+  status->st_mtim.tv_nsec = 0;
+  status->st_ctim.tv_sec = 0;
+  status->st_ctim.tv_nsec = 0;
+  status->st_blksize = 512;
+  status->st_blocks = (node->length + 511) / 512;
+  status->st_spare4[0] = 0;
+  status->st_spare4[1] = 0;
+}
+
 static int32_t read_stdin(uint8_t *buffer, uint32_t count) {
   while (!stdin_line_ready) {
     int key;
@@ -268,37 +290,47 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return -EFAULT;
     }
 
-    status->st_dev = 0;
-    status->st_nlink = 1;
-    status->st_uid = 0;
-    status->st_gid = 0;
-    status->st_rdev = 0;
-    status->st_atim.tv_sec = 0;
-    status->st_atim.tv_nsec = 0;
-    status->st_mtim.tv_sec = 0;
-    status->st_mtim.tv_nsec = 0;
-    status->st_ctim.tv_sec = 0;
-    status->st_ctim.tv_nsec = 0;
-    status->st_blksize = 512;
-    status->st_blocks = 0;
-    status->st_spare4[0] = 0;
-    status->st_spare4[1] = 0;
     if (fd >= 0 && fd < 3) {
+      status->st_dev = 0;
       status->st_ino = 0;
       status->st_mode = S_IFCHR | S_IRUSR | S_IWUSR;
+      status->st_nlink = 1;
+      status->st_uid = 0;
+      status->st_gid = 0;
+      status->st_rdev = 0;
       status->st_size = 0;
+      status->st_atim.tv_sec = status->st_atim.tv_nsec = 0;
+      status->st_mtim.tv_sec = status->st_mtim.tv_nsec = 0;
+      status->st_ctim.tv_sec = status->st_ctim.tv_nsec = 0;
+      status->st_blksize = 512;
+      status->st_blocks = 0;
+      status->st_spare4[0] = status->st_spare4[1] = 0;
       return 0;
     }
     if (fd >= SYSCALL_FD_COUNT || fd < 0 || !descriptors[fd].used) {
       return -EBADF;
     }
-
-    vfs_node_t *node = descriptors[fd].file->node;
-    status->st_ino = node->inode;
-    status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
-                      S_IRUSR | S_IWUSR;
-    status->st_size = node->length;
-    status->st_blocks = (node->length + 511) / 512;
+    fill_node_stat(status, descriptors[fd].file->node);
+    return 0;
+  }
+  if (number == SYS_STAT) {
+    const char *path = (const char *)arg1;
+    struct stat *status = (struct stat *)arg2;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    if (!path || !status) {
+      return -EFAULT;
+    }
+    if (!path[0]) {
+      return -ENOENT;
+    }
+    if (shell_resolve_path(path, resolved_path, sizeof(resolved_path)) != 0) {
+      return -ENAMETOOLONG;
+    }
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) {
+      return -ENOENT;
+    }
+    fill_node_stat(status, node);
     return 0;
   }
   if (number == SYS_LSEEK) {
