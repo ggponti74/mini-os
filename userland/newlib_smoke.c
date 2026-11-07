@@ -53,6 +53,14 @@ int main(int argc, char **argv) {
   const char payload[] = "newlib";
   char readback[sizeof(payload)] = {0};
   struct stat status;
+
+  errno = 123;
+  if (errno != 123) {
+    printf("errno storage check failed\\n");
+    fflush(stdout);
+    return 18;
+  }
+  errno = 0;
   if (!test_sbrk()) {
     printf("sbrk check failed: %d\n", errno);
     fflush(stdout);
