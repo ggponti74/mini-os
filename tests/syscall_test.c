@@ -185,7 +185,10 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
   char cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
-  CHECK(cwd[0] == '/');
+  CHECK(strings_equal(cwd, "/dir"));
+  char short_cwd[2] = {0};
+  CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)short_cwd,
+                         sizeof(short_cwd), 0) == -ERANGE);
 
   int original_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
   CHECK(original_fd >= 3);
@@ -313,6 +316,40 @@ void *ksbrk(ptrdiff_t increment) {
     return (void *)heap_break;
   }
   return (void *)-1;
+}
+
+static char test_current_directory[128];
+
+int shell_set_current_directory(const char *path) {
+  uint32_t i = 0;
+  if (!path) {
+    return -1;
+  }
+  while (path[i]) {
+    if (i + 1 >= sizeof(test_current_directory)) {
+      return -1;
+    }
+    test_current_directory[i] = path[i];
+    i++;
+  }
+  test_current_directory[i] = '\0';
+  return 0;
+}
+
+int shell_get_current_directory(char *buffer, uint32_t size) {
+  uint32_t length = 0;
+  if (!buffer || size < 2) {
+    return -1;
+  }
+  buffer[length++] = '/';
+  for (uint32_t i = 0; test_current_directory[i]; i++) {
+    if (length + 1 >= size) {
+      return -1;
+    }
+    buffer[length++] = test_current_directory[i];
+  }
+  buffer[length] = '\0';
+  return 0;
 }
 
 int shell_resolve_path(const char *path, char *resolved, uint32_t size) {

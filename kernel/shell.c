@@ -143,6 +143,46 @@ static set_node_t *set_head = NULL;
 
 screen_snapshot_t saved_screen;
 
+int shell_set_current_directory(const char *path)
+{
+  if (!path)
+  {
+    return -1;
+  }
+  uint32_t length = 0;
+  while (path[length] != '\0')
+  {
+    if (length >= sizeof(current_directory) - 1)
+    {
+      return -1;
+    }
+    current_directory[length] = path[length];
+    length++;
+  }
+  current_directory[length] = '\0';
+  return 0;
+}
+
+int shell_get_current_directory(char *buffer, uint32_t size)
+{
+  if (!buffer || size < 2)
+  {
+    return -1;
+  }
+  uint32_t length = 0;
+  buffer[length++] = '/';
+  for (uint32_t i = 0; current_directory[i] != '\0'; i++)
+  {
+    if (length + 1 >= size)
+    {
+      return -1;
+    }
+    buffer[length++] = current_directory[i];
+  }
+  buffer[length] = '\0';
+  return 0;
+}
+
 int shell_resolve_path(const char *path, char *resolved, uint32_t size)
 {
   if (!path || !resolved || size == 0)

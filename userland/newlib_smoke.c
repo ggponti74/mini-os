@@ -67,6 +67,20 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  char cwd[2];
+  if (chdir("/") != 0 || getcwd(cwd, sizeof(cwd)) != cwd ||
+      strcmp(cwd, "/") != 0) {
+    printf("root working directory check failed: %d\n", errno);
+    fflush(stdout);
+    return 19;
+  }
+  errno = 0;
+  if (getcwd(cwd, 1) != NULL || errno != ERANGE) {
+    printf("short getcwd buffer check failed: %d\n", errno);
+    fflush(stdout);
+    return 20;
+  }
+
   if (_getpid() != 1 || getpid() != 1) {
     printf("getpid check failed\n");
     fflush(stdout);

@@ -460,9 +460,12 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                           sizeof(resolved_path)) != 0) {
       return -ENAMETOOLONG;
     }
-    if (!vfs_lookup(fs_root, resolved_path) ||
-        !(vfs_lookup(fs_root, resolved_path)->flags & FS_DIRECTORY)) {
+    vfs_node_t *directory = vfs_lookup(fs_root, resolved_path);
+    if (!directory || !(directory->flags & FS_DIRECTORY)) {
       return -ENOTDIR;
+    }
+    if (shell_set_current_directory(resolved_path) != 0) {
+      return -ENAMETOOLONG;
     }
     return 0;
   }
@@ -472,15 +475,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (!buffer || size == 0) {
       return -EINVAL;
     }
-    const char *cwd = "/";
-    uint32_t length = 1;
-    if (length >= size) {
+    if (shell_get_current_directory(buffer, size) != 0) {
       return -ERANGE;
     }
-    for (uint32_t i = 0; i < length; i++) {
-      buffer[i] = cwd[i];
-    }
-    buffer[length] = '\0';
     return 0;
   }
   if (number == SYS_DUP) {
