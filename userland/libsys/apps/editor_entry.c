@@ -138,12 +138,18 @@ static int save_file(int fd, const editor_buffer_t *buffer) {
   return 0;
 }
 
+static int append_loaded_character(editor_buffer_t *buffer, char value) {
+  buffer->cursor = buffer->length;
+  return editor_buffer_insert(buffer, value);
+}
+
 int editor_entry(int argc, char **argv) {
   editor_buffer_t buffer;
   const char *filename;
   const char *status = "";
   int fd;
   int dirty = 0;
+  int pending_cr = 0;
   char chunk[512];
 
   if (argc < 2 || !argv[1] || argv[1][0] == '\0') {
@@ -169,13 +175,34 @@ int editor_entry(int argc, char **argv) {
       break;
     }
     for (int i = 0; i < count; i++) {
-      buffer.cursor = buffer.length;
-      if (editor_buffer_insert(&buffer, chunk[i]) != 0) {
+      char value = chunk[i];
+
+      if (pending_cr) {
+        if (append_loaded_character(&buffer, '\n') != 0) {
+          editor_syscall(SYS_CLOSE, fd, 0, 0);
+          write_string("edit: could not allocate file buffer\n");
+          return 1;
+        }
+        pending_cr = 0;
+        if (value == '\n') {
+          continue;
+        }
+      }
+
+      if (value == '\r') {
+        pending_cr = 1;
+      } else if (append_loaded_character(&buffer, value) != 0) {
         editor_syscall(SYS_CLOSE, fd, 0, 0);
         write_string("edit: could not allocate file buffer\n");
         return 1;
       }
     }
+  }
+
+  if (pending_cr && append_loaded_character(&buffer, '\n') != 0) {
+    editor_syscall(SYS_CLOSE, fd, 0, 0);
+    write_string("edit: could not allocate file buffer\n");
+    return 1;
   }
   buffer.cursor = 0;
 
