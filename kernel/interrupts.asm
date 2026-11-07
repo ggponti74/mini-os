@@ -1,4 +1,5 @@
 [bits 32]
+%define SYS_EXIT 1
 global idt_load
 global isr_default_stub
 global irq0_timer_stub
@@ -8,6 +9,7 @@ global syscall_stub
 extern hal_timer_irq_handler
 extern keyboard_handler
 extern syscall_dispatch
+extern exec_app_exit
 
 ; Load IDT table into CPU IDTR
 idt_load:
@@ -88,6 +90,12 @@ syscall_stub:
     push dword [esi + 28]
     call syscall_dispatch
     add esp, 16
+    cmp dword [esi + 28], SYS_EXIT
+    jne .syscall_return
+    push eax
+    call exec_app_exit
+    add esp, 4
+.syscall_return:
     mov [esi + 28], eax
     popa
     iretd

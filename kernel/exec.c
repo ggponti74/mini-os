@@ -8,6 +8,9 @@
 #include "memory_layout.h"
 #include "sys/syscall.h"
 
+extern int exec_app_call(int (*entry)(int argc, char **argv), int argc,
+                         char **argv);
+
 int exec_flat_binary(const char *path, int argc, char **argv) {
 
   // 1. Look up the binary file in the VFS / RAMDisk pool
@@ -35,7 +38,7 @@ int exec_flat_binary(const char *path, int argc, char **argv) {
   syscall_reset_app_heap();
   typedef int (*binary_main_t)(int argc, char **argv);
   binary_main_t entry = (binary_main_t)binary_image;
-  int result = entry(argc, argv);
+  int result = exec_app_call(entry, argc, argv);
   syscall_reset_app_heap();
   return result;
 }
