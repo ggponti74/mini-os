@@ -119,6 +119,13 @@ static int open_file(const char *path, uint32_t flags) {
     return -EISDIR;
   }
 
+  uint32_t permissions = node->mode & 0777;
+  if ((access_mode != O_WRONLY && !(permissions & S_IRUSR)) ||
+      ((access_mode == O_WRONLY || access_mode == O_RDWR) &&
+       !(permissions & S_IWUSR))) {
+    return -EACCES;
+  }
+
   for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
     if (!descriptors[fd].used) {
       syscall_open_file_t *file = NULL;
