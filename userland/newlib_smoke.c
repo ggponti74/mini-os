@@ -81,6 +81,19 @@ int main(int argc, char **argv) {
     return 20;
   }
 
+  if (access("newlib-smoke.dat", F_OK) == 0) {
+    /* The file is created later in this smoke test. */
+    printf("unexpected pre-existing smoke file\\n");
+    fflush(stdout);
+    return 25;
+  }
+  errno = 0;
+  if (access("newlib-cwd-test", 0) == 0 || errno != ENOENT) {
+    printf("access missing-path check failed: %d\\n", errno);
+    fflush(stdout);
+    return 26;
+  }
+
   struct stat directory_status;
   if (mkdir("newlib-cwd-test", 0700) != 0 ||
       stat("newlib-cwd-test", &directory_status) != 0 ||
