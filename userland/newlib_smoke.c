@@ -81,8 +81,15 @@ int main(int argc, char **argv) {
     return 20;
   }
 
+  struct stat directory_status;
   if (mkdir("newlib-cwd-test", 0700) != 0 ||
-      chdir("newlib-cwd-test") != 0) {
+      stat("newlib-cwd-test", &directory_status) != 0 ||
+      !S_ISDIR(directory_status.st_mode)) {
+    printf("stat directory check failed: %d\\n", errno);
+    fflush(stdout);
+    return 24;
+  }
+  if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
     fflush(stdout);
     return 21;
