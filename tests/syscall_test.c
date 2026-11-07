@@ -183,6 +183,9 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"tmpdir", 0, 0) == 0);
 
   CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"file", F_OK, 0) == 0);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"file", R_OK | W_OK, 0) == 0);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"file", X_OK, 0) == -EACCES);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"file", 8, 0) == -EINVAL);
   CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"missing", F_OK, 0) == -ENOENT);
   CHECK(syscall_dispatch(SYS_RENAME, (uint32_t)"file", (uint32_t)"renamed", 0) == 0);
   CHECK(vfs_lookup(fs_root, "renamed") != NULL);
