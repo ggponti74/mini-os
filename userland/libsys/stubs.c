@@ -5,8 +5,12 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "memory_layout.h"
+
+extern char _end[];
 
 #define SYS_SBRK 7
+#define SYS_APP_SBRK 26
 #define SYS_FSTAT 8
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12

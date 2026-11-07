@@ -194,7 +194,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     void *result = ksbrk((int32_t)arg1);
     return result == (void *)-1 ? -ENOMEM : (int32_t)result;
   }
-  if (number == SYS_SBRK) {
+  if (number == SYS_APP_SBRK) {
     return app_sbrk((int32_t)arg1, arg2, arg3);
   }
   if (number == SYS_EXIT) {
@@ -534,17 +534,6 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       if (arg3 & ~(O_ACCMODE | O_APPEND)) {
         return -EINVAL;
       }
-      uint32_t access_mode = file->readable
-                                 ? (file->writable ? O_RDWR : O_RDONLY)
-                                 : O_WRONLY;
-      if (arg3 & O_ACCMODE) {
-        access_mode = arg3 & O_ACCMODE;
-        if (access_mode == O_ACCMODE) {
-          return -EINVAL;
-        }
-        file->readable = access_mode != O_WRONLY;
-        file->writable = access_mode == O_WRONLY || access_mode == O_RDWR;
-      }
       file->append = (arg3 & O_APPEND) != 0;
       return 0;
     }
@@ -570,6 +559,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
         !descriptors[fd].file->writable) {
       return -EBADF;
+    }
+    if (arg2 != 0) {
+      return -ENOSYS;
     }
     descriptors[fd].file->node->length = 0;
     descriptors[fd].file->offset = 0;

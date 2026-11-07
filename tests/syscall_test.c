@@ -16,6 +16,9 @@
     }                                                                          \
   } while (0)
 
+_Static_assert(SYS_APP_SBRK == 26 && SYS_APP_SBRK != SYS_SBRK,
+               "application heap syscall number");
+
 _Static_assert(sizeof(struct stat) == 72 &&
                    offsetof(struct stat, st_size) == 16 &&
                    offsetof(struct stat, st_atim) == 20 &&
@@ -103,6 +106,7 @@ static void test_open_read_seek_and_stat(void) {
 
 static void test_open_flags_and_errors(void) {
   int fd;
+  uint8_t read_probe = 0;
 
   reset_file();
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY | O_TRUNC, 0);
@@ -116,22 +120,22 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
   CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"x", 1) == 1);
   CHECK(file_node.length == 4 && file_data[3] == 'x');
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_WRONLY | O_APPEND));
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
-    CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
-    CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
-    CHECK(file_data[0] == 'y' && file_node.length == 4);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDWR | O_APPEND) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_RDWR | O_APPEND));
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDONLY) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_RDONLY);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
-           O_WRONLY | O_APPEND) == 0);
-    CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
-      (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+                         O_RDWR | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_READ, fd, (uint32_t)&read_probe, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_RDONLY) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"y", 1) == 1);
+  CHECK(file_data[0] == 'y' && file_node.length == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+                         O_RDWR | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
@@ -145,9 +149,19 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | 0x8000, 0) ==
         -EINVAL);
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0) == -EISDIR);
-  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0) ==
-        3);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0);
+  CHECK(fd == 3);
   CHECK(file_node.length == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  reset_file();
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 1, 0) == -ENOSYS);
+  CHECK(file_node.length == 3);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == 0);
+  CHECK(file_node.length == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0, 0) == 0);
   CHECK(vfs_lookup(fs_root, "newdir") != NULL);
@@ -164,7 +178,10 @@ static void test_open_flags_and_errors(void) {
   CHECK(vfs_lookup(fs_root, "renamed") != NULL);
   CHECK(vfs_lookup(fs_root, "file") == NULL);
   CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0644, 0) == 0);
-  CHECK(syscall_dispatch(SYS_FCHMOD, 3, (uint32_t)0600, 0) == 0);
+  int chmod_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
+  CHECK(chmod_fd >= 3);
+  CHECK(syscall_dispatch(SYS_FCHMOD, chmod_fd, (uint32_t)0600, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, chmod_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
   char cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
@@ -210,7 +227,7 @@ static void test_app_sbrk(void) {
   const uint32_t next_base = USER_APP_LOAD_BASE + 0x2000;
 
   syscall_reset_app_heap();
-  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base - 1, USER_APP_HEAP_LIMIT) ==
+  CHECK(syscall_dispatch(SYS_APP_SBRK, 0, USER_APP_LOAD_BASE - 1, USER_APP_HEAP_LIMIT) ==
         -EINVAL);
   CHECK(syscall_dispatch(SYS_APP_SBRK, 0, base, USER_APP_HEAP_LIMIT - 1) ==
         -EINVAL);
