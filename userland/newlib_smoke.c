@@ -81,19 +81,6 @@ int main(int argc, char **argv) {
     return 20;
   }
 
-  if (access("newlib-smoke.dat", F_OK) == 0) {
-    /* The file is created later in this smoke test. */
-    printf("unexpected pre-existing smoke file\\n");
-    fflush(stdout);
-    return 25;
-  }
-  errno = 0;
-  if (access("newlib-cwd-test", 0) == 0 || errno != ENOENT) {
-    printf("access missing-path check failed: %d\\n", errno);
-    fflush(stdout);
-    return 26;
-  }
-
   struct stat directory_status;
   if (mkdir("newlib-cwd-test", 0700) != 0 ||
       stat("newlib-cwd-test", &directory_status) != 0 ||
@@ -101,6 +88,17 @@ int main(int argc, char **argv) {
     printf("stat directory check failed: %d\n", errno);
     fflush(stdout);
     return 24;
+  }
+  if (access("newlib-cwd-test", F_OK) != 0) {
+    printf("access existence check failed: %d\\n", errno);
+    fflush(stdout);
+    return 25;
+  }
+  errno = 0;
+  if (access("newlib-cwd-test", X_OK) == 0 || errno != EACCES) {
+    printf("access execute-permission check failed: %d\\n", errno);
+    fflush(stdout);
+    return 26;
   }
   if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
