@@ -195,8 +195,12 @@ static void test_open_flags_and_errors(void) {
   CHECK(file_node.length == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
-  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0750, 0) == 0);
   CHECK(vfs_lookup(fs_root, "newdir") != NULL);
+  struct stat mkdir_status;
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"newdir",
+                         (uint32_t)&mkdir_status, 0) == 0);
+  CHECK((mkdir_status.st_mode & 0777) == 0750);
   CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"newdir", 0, 0) == 0);
   CHECK(vfs_lookup(fs_root, "newdir") == NULL);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"tmpdir", 0, 0) == 0);

@@ -125,8 +125,7 @@ int _ftruncate(int fd, off_t length) {
 }
 
 int _mkdir(const char *pathname, mode_t mode) {
-    (void)mode;
-    return syscall_result(syscall3(SYS_MKDIR, (int)pathname, 0, 0));
+    return syscall_result(syscall3(SYS_MKDIR, (int)pathname, (int)mode, 0));
 }
 
 int _rmdir(const char *pathname) {

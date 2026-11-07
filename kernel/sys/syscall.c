@@ -390,9 +390,11 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (vfs_lookup(fs_root, resolved_path)) {
       return -EEXIST;
     }
-    if (!vfs_create(fs_root, resolved_path, FS_DIRECTORY)) {
+    vfs_node_t *directory = vfs_create(fs_root, resolved_path, FS_DIRECTORY);
+    if (!directory) {
       return -EACCES;
     }
+    directory->mode = arg2 & 0777;
     return 0;
   }
   if (number == SYS_RMDIR) {
