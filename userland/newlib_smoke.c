@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/times.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -42,6 +45,8 @@ extern int _kill(int pid, int signal);
 extern int _fork(void);
 extern int _execve(const char *pathname, char *const argv[], char *const envp[]);
 extern int _wait(int *status);
+extern int _gettimeofday(struct timeval *time, void *timezone);
+extern clock_t _times(struct tms *buffer);
 
 int main(int argc, char **argv) {
   const char payload[] = "newlib";
@@ -82,6 +87,21 @@ int main(int argc, char **argv) {
     printf("wait check failed: %d\n", errno);
     fflush(stdout);
     return 14;
+  }
+
+  struct timeval current_time;
+  errno = 0;
+  if (_gettimeofday(&current_time, NULL) != -1 || errno != ENOSYS) {
+    printf("gettimeofday check failed: %d\n", errno);
+    fflush(stdout);
+    return 15;
+  }
+  struct tms process_times;
+  errno = 0;
+  if (_times(&process_times) != (clock_t)-1 || errno != ENOSYS) {
+    printf("times check failed: %d\n", errno);
+    fflush(stdout);
+    return 16;
   }
 
   char *allocation = malloc(128);
