@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 21;
   }
-  char nested_cwd[32];
+  char nested_cwd[32] = {0};
   if (getcwd(nested_cwd, sizeof(nested_cwd)) != nested_cwd ||
       strcmp(nested_cwd, "/newlib-cwd-test") != 0) {
     printf("nested getcwd check failed: %s (%d)\n",
