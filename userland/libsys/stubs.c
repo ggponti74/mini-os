@@ -71,6 +71,7 @@ static int syscall_result(int result) {
 // 1. Process Exit Stub
 void _exit(int status) {
     syscall3(1, status, 0, 0);
+    /* Reached only if the kernel has no active application to exit. */
     while (1) { __asm__ volatile("hlt"); }
 }
 

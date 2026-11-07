@@ -245,5 +245,5 @@ int main(int argc, char **argv) {
   printf("Newlib syscall smoke test passed\n");
   int flush_result = fflush(stdout);
   free(allocation);
-  return flush_result == 0 ? 0 : 9;
+  exit(flush_result == 0 ? 0 : 9);
 }
