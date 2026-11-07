@@ -51,6 +51,5 @@ struct stat {
 #define S_IXOTH  00001
 #define S_IRWXG  00070
 #define S_IRWXO  00007
-#define S_IRWXU  00700
 
 #endif
