@@ -47,6 +47,7 @@ extern int _execve(const char *pathname, char *const argv[], char *const envp[])
 extern int _wait(int *status);
 extern int _gettimeofday(struct timeval *time, void *timezone);
 extern clock_t _times(struct tms *buffer);
+extern int _link(const char *existing, const char *newpath);
 
 int main(int argc, char **argv) {
   const char payload[] = "newlib";
@@ -87,6 +88,14 @@ int main(int argc, char **argv) {
     printf("wait check failed: %d\n", errno);
     fflush(stdout);
     return 14;
+  }
+
+  errno = 0;
+  if (_link("newlib-smoke.dat", "newlib-smoke.link") != -1 ||
+      errno != ENOSYS) {
+    printf("link check failed: %d\\n", errno);
+    fflush(stdout);
+    return 17;
   }
 
   struct timeval current_time;
