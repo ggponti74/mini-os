@@ -428,6 +428,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   }
   if (number == SYS_ACCESS) {
     char resolved_path[SYSCALL_PATH_LENGTH];
+    if (arg2 & ~(R_OK | W_OK | X_OK)) {
+      return -EINVAL;
+    }
     if (!arg1 || !((const char *)arg1)[0]) {
       return -ENOENT;
     }
@@ -435,13 +438,25 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                           sizeof(resolved_path)) != 0) {
       return -ENAMETOOLONG;
     }
-    if (!vfs_lookup(fs_root, resolved_path)) {
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) {
       return -ENOENT;
     }
-    if (arg2 == F_OK || (arg2 & (R_OK | W_OK | X_OK))) {
+    if (arg2 == F_OK) {
       return 0;
     }
-    return -EINVAL;
+    uint32_t permissions = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
+                           S_IRUSR | S_IWUSR;
+    if ((arg2 & R_OK) && !(permissions & S_IRUSR)) {
+      return -EACCES;
+    }
+    if ((arg2 & W_OK) && !(permissions & S_IWUSR)) {
+      return -EACCES;
+    }
+    if ((arg2 & X_OK) && !(permissions & S_IXUSR)) {
+      return -EACCES;
+    }
+    return 0;
   }
   if (number == SYS_RENAME) {
     char old_path[SYSCALL_PATH_LENGTH];

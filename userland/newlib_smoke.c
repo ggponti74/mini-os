@@ -89,6 +89,17 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 24;
   }
+  if (access("newlib-cwd-test", F_OK) != 0) {
+    printf("access existence check failed: %d\\n", errno);
+    fflush(stdout);
+    return 25;
+  }
+  errno = 0;
+  if (access("newlib-cwd-test", X_OK) == 0 || errno != EACCES) {
+    printf("access execute-permission check failed: %d\\n", errno);
+    fflush(stdout);
+    return 26;
+  }
   if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
     fflush(stdout);
