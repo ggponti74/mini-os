@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 
   errno = 123;
   if (errno != 123) {
-    printf("errno storage check failed\\n");
+    printf("errno storage check failed\n");
     fflush(stdout);
     return 18;
   }
