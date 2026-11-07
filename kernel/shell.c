@@ -165,7 +165,7 @@ int shell_set_current_directory(const char *path)
 
 int shell_get_current_directory(char *buffer, uint32_t size)
 {
-  if (!buffer || size == 0)
+  if (!buffer || size < 2)
   {
     return -1;
   }
