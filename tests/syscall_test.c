@@ -167,8 +167,12 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
-                        O_CREAT | O_EXCL | O_RDWR, 0);
+                        O_CREAT | O_EXCL | O_RDWR, 0640);
   CHECK(fd == 3);
+  struct stat created_status;
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"created",
+                         (uint32_t)&created_status, 0) == 0);
+  CHECK((created_status.st_mode & 0777) == 0640);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"created",
                          O_CREAT | O_EXCL | O_RDWR, 0) == -EEXIST);
