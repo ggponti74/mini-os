@@ -439,6 +439,7 @@ vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
     }
     created_exists = 1;
     created_node.flags = FS_FILE;
+    created_node.mode = 0600;
     created_node.length = 0;
     created_node.inode = 99;
     created_node.device_data = created_data;
