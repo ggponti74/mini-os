@@ -79,7 +79,7 @@ static int32_t app_sbrk(int32_t increment, uint32_t base, uint32_t limit) {
   return (int32_t)previous_break;
 }
 
-static int open_file(const char *path, uint32_t flags) {
+static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   uint32_t access_mode = flags & O_ACCMODE;
   uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
   if ((flags & ~supported_flags) != 0 || access_mode == 3 ||
@@ -106,11 +106,13 @@ static int open_file(const char *path, uint32_t flags) {
     return -ENOENT;
   }
   vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+  int created = 0;
   if (node && (flags & O_CREAT) && (flags & O_EXCL)) {
     return -EEXIST;
   }
   if (!node && (flags & OPEN_CREAT)) {
     node = vfs_create(fs_root, resolved_path, FS_FILE);
+    created = node != NULL;
   }
   if (!node) {
     return -ENOENT;
@@ -118,11 +120,15 @@ static int open_file(const char *path, uint32_t flags) {
   if (node->flags & FS_DIRECTORY) {
     return -EISDIR;
   }
+  if (created) {
+    node->mode = mode & 0777;
+  }
 
   uint32_t permissions = node->mode & 0777;
-  if ((access_mode != O_WRONLY && !(permissions & S_IRUSR)) ||
-      ((access_mode == O_WRONLY || access_mode == O_RDWR) &&
-       !(permissions & S_IWUSR))) {
+  if (!created &&
+      ((access_mode != O_WRONLY && !(permissions & S_IRUSR)) ||
+       ((access_mode == O_WRONLY || access_mode == O_RDWR) &&
+        !(permissions & S_IWUSR)))) {
     return -EACCES;
   }
 
@@ -230,7 +236,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     return (int32_t)arg1;
   }
   if (number == SYS_OPEN) {
-    return open_file((const char *)arg1, arg2);
+    return open_file((const char *)arg1, arg2, arg3);
   }
   if (number == SYS_READ) {
     int fd = (int)arg1;
