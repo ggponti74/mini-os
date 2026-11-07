@@ -12,6 +12,13 @@
 
 extern char _end[];
 
+/* The kernel errno header maps errno to this per-process storage. */
+static int libsys_errno;
+
+int *__errno_location(void) {
+    return &libsys_errno;
+}
+
 #define SYS_SBRK 7
 #define SYS_APP_SBRK 26
 #define SYS_FSTAT 8
