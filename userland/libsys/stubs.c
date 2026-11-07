@@ -36,6 +36,7 @@ int *__errno_location(void) {
 #define SYS_DUP 23
 #define SYS_DUP2 24
 #define SYS_FCNTL 25
+#define SYS_STAT 27
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -103,21 +104,7 @@ int _fstat(int fd, struct stat *status) {
 }
 
 int _stat(const char *path, struct stat *status) {
-    int fd = _open(path, O_RDONLY, 0);
-    if (fd < 0) {
-        return -1;
-    }
-
-    int result = _fstat(fd, status);
-    int close_result = _close(fd);
-    if (result < 0) {
-        return -1;
-    }
-    if (close_result < 0) {
-        errno = EBADF;
-        return -1;
-    }
-    return 0;
+    return syscall_result(syscall3(SYS_STAT, (int)path, (int)status, 0));
 }
 
 int _isatty(int fd) {
