@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$InstallPath = (Join-Path $env:LOCALAPPDATA "mini-os-toolchains\i686-elf-15.2.0")
+    [string]$InstallPath = (Join-Path "D:\" "Windows\i686-elf-15.2.0")
 )
 
 $ErrorActionPreference = "Stop"
