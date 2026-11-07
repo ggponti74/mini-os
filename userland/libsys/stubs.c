@@ -42,12 +42,6 @@ extern char _end[];
 #define X_OK 1
 #endif
 
-static int syscall_errno;
-
-int *__errno_location(void) {
-    return &syscall_errno;
-}
-
 static int syscall3(int number, int arg1, int arg2, int arg3) {
     __asm__ volatile (
         "int $0x80"
