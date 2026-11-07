@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
   if (mkdir("newlib-cwd-test", 0700) != 0 ||
       stat("newlib-cwd-test", &directory_status) != 0 ||
       !S_ISDIR(directory_status.st_mode)) {
-    printf("stat directory check failed: %d\\n", errno);
+    printf("stat directory check failed: %d\n", errno);
     fflush(stdout);
     return 24;
   }
