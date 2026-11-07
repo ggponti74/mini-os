@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ToolchainPath = (Join-Path "D:\m" "Windows\i686-elf-15.2.0"),
+    [string]$ToolchainPath = (Join-Path "D:\" "Windows\i686-elf-15.2.0"),
     [ValidateSet("kernel", "image", "iso", "newlib-smoke")]
     [string]$Target = "kernel"
 )
