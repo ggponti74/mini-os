@@ -148,6 +148,13 @@ int _unlink(const char *pathname) {
     return syscall_result(syscall3(SYS_UNLINK, (int)pathname, 0, 0));
 }
 
+int _link(const char *existing, const char *newpath) {
+    (void)existing;
+    (void)newpath;
+    errno = ENOSYS;
+    return -1;
+}
+
 int _access(const char *pathname, int mode) {
     return syscall_result(syscall3(SYS_ACCESS, (int)pathname, mode, 0));
 }
