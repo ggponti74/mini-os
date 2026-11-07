@@ -25,7 +25,8 @@ typedef struct vfs_node {
     char name[128];
     uint32_t flags;       // FS_FILE or FS_DIRECTORY
     uint32_t length;      // Size of the file in bytes
-    uint32_t inode;       
+    uint32_t inode;
+    uint32_t mode;        // Permission bits (0777)
     
     // File operations
     vfs_read_t   read;

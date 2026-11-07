@@ -517,6 +517,7 @@ static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name,
     item->node.name[i] = full_name[i];
   }
   item->node.flags = flags;
+  item->node.mode = 0600;
   item->node.length = 0;
   item->node.inode = node_count;
   item->node.read = flags == FS_FILE ? initrd_read_file : NULL;
@@ -534,6 +535,7 @@ vfs_node_t *initrd_init(void) {
   extended_file_data = (uint8_t *)INITRD_FILE_STORAGE_BASE;
   initrd_root.name[0] = '\0';
   initrd_root.flags = FS_DIRECTORY;
+  initrd_root.mode = 0700;
   initrd_root.create = initrd_create_file;
   fs_root = &initrd_root;
 

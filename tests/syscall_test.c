@@ -58,6 +58,7 @@ static void reset_file(void) {
   file_data[1] = 'b';
   file_data[2] = 'c';
   file_node.flags = FS_FILE;
+  file_node.mode = 0600;
   file_node.length = 3;
   file_node.inode = 42;
   file_node.device_data = file_data;
@@ -191,9 +192,21 @@ static void test_open_flags_and_errors(void) {
   CHECK(vfs_lookup(fs_root, "renamed") != NULL);
   CHECK(vfs_lookup(fs_root, "file") == NULL);
   CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0644, 0) == 0);
+  struct stat chmod_status;
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"renamed",
+                         (uint32_t)&chmod_status, 0) == 0);
+  CHECK((chmod_status.st_mode & 0777) == 0644);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"renamed", X_OK, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0755, 0) ==
+        0);
+  CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"renamed", X_OK, 0) == 0);
   int chmod_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
   CHECK(chmod_fd >= 3);
   CHECK(syscall_dispatch(SYS_FCHMOD, chmod_fd, (uint32_t)0600, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FSTAT, chmod_fd, (uint32_t)&chmod_status, 0) ==
+        0);
+  CHECK((chmod_status.st_mode & 0777) == 0600);
   CHECK(syscall_dispatch(SYS_CLOSE, chmod_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
   char cwd[32] = {0};
@@ -282,6 +295,7 @@ static void test_app_sbrk(void) {
 static int32_t test_main(void) {
   reset_file();
   directory_node.flags = FS_DIRECTORY;
+  directory_node.mode = 0700;
   directory_node.inode = 7;
   created_exists = 0;
   keyboard_key_count = 0;

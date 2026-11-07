@@ -153,7 +153,7 @@ static void fill_node_stat(struct stat *status, const vfs_node_t *node) {
   status->st_dev = 0;
   status->st_ino = node->inode;
   status->st_mode = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
-                    S_IRUSR | S_IWUSR;
+                    (node->mode & 0777);
   status->st_nlink = 1;
   status->st_uid = 0;
   status->st_gid = 0;
@@ -445,8 +445,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (arg2 == F_OK) {
       return 0;
     }
-    uint32_t permissions = (node->flags & FS_DIRECTORY ? S_IFDIR : S_IFREG) |
-                           S_IRUSR | S_IWUSR;
+    uint32_t permissions = node->mode & 0777;
     if ((arg2 & R_OK) && !(permissions & S_IRUSR)) {
       return -EACCES;
     }
@@ -486,9 +485,11 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                           sizeof(resolved_path)) != 0) {
       return -ENAMETOOLONG;
     }
-    if (!vfs_lookup(fs_root, resolved_path)) {
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) {
       return -ENOENT;
     }
+    node->mode = arg2 & 0777;
     return 0;
   }
   if (number == SYS_FCHMOD) {
@@ -496,6 +497,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
       return -EBADF;
     }
+    descriptors[fd].file->node->mode = arg2 & 0777;
     return 0;
   }
   if (number == SYS_CHDIR) {
