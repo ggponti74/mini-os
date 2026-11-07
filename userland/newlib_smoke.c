@@ -39,6 +39,9 @@ _Static_assert(sizeof(struct stat) == 72 &&
 
 extern int _getpid(void);
 extern int _kill(int pid, int signal);
+extern int _fork(void);
+extern int _execve(const char *pathname, char *const argv[], char *const envp[]);
+extern int _wait(int *status);
 
 int main(int argc, char **argv) {
   const char payload[] = "newlib";
@@ -60,6 +63,25 @@ int main(int argc, char **argv) {
     printf("kill check failed: %d\n", errno);
     fflush(stdout);
     return 11;
+  }
+
+  errno = 0;
+  if (_fork() != -1 || errno != ENOSYS) {
+    printf("fork check failed: %d\n", errno);
+    fflush(stdout);
+    return 12;
+  }
+  errno = 0;
+  if (_execve("program", NULL, NULL) != -1 || errno != ENOSYS) {
+    printf("execve check failed: %d\n", errno);
+    fflush(stdout);
+    return 13;
+  }
+  errno = 0;
+  if (_wait(NULL) != -1 || errno != ENOSYS) {
+    printf("wait check failed: %d\n", errno);
+    fflush(stdout);
+    return 14;
   }
 
   char *allocation = malloc(128);
