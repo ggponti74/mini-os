@@ -81,6 +81,26 @@ int main(int argc, char **argv) {
     return 20;
   }
 
+  if (mkdir("newlib-cwd-test", 0700) != 0 ||
+      chdir("newlib-cwd-test") != 0) {
+    printf("nested chdir check failed: %d\n", errno);
+    fflush(stdout);
+    return 21;
+  }
+  char nested_cwd[32];
+  if (getcwd(nested_cwd, sizeof(nested_cwd)) != nested_cwd ||
+      strcmp(nested_cwd, "/newlib-cwd-test") != 0) {
+    printf("nested getcwd check failed: %s (%d)\n",
+           nested_cwd, errno);
+    fflush(stdout);
+    return 22;
+  }
+  if (chdir("/") != 0 || rmdir("newlib-cwd-test") != 0) {
+    printf("return-to-root check failed: %d\n", errno);
+    fflush(stdout);
+    return 23;
+  }
+
   if (_getpid() != 1 || getpid() != 1) {
     printf("getpid check failed\n");
     fflush(stdout);
