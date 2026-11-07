@@ -17,7 +17,7 @@ static void report_failure(int line) {
   char digits[10]; int count = 0;
   do { digits[count++] = '0' + line % 10; line /= 10; } while (line);
   while (count) message[n++] = digits[--count];
-  message[n++] = '\\n';
+  message[n++] = '\n';
   int syscall_number = 4;
   __asm__ volatile ("int $0x80" : "+a"(syscall_number)
                     : "b"(2), "c"(message), "d"(n) : "memory");
