@@ -3,6 +3,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/times.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "memory_layout.h"
@@ -333,6 +336,19 @@ int _wait(int *status) {
     (void)status;
     errno = ENOSYS;
     return -1;
+}
+
+int _gettimeofday(struct timeval *time, void *timezone) {
+    (void)time;
+    (void)timezone;
+    errno = ENOSYS;
+    return -1;
+}
+
+clock_t _times(struct tms *buffer) {
+    (void)buffer;
+    errno = ENOSYS;
+    return (clock_t)-1;
 }
 
 int getpid(void) {
