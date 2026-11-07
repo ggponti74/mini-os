@@ -120,6 +120,23 @@ static void test_open_flags_and_errors(void) {
   uint8_t read_probe = 0;
 
   reset_file();
+  file_node.mode = 0400;
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0) == -EACCES);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  reset_file();
+  file_node.mode = 0200;
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0) ==
+        -EACCES);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  reset_file();
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY | O_TRUNC, 0);
   CHECK(fd == 3);
   CHECK(file_node.length == 0);
@@ -422,6 +439,7 @@ vfs_node_t *vfs_create(vfs_node_t *parent, const char *name, uint32_t flags) {
     }
     created_exists = 1;
     created_node.flags = FS_FILE;
+    created_node.mode = 0600;
     created_node.length = 0;
     created_node.inode = 99;
     created_node.device_data = created_data;
