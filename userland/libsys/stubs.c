@@ -305,13 +305,21 @@ void *sbrk(ptrdiff_t incr) {
     return _sbrk(incr);
 }
 
-int getpid(void) {
+int _getpid(void) {
     return 1;
 }
 
-int kill(int pid, int signal) {
+int _kill(int pid, int signal) {
     (void)pid;
     (void)signal;
     errno = ENOSYS;
     return -1;
+}
+
+int getpid(void) {
+    return _getpid();
+}
+
+int kill(int pid, int signal) {
+    return _kill(pid, signal);
 }
