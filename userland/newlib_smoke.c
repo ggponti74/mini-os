@@ -37,6 +37,9 @@ _Static_assert(sizeof(struct stat) == 72 &&
                    offsetof(struct stat, st_blocks) == 60,
                "Newlib i686 stat ABI");
 
+extern int _getpid(void);
+extern int _kill(int pid, int signal);
+
 int main(int argc, char **argv) {
   const char payload[] = "newlib";
   char readback[sizeof(payload)] = {0};
@@ -45,6 +48,18 @@ int main(int argc, char **argv) {
     printf("sbrk check failed: %d\n", errno);
     fflush(stdout);
     return 1;
+  }
+
+  if (_getpid() != 1 || getpid() != 1) {
+    printf("getpid check failed\n");
+    fflush(stdout);
+    return 10;
+  }
+  errno = 0;
+  if (_kill(1, 0) != -1 || errno != ENOSYS) {
+    printf("kill check failed: %d\n", errno);
+    fflush(stdout);
+    return 11;
   }
 
   char *allocation = malloc(128);
