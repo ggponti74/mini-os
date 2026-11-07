@@ -73,6 +73,16 @@ static void test_open_read_seek_and_stat(void) {
   CHECK(status.st_blocks == 0);
   CHECK(syscall_dispatch(SYS_FSTAT, 1, (uint32_t)&status, 0) == 0);
   CHECK(S_ISCHR(status.st_mode));
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"file",
+                         (uint32_t)&status, 0) == 0);
+  CHECK(S_ISREG(status.st_mode) && status.st_ino == 42 &&
+        status.st_size == 3);
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"dir",
+                         (uint32_t)&status, 0) == 0);
+  CHECK(S_ISDIR(status.st_mode) && status.st_ino == 7);
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"missing",
+                         (uint32_t)&status, 0) == -ENOENT);
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"dir", 0, 0) == -EFAULT);
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
 
   CHECK(fd == 3);
