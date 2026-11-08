@@ -40,6 +40,7 @@ int *__errno_location(void) {
 #define SYS_UMASK 28
 #define SYS_CLOCK_GETTIME 29
 #define SYS_NANOSLEEP 30
+#define SYS_GETTIMEOFDAY 31
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -264,6 +265,9 @@ int clock_gettime(clockid_t clock_id, struct timespec *time) {
 int nanosleep(const struct timespec *request, struct timespec *remaining) {
     return _nanosleep(request, remaining);
 }
+int gettimeofday(struct timeval *time, void *timezone) {
+    return _gettimeofday(time, timezone);
+}
 
 mode_t umask(mode_t mask) {
     return _umask(mask);
@@ -359,10 +363,8 @@ int _wait(int *status) {
 }
 
 int _gettimeofday(struct timeval *time, void *timezone) {
-    (void)time;
     (void)timezone;
-    errno = ENOSYS;
-    return -1;
+    return syscall_result(syscall3(SYS_GETTIMEOFDAY, (int)time, 0, 0));
 }
 
 clock_t _times(struct tms *buffer) {

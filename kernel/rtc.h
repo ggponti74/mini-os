@@ -151,4 +151,6 @@ static inline void epoch_to_rtc(uint32_t epoch, rtc_time_t *t) {
     t->day = days + 1;
 }
 
+int rtc_get_epoch(uint32_t *epoch);
+
 #endif // RTC_H
