@@ -6,6 +6,7 @@
 #include "../fs/vfs.h"
 #include "../keyboard.h"
 #include "../hal/timer.h"
+#include "../rtc.h"
 #include "../memory.h"
 #include "../memory_layout.h"
 #include "../shell.h"
@@ -44,6 +45,7 @@ static uint8_t app_heap_initialized;
 static uint32_t process_umask = 0022;
 
 typedef struct { int32_t tv_sec; int32_t tv_nsec; } syscall_timespec_t;
+typedef struct { int32_t tv_sec; int32_t tv_usec; } syscall_timeval_t;
 
 /* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
 static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
@@ -64,13 +66,31 @@ static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
 
 static int32_t syscall_clock_gettime(uint32_t clock_id, syscall_timespec_t *time) {
   if (!time) return -EFAULT;
-  if (clock_id == CLOCK_REALTIME) return -ENOSYS;
+  if (clock_id == CLOCK_REALTIME) {
+    uint32_t epoch;
+    if (rtc_get_epoch(&epoch) != 0) return -EIO;
+    if (epoch > INT32_MAX) return -EOVERFLOW;
+    time->tv_sec = (int32_t)epoch;
+    time->tv_nsec = 0;
+    return 0;
+  }
   if (clock_id != CLOCK_MONOTONIC) return -EINVAL;
   uint64_t ticks = hal_timer_get_ticks();
   uint64_t seconds;
   uint32_t milliseconds = syscall_divide_u64_u32(ticks, 1000u, &seconds);
+  if (seconds > INT32_MAX) return -EOVERFLOW;
   time->tv_sec = (int32_t)seconds;
   time->tv_nsec = (int32_t)(milliseconds * 1000000u);
+  return 0;
+}
+
+static int32_t syscall_gettimeofday(syscall_timeval_t *time) {
+  if (!time) return -EFAULT;
+  uint32_t epoch;
+  if (rtc_get_epoch(&epoch) != 0) return -EIO;
+  if (epoch > INT32_MAX) return -EOVERFLOW;
+  time->tv_sec = (int32_t)epoch;
+  time->tv_usec = 0;
   return 0;
 }
 
@@ -674,6 +694,8 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_NANOSLEEP)
     return syscall_nanosleep((const syscall_timespec_t *)arg1,
                              (syscall_timespec_t *)arg2);
+  if (number == SYS_GETTIMEOFDAY)
+    return syscall_gettimeofday((syscall_timeval_t *)arg1);
   if (number == SYS_FTRUNCATE) {
     int fd = (int)arg1;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
