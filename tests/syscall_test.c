@@ -39,6 +39,7 @@ static int keyboard_keys[8];
 static uint32_t keyboard_key_count;
 static uint32_t keyboard_key_index;
 static uintptr_t heap_break = 0x1000;
+static uint64_t test_timer_ticks;
 
 vfs_node_t *fs_root;
 
@@ -329,6 +330,7 @@ static int32_t test_main(void) {
   created_exists = 0;
   keyboard_key_count = 0;
   syscall_dispatch(SYS_UMASK, 0022, 0, 0);
+  test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
   test_open_flags_and_errors();
@@ -340,6 +342,25 @@ static int32_t test_main(void) {
   CHECK((masked_status.st_mode & 0777) == 0700);
   CHECK(syscall_dispatch(SYS_UMASK, 0022, 0, 0) == 0077);
   CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"masked-dir", 0, 0) == 0);
+  struct test_timespec { int32_t tv_sec; int32_t tv_nsec; }
+      monotonic_time, request = {0, 1500001}, remaining = {-1, -1};
+  CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, CLOCK_MONOTONIC,
+                         (uint32_t)&monotonic_time, 0) == 0);
+  CHECK(monotonic_time.tv_sec == 1 && monotonic_time.tv_nsec == 234000000);
+  CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, CLOCK_REALTIME,
+                         (uint32_t)&monotonic_time, 0) == -ENOSYS);
+  CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, 99,
+                         (uint32_t)&monotonic_time, 0) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, CLOCK_MONOTONIC, 0, 0) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_NANOSLEEP, (uint32_t)&request,
+                         (uint32_t)&remaining, 0) == 0);
+  CHECK(test_timer_ticks == 1236);
+  CHECK(remaining.tv_sec == 0 && remaining.tv_nsec == 0);
+  request.tv_nsec = 1000000000;
+  CHECK(syscall_dispatch(SYS_NANOSLEEP, (uint32_t)&request, 0, 0) == -EINVAL);
+  request.tv_sec = -1; request.tv_nsec = 0;
+  CHECK(syscall_dispatch(SYS_NANOSLEEP, (uint32_t)&request, 0, 0) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_NANOSLEEP, 0, 0, 0) == -EFAULT);
   test_standard_input_and_sbrk();
   test_app_sbrk();
 
@@ -351,6 +372,9 @@ void _start(void) {
   __asm__ volatile("int $0x80" : : "a"(1), "b"(result) : "memory");
   __builtin_unreachable();
 }
+
+uint64_t hal_timer_get_ticks(void) { return test_timer_ticks; }
+void hal_sleep(uint32_t milliseconds) { test_timer_ticks += milliseconds; }
 
 void kputchar_color(char character, uint8_t color) {
   (void)character;
