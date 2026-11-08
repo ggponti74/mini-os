@@ -40,6 +40,8 @@ static uint32_t keyboard_key_count;
 static uint32_t keyboard_key_index;
 static uintptr_t heap_break = 0x1000;
 static uint64_t test_timer_ticks;
+static uint32_t test_rtc_epoch = 1791500000u;
+static int test_rtc_error;
 
 vfs_node_t *fs_root;
 
@@ -355,6 +357,16 @@ static int32_t test_main(void) {
   CHECK(syscall_dispatch(SYS_GETTIMEOFDAY, (uint32_t)&wall_time, 0, 0) == 0);
   CHECK(wall_time.tv_sec == 1791500000 && wall_time.tv_usec == 0);
   CHECK(syscall_dispatch(SYS_GETTIMEOFDAY, 0, 0, 0) == -EFAULT);
+  test_rtc_error = 1;
+  CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, CLOCK_REALTIME,
+                         (uint32_t)&monotonic_time, 0) == -EIO);
+  CHECK(syscall_dispatch(SYS_GETTIMEOFDAY, (uint32_t)&wall_time, 0, 0) == -EIO);
+  test_rtc_error = 0;
+  test_rtc_epoch = 0x80000000u;
+  CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, CLOCK_REALTIME,
+                         (uint32_t)&monotonic_time, 0) == -EOVERFLOW);
+  CHECK(syscall_dispatch(SYS_GETTIMEOFDAY, (uint32_t)&wall_time, 0, 0) == -EOVERFLOW);
+  test_rtc_epoch = 1791500000u;
   CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, 99,
                          (uint32_t)&monotonic_time, 0) == -EINVAL);
   CHECK(syscall_dispatch(SYS_CLOCK_GETTIME, CLOCK_MONOTONIC, 0, 0) == -EFAULT);
@@ -382,8 +394,8 @@ void _start(void) {
 uint64_t hal_timer_get_ticks(void) { return test_timer_ticks; }
 void hal_sleep(uint32_t milliseconds) { test_timer_ticks += milliseconds; }
 int rtc_get_epoch(uint32_t *epoch) {
-  if (!epoch) return -1;
-  *epoch = 1791500000u;
+  if (!epoch || test_rtc_error) return -1;
+  *epoch = test_rtc_epoch;
   return 0;
 }
 
