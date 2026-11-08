@@ -45,13 +45,32 @@ static uint32_t process_umask = 0022;
 
 typedef struct { int32_t tv_sec; int32_t tv_nsec; } syscall_timespec_t;
 
+/* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
+static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
+                                       uint64_t *quotient) {
+  uint64_t result = 0;
+  uint32_t remainder = 0;
+  for (int bit = 63; bit >= 0; bit--) {
+    remainder = (remainder << 1) | (uint32_t)((dividend >> bit) & 1u);
+    result <<= 1;
+    if (remainder >= divisor) {
+      remainder -= divisor;
+      result |= 1u;
+    }
+  }
+  *quotient = result;
+  return remainder;
+}
+
 static int32_t syscall_clock_gettime(uint32_t clock_id, syscall_timespec_t *time) {
   if (!time) return -EFAULT;
   if (clock_id == CLOCK_REALTIME) return -ENOSYS;
   if (clock_id != CLOCK_MONOTONIC) return -EINVAL;
   uint64_t ticks = hal_timer_get_ticks();
-  time->tv_sec = (int32_t)(ticks / 1000u);
-  time->tv_nsec = (int32_t)((ticks % 1000u) * 1000000u);
+  uint64_t seconds;
+  uint32_t milliseconds = syscall_divide_u64_u32(ticks, 1000u, &seconds);
+  time->tv_sec = (int32_t)seconds;
+  time->tv_nsec = (int32_t)(milliseconds * 1000000u);
   return 0;
 }
 
