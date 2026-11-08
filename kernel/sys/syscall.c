@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
   syscall_open_file_t *file;
   uint8_t used;
+  uint8_t flags;
 } syscall_fd_t;
 
 static syscall_fd_t descriptors[SYSCALL_FD_COUNT];
@@ -222,6 +223,7 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
       file->references = 1;
       descriptors[fd].file = file;
       descriptors[fd].used = 1;
+      descriptors[fd].flags = 0;
       if (flags & O_TRUNC) {
         node->length = 0;
         file->offset = 0;
@@ -644,6 +646,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
       if (!descriptors[fd].used) {
         descriptors[fd] = descriptors[oldfd];
+        descriptors[fd].flags = 0;
         descriptors[fd].file->references++;
         return fd;
       }
@@ -668,6 +671,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       descriptors[newfd].file = NULL;
     }
     descriptors[newfd] = descriptors[oldfd];
+    descriptors[newfd].flags = 0;
     descriptors[newfd].file->references++;
     return newfd;
   }
@@ -676,7 +680,37 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
       return -EBADF;
     }
-    syscall_open_file_t *file = descriptors[fd].file;
+    syscall_fd_t *descriptor = &descriptors[fd];
+    syscall_open_file_t *file = descriptor->file;
+    if (arg2 == F_GETFD) {
+      return descriptor->flags;
+    }
+    if (arg2 == F_SETFD) {
+      if (arg3 & ~FD_CLOEXEC) {
+        return -EINVAL;
+      }
+      descriptor->flags = (uint8_t)arg3;
+      return 0;
+    }
+    if (arg2 == F_DUPFD) {
+      int minimum = (int)arg3;
+      if (minimum < 0) {
+        return -EINVAL;
+      }
+      if (minimum < 3) {
+        minimum = 3;
+      }
+      for (int newfd = minimum; newfd < SYSCALL_FD_COUNT; newfd++) {
+        if (!descriptors[newfd].used) {
+          descriptors[newfd].file = file;
+          descriptors[newfd].used = 1;
+          descriptors[newfd].flags = 0;
+          file->references++;
+          return newfd;
+        }
+      }
+      return -EMFILE;
+    }
     if (arg2 == F_GETFL) {
       uint32_t access_mode = file->readable
                                  ? (file->writable ? O_RDWR : O_RDONLY)
