@@ -167,6 +167,17 @@ static void test_open_flags_and_errors(void) {
                          O_RDWR | O_APPEND) == 0);
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
         (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFD, FD_CLOEXEC) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFD, 2) == -EINVAL);
+  int minimum_dup = syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, 5);
+  CHECK(minimum_dup >= 5);
+  CHECK(syscall_dispatch(SYS_FCNTL, minimum_dup, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, (uint32_t)-1) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, SYSCALL_FD_COUNT) == -EMFILE);
+  CHECK(syscall_dispatch(SYS_CLOSE, minimum_dup, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
@@ -252,6 +263,10 @@ static void test_open_flags_and_errors(void) {
   CHECK(original_fd >= 3);
   int dup_fd = syscall_dispatch(SYS_DUP, original_fd, 0, 0);
   CHECK(dup_fd >= 3 && dup_fd != original_fd);
+  CHECK(syscall_dispatch(SYS_FCNTL, dup_fd, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, original_fd, F_SETFD, FD_CLOEXEC) == 0);
+  CHECK(syscall_dispatch(SYS_DUP2, original_fd, 4, 0) == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, 4, F_GETFD, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, original_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_DUP2, dup_fd, 3, 0) == 3);
   CHECK(syscall_dispatch(SYS_CLOSE, dup_fd, 0, 0) == 0);
