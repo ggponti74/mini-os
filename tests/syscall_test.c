@@ -270,6 +270,7 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, original_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_DUP2, dup_fd, 3, 0) == 3);
   CHECK(syscall_dispatch(SYS_CLOSE, dup_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, 3, 0, 0) == 0);
 }
 
 static void test_positional_io(void) {
