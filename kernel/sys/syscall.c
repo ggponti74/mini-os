@@ -5,6 +5,7 @@
 #include "../fs/initrd.h"
 #include "../fs/vfs.h"
 #include "../keyboard.h"
+#include "../hal/timer.h"
 #include "../memory.h"
 #include "../memory_layout.h"
 #include "../shell.h"
@@ -41,6 +42,34 @@ static uint32_t app_heap_break;
 static uint32_t app_heap_limit;
 static uint8_t app_heap_initialized;
 static uint32_t process_umask = 0022;
+
+typedef struct { int32_t tv_sec; int32_t tv_nsec; } syscall_timespec_t;
+
+static int32_t syscall_clock_gettime(uint32_t clock_id, syscall_timespec_t *time) {
+  if (!time) return -EFAULT;
+  if (clock_id == CLOCK_REALTIME) return -ENOSYS;
+  if (clock_id != CLOCK_MONOTONIC) return -EINVAL;
+  uint64_t ticks = hal_timer_get_ticks();
+  time->tv_sec = (int32_t)(ticks / 1000u);
+  time->tv_nsec = (int32_t)((ticks % 1000u) * 1000000u);
+  return 0;
+}
+
+static int32_t syscall_nanosleep(const syscall_timespec_t *request,
+                                 syscall_timespec_t *remaining) {
+  if (!request) return -EFAULT;
+  if (request->tv_sec < 0 || request->tv_nsec < 0 ||
+      request->tv_nsec >= 1000000000) return -EINVAL;
+  uint64_t milliseconds = (uint64_t)(uint32_t)request->tv_sec * 1000u;
+  milliseconds += ((uint32_t)request->tv_nsec + 999999u) / 1000000u;
+  while (milliseconds) {
+    uint32_t chunk = milliseconds > 0xFFFFFFFFu ? 0xFFFFFFFFu : (uint32_t)milliseconds;
+    hal_sleep(chunk);
+    milliseconds -= chunk;
+  }
+  if (remaining) { remaining->tv_sec = 0; remaining->tv_nsec = 0; }
+  return 0;
+}
 
 void syscall_reset_app_heap(void) {
   app_heap_base = 0;
@@ -621,6 +650,11 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     process_umask = arg1 & 0777;
     return (int32_t)previous;
   }
+  if (number == SYS_CLOCK_GETTIME)
+    return syscall_clock_gettime(arg1, (syscall_timespec_t *)arg2);
+  if (number == SYS_NANOSLEEP)
+    return syscall_nanosleep((const syscall_timespec_t *)arg1,
+                             (syscall_timespec_t *)arg2);
   if (number == SYS_FTRUNCATE) {
     int fd = (int)arg1;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
