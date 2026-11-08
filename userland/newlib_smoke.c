@@ -161,10 +161,27 @@ int main(int argc, char **argv) {
 
   struct timeval current_time;
   errno = 0;
-  if (_gettimeofday(&current_time, NULL) != -1 || errno != ENOSYS) {
-    printf("gettimeofday check failed: %d\n", errno);
+  if (_gettimeofday(&current_time, NULL) != 0 ||
+      current_time.tv_sec <= 0 || current_time.tv_usec < 0 ||
+      current_time.tv_usec >= 1000000) {
+    printf("gettimeofday check failed: %d\\n", errno);
     fflush(stdout);
     return 15;
+  }
+  struct timespec realtime_time;
+  if (clock_gettime(CLOCK_REALTIME, &realtime_time) != 0 ||
+      realtime_time.tv_sec != current_time.tv_sec ||
+      realtime_time.tv_nsec < 0 || realtime_time.tv_nsec >= 1000000000) {
+    printf("realtime clock check failed: %d\\n", errno);
+    fflush(stdout);
+    return 30;
+  }
+  if (gettimeofday(&current_time, NULL) != 0 ||
+      current_time.tv_sec <= 0 || current_time.tv_usec < 0 ||
+      current_time.tv_usec >= 1000000) {
+    printf("gettimeofday wrapper check failed: %d\\n", errno);
+    fflush(stdout);
+    return 31;
   }
   struct tms process_times;
   errno = 0;
