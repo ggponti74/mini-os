@@ -189,7 +189,10 @@ static void test_open_flags_and_errors(void) {
   reset_file();
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
-  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 1, 0) == -ENOSYS);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, (uint32_t)-1, 0) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 5, 0) == 0);
+  CHECK(file_node.length == 5);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 3, 0) == 0);
   CHECK(file_node.length == 3);
   CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == 0);
   CHECK(file_node.length == 0);
@@ -324,9 +327,18 @@ static int32_t test_main(void) {
   directory_node.inode = 7;
   created_exists = 0;
   keyboard_key_count = 0;
+  syscall_dispatch(SYS_UMASK, 0022, 0, 0);
 
   test_open_read_seek_and_stat();
   test_open_flags_and_errors();
+  CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
+  CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);
+  struct stat masked_status;
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"masked-dir",
+                         (uint32_t)&masked_status, 0) == 0);
+  CHECK((masked_status.st_mode & 0777) == 0700);
+  CHECK(syscall_dispatch(SYS_UMASK, 0022, 0, 0) == 0077);
+  CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"masked-dir", 0, 0) == 0);
   test_standard_input_and_sbrk();
   test_app_sbrk();
 
@@ -542,6 +554,18 @@ uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,
     buffer[i] = data[offset + i];
   }
   return size;
+}
+
+int vfs_truncate(vfs_node_t *node, uint32_t length) {
+  if (!node || length > sizeof(file_data)) {
+    return -1;
+  }
+  uint8_t *data = node->device_data;
+  for (uint32_t i = node->length; i < length; i++) {
+    data[i] = 0;
+  }
+  node->length = length;
+  return 0;
 }
 
 uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size,
