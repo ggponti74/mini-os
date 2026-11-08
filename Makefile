@@ -155,7 +155,7 @@ $(BUILD)/syscall_test: tests/syscall_test.c kernel/sys/syscall.c \
                       kernel/memory_layout.h \
                       kernel/display.h kernel/fs/initrd.h kernel/fs/vfs.h \
                       kernel/keyboard.h kernel/memory.h kernel/shell.h \
-                      kernel/sys/stat.h | $(BUILD)
+                      kernel/rtc.h kernel/io.h kernel/sys/stat.h | $(BUILD)
 	$(CC) -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-builtin \
 		-nostdlib -static -O0 -Ikernel -Wl,-e,_start -o $@ \
 		kernel/sys/syscall.c tests/syscall_test.c
