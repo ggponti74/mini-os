@@ -176,7 +176,7 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_FCNTL, minimum_dup, F_GETFD, 0) == 0);
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == FD_CLOEXEC);
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, (uint32_t)-1) == -EINVAL);
-  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, SYSCALL_FD_COUNT) == -EMFILE);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, 8) == -EMFILE);
   CHECK(syscall_dispatch(SYS_CLOSE, minimum_dup, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
