@@ -473,6 +473,34 @@ static uint32_t initrd_write_file(vfs_node_t *node, uint32_t offset,
   return size;
 }
 
+static int initrd_truncate_file(vfs_node_t *node, uint32_t length) {
+  if (!node || !(node->flags & FS_FILE) || !node->device_data ||
+      length > INITRD_MAX_FILE_SIZE) {
+    return -1;
+  }
+
+  if (length > MAX_FILE_SIZE && node->device_data != extended_file_data) {
+    if (extended_file_in_use) {
+      return -1;
+    }
+    uint8_t *old_data = (uint8_t *)node->device_data;
+    for (uint32_t i = 0; i < node->length; i++) {
+      extended_file_data[i] = old_data[i];
+    }
+    node->device_data = extended_file_data;
+    extended_file_in_use = 1;
+  }
+
+  uint8_t *data = (uint8_t *)node->device_data;
+  if (length > node->length) {
+    for (uint32_t i = node->length; i < length; i++) {
+      data[i] = 0;
+    }
+  }
+  node->length = length;
+  return 0;
+}
+
 static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name,
                                       uint32_t flags) {
   if (!parent || !(parent->flags & FS_DIRECTORY) || !name ||
@@ -522,6 +550,7 @@ static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name,
   item->node.inode = node_count;
   item->node.read = flags == FS_FILE ? initrd_read_file : NULL;
   item->node.write = flags == FS_FILE ? initrd_write_file : NULL;
+  item->node.truncate = flags == FS_FILE ? initrd_truncate_file : NULL;
   item->node.create = flags == FS_DIRECTORY ? initrd_create_file : NULL;
   item->node.device_data = flags == FS_FILE ? item->data : NULL;
 
