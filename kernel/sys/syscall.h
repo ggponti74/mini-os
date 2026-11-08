@@ -32,6 +32,7 @@
 #define SYS_FCNTL 25
 #define SYS_APP_SBRK 26
 #define SYS_STAT 27
+#define SYS_UMASK 28
 
 #define F_OK 0
 #define R_OK 4
