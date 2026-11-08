@@ -315,6 +315,13 @@ static void test_positional_io(void) {
                          (uint32_t)&request) == 1);
   CHECK(file_data[0] == 'Z');
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  request.offset = 5;
+  request.count = 1;
+  CHECK(syscall_dispatch(SYS_PWRITE, fd, (uint32_t)"Q",
+                         (uint32_t)&request) == 1);
+  CHECK(file_node.length == 6 && file_data[3] == 0 &&
+        file_data[4] == 0 && file_data[5] == 'Q');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
@@ -687,6 +694,9 @@ uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size,
     size = sizeof(file_data) - offset;
   }
   uint8_t *data = node->device_data;
+  for (uint32_t i = node->length; i < offset; i++) {
+    data[i] = 0;
+  }
   for (uint32_t i = 0; i < size; i++) {
     data[offset + i] = buffer[i];
   }
