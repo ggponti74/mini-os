@@ -37,6 +37,7 @@ int *__errno_location(void) {
 #define SYS_DUP2 24
 #define SYS_FCNTL 25
 #define SYS_STAT 27
+#define SYS_UMASK 28
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -122,6 +123,10 @@ long _lseek(int fd, long offset, int whence) {
 
 int _ftruncate(int fd, off_t length) {
     return syscall_result(syscall3(SYS_FTRUNCATE, fd, (int)length, 0));
+}
+
+mode_t _umask(mode_t mask) {
+    return (mode_t)syscall3(SYS_UMASK, (int)mask, 0, 0);
 }
 
 int _mkdir(const char *pathname, mode_t mode) {
@@ -242,6 +247,10 @@ long lseek(int fd, long offset, int whence) {
 
 int ftruncate(int fd, off_t length) {
     return _ftruncate(fd, length);
+}
+
+mode_t umask(mode_t mask) {
+    return _umask(mask);
 }
 
 int mkdir(const char *pathname, mode_t mode) {
