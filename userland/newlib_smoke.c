@@ -293,6 +293,24 @@ int main(int argc, char **argv) {
     free(allocation);
     return 34;
   }
+  if (fcntl(fd, F_GETFD) != 0 ||
+      fcntl(fd, F_SETFD, FD_CLOEXEC) != 0 ||
+      fcntl(fd, F_GETFD) != FD_CLOEXEC) {
+    printf("fcntl descriptor-flag check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 35;
+  }
+  int duplicate_fd = fcntl(fd, F_DUPFD, 5);
+  if (duplicate_fd < 5 || fcntl(duplicate_fd, F_GETFD) != 0 ||
+      close(duplicate_fd) != 0) {
+    printf("fcntl minimum-duplicate check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 36;
+  }
   int file_ok = write(fd, payload, sizeof(payload)) == sizeof(payload) &&
                 lseek(fd, 0, SEEK_SET) == 0 &&
                 read(fd, readback, sizeof(readback)) == sizeof(readback) &&
