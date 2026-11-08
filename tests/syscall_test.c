@@ -396,8 +396,8 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
-  test_open_flags_and_errors();
   test_positional_io();
+  test_open_flags_and_errors();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);
   struct stat masked_status;
