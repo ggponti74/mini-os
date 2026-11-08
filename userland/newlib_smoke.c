@@ -170,8 +170,9 @@ int main(int argc, char **argv) {
   }
   struct timespec realtime_time;
   if (clock_gettime(CLOCK_REALTIME, &realtime_time) != 0 ||
-      realtime_time.tv_sec != current_time.tv_sec ||
-      realtime_time.tv_nsec < 0 || realtime_time.tv_nsec >= 1000000000) {
+      realtime_time.tv_sec < current_time.tv_sec ||
+      realtime_time.tv_sec > current_time.tv_sec + 1 ||
+      realtime_time.tv_nsec != 0) {
     printf("realtime clock check failed: %d\\n", errno);
     fflush(stdout);
     return 30;
