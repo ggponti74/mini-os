@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
   const char payload[] = "newlib";
   char readback[sizeof(payload)] = {0};
   struct stat status;
+  struct timespec monotonic_before, monotonic_after, sleep_request = {0, 2000000};
 
   errno = 123;
   if (errno != 123) {
@@ -171,6 +172,25 @@ int main(int argc, char **argv) {
     printf("times check failed: %d\n", errno);
     fflush(stdout);
     return 16;
+  }
+
+  if (clock_gettime(CLOCK_MONOTONIC, &monotonic_before) != 0 ||
+      monotonic_before.tv_sec < 0 || monotonic_before.tv_nsec < 0 ||
+      monotonic_before.tv_nsec >= 1000000000 ||
+      nanosleep(&sleep_request, NULL) != 0 ||
+      clock_gettime(CLOCK_MONOTONIC, &monotonic_after) != 0 ||
+      (monotonic_after.tv_sec * 1000000000LL + monotonic_after.tv_nsec) <
+          (monotonic_before.tv_sec * 1000000000LL + monotonic_before.tv_nsec + 2000000LL)) {
+    printf("monotonic clock/sleep check failed: %d\\n", errno);
+    fflush(stdout);
+    return 28;
+  }
+  struct timespec invalid_sleep = {0, 1000000000};
+  errno = 0;
+  if (nanosleep(&invalid_sleep, NULL) != -1 || errno != EINVAL) {
+    printf("nanosleep validation check failed: %d\\n", errno);
+    fflush(stdout);
+    return 29;
   }
 
   mode_t previous_umask = umask(0077);

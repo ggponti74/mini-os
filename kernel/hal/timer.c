@@ -6,7 +6,7 @@
 
 #define PIT_INPUT_HZ 1193180
 
-static volatile uint32_t timer_ticks;
+static volatile uint64_t timer_ticks;
 
 void hal_timer_init(uint32_t frequency_hz) {
     if (frequency_hz == 0 || frequency_hz > PIT_INPUT_HZ) {
@@ -29,21 +29,23 @@ void hal_timer_irq_handler(void) {
 }
 
 uint64_t hal_timer_get_ticks(void) {
-    return timer_ticks;
+    uint32_t eflags;
+    uint64_t ticks;
+    __asm__ volatile("pushfl; popl %0; cli" : "=r"(eflags) : : "memory");
+    ticks = timer_ticks;
+    if (eflags & (1u << 9)) __asm__ volatile("sti" ::: "memory");
+    return ticks;
 }
 
 void hal_sleep(uint32_t milliseconds) {
-    uint32_t start = timer_ticks;
+    uint64_t start = hal_timer_get_ticks();
     uint32_t eflags;
     __asm__ volatile("pushfl; popl %0" : "=r"(eflags));
-
-    if (eflags & (1 << 9)) {
-        while ((uint32_t)(timer_ticks - start) < milliseconds) {
+    if (eflags & (1u << 9)) {
+        while (hal_timer_get_ticks() - start < milliseconds)
             __asm__ volatile("hlt" ::: "memory");
-        }
     } else {
-        while ((uint32_t)(timer_ticks - start) < milliseconds) {
+        while (hal_timer_get_ticks() - start < milliseconds)
             __asm__ volatile("sti; hlt; cli" ::: "memory");
-        }
     }
 }

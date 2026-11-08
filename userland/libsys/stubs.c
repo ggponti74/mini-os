@@ -38,6 +38,8 @@ int *__errno_location(void) {
 #define SYS_FCNTL 25
 #define SYS_STAT 27
 #define SYS_UMASK 28
+#define SYS_CLOCK_GETTIME 29
+#define SYS_NANOSLEEP 30
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -123,6 +125,13 @@ long _lseek(int fd, long offset, int whence) {
 
 int _ftruncate(int fd, off_t length) {
     return syscall_result(syscall3(SYS_FTRUNCATE, fd, (int)length, 0));
+}
+
+int _clock_gettime(clockid_t clock_id, struct timespec *time) {
+    return syscall_result(syscall3(SYS_CLOCK_GETTIME, (int)clock_id, (int)time, 0));
+}
+int _nanosleep(const struct timespec *request, struct timespec *remaining) {
+    return syscall_result(syscall3(SYS_NANOSLEEP, (int)request, (int)remaining, 0));
 }
 
 mode_t _umask(mode_t mask) {
@@ -247,6 +256,13 @@ long lseek(int fd, long offset, int whence) {
 
 int ftruncate(int fd, off_t length) {
     return _ftruncate(fd, length);
+}
+
+int clock_gettime(clockid_t clock_id, struct timespec *time) {
+    return _clock_gettime(clock_id, time);
+}
+int nanosleep(const struct timespec *request, struct timespec *remaining) {
+    return _nanosleep(request, remaining);
 }
 
 mode_t umask(mode_t mask) {
