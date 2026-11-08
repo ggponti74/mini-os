@@ -173,6 +173,18 @@ int main(int argc, char **argv) {
     return 16;
   }
 
+  mode_t previous_umask = umask(0077);
+  int masked_fd = open("newlib-umask.dat", O_CREAT | O_EXCL | O_RDWR, 0666);
+  if (masked_fd < 0 || fstat(masked_fd, &status) != 0 ||
+      (status.st_mode & 0777) != 0600 || close(masked_fd) != 0 ||
+      unlink("newlib-umask.dat") != 0) {
+    printf("umask check failed: %d\n", errno);
+    fflush(stdout);
+    umask(previous_umask);
+    return 27;
+  }
+  umask(previous_umask);
+
   char *allocation = malloc(128);
   if (!allocation) {
     printf("malloc failed: %d\n", errno);
@@ -223,8 +235,18 @@ int main(int argc, char **argv) {
                 memcmp(payload, readback, sizeof(payload)) == 0 &&
                 fstat(fd, &status) == 0 && S_ISREG(status.st_mode) &&
                 status.st_size == sizeof(payload);
+  int truncate_result = ftruncate(fd, 10);
+  int truncate_ok = truncate_result == 0 && fstat(fd, &status) == 0 &&
+                    status.st_size == 10;
+  if (truncate_ok) {
+    char zeroes[4] = {1, 1, 1, 1};
+    truncate_ok = lseek(fd, 6, SEEK_SET) == 6 &&
+                  read(fd, zeroes, sizeof(zeroes)) == (int)sizeof(zeroes) &&
+                  zeroes[0] == 0 && zeroes[1] == 0 &&
+                  zeroes[2] == 0 && zeroes[3] == 0;
+  }
   int close_result = close(fd);
-  if (!file_ok || close_result != 0) {
+  if (!file_ok || !truncate_ok || close_result != 0) {
     printf("file syscall check failed: %d\n", errno);
     fflush(stdout);
     free(allocation);

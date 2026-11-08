@@ -32,6 +32,13 @@ uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size, const uint8
     return 0;
 }
 
+int vfs_truncate(vfs_node_t *node, uint32_t length) {
+    if (!node || !node->truncate) {
+        return -1;
+    }
+    return node->truncate(node, length);
+}
+
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
     if (!path) {
         return NULL;
