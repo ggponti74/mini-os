@@ -15,6 +15,7 @@ struct vfs_node;
 // Function pointer signatures
 typedef uint32_t (*vfs_read_t)(struct vfs_node *node, uint32_t offset, uint32_t size, uint8_t *buffer);
 typedef uint32_t (*vfs_write_t)(struct vfs_node *node, uint32_t offset, uint32_t size, const uint8_t *buffer);
+typedef int (*vfs_truncate_t)(struct vfs_node *node, uint32_t length);
 typedef void     (*vfs_open_t)(struct vfs_node *node);
 typedef void     (*vfs_close_t)(struct vfs_node *node);
 
@@ -31,6 +32,7 @@ typedef struct vfs_node {
     // File operations
     vfs_read_t   read;
     vfs_write_t  write;
+    vfs_truncate_t truncate;
     vfs_open_t   open;
     vfs_close_t  close;
     vfs_create_t create; // Directory callback for creating files/dirs
@@ -43,6 +45,7 @@ extern vfs_node_t *fs_root;
 // Standard VFS Kernel API
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer);
 uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size, const uint8_t *buffer);
+int vfs_truncate(vfs_node_t *node, uint32_t length);
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path);
 
 // Top-level creation wrapper
