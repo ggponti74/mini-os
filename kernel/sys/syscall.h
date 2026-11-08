@@ -33,6 +33,10 @@
 #define SYS_APP_SBRK 26
 #define SYS_STAT 27
 #define SYS_UMASK 28
+#define SYS_CLOCK_GETTIME 29
+#define SYS_NANOSLEEP 30
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
 
 #define F_OK 0
 #define R_OK 4
