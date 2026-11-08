@@ -61,6 +61,12 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 18;
   }
+  if (!isatty(0) || !isatty(1) || !isatty(2)) {
+    printf("standard stream isatty check failed: %d\n", errno);
+    fflush(stdout);
+    return 32;
+  }
+
   errno = 0;
   if (!test_sbrk()) {
     printf("sbrk check failed: %d\n", errno);
@@ -266,6 +272,26 @@ int main(int argc, char **argv) {
     fflush(stdout);
     free(allocation);
     return 6;
+  }
+  errno = 0;
+  if (isatty(fd) != 0 || errno != ENOTTY) {
+    printf("regular-file isatty check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 33;
+  }
+  int file_flags = fcntl(fd, F_GETFL);
+  if (file_flags != O_RDWR ||
+      fcntl(fd, F_SETFL, file_flags | O_APPEND) != 0 ||
+      (fcntl(fd, F_GETFL) & O_APPEND) == 0 ||
+      fcntl(fd, F_SETFL, file_flags & ~O_APPEND) != 0 ||
+      fcntl(fd, F_GETFL) != file_flags) {
+    printf("fcntl status-flag check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 34;
   }
   int file_ok = write(fd, payload, sizeof(payload)) == sizeof(payload) &&
                 lseek(fd, 0, SEEK_SET) == 0 &&
