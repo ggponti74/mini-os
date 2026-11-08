@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
   if (_gettimeofday(&current_time, NULL) != 0 ||
       current_time.tv_sec <= 0 || current_time.tv_usec < 0 ||
       current_time.tv_usec >= 1000000) {
-    printf("gettimeofday check failed: %d\\n", errno);
+    printf("gettimeofday check failed: %d\n", errno);
     fflush(stdout);
     return 15;
   }
@@ -173,14 +173,14 @@ int main(int argc, char **argv) {
       realtime_time.tv_sec < current_time.tv_sec ||
       realtime_time.tv_sec > current_time.tv_sec + 1 ||
       realtime_time.tv_nsec != 0) {
-    printf("realtime clock check failed: %d\\n", errno);
+    printf("realtime clock check failed: %d\n", errno);
     fflush(stdout);
     return 30;
   }
   if (gettimeofday(&current_time, NULL) != 0 ||
       current_time.tv_sec <= 0 || current_time.tv_usec < 0 ||
       current_time.tv_usec >= 1000000) {
-    printf("gettimeofday wrapper check failed: %d\\n", errno);
+    printf("gettimeofday wrapper check failed: %d\n", errno);
     fflush(stdout);
     return 31;
   }
