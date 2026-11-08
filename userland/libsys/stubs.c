@@ -140,7 +140,11 @@ int _isatty(int fd) {
     if (_fstat(fd, &status) < 0) {
         return 0;
     }
-    return S_ISCHR(status.st_mode);
+    if (S_ISCHR(status.st_mode)) {
+        return 1;
+    }
+    errno = ENOTTY;
+    return 0;
 }
 
 long _lseek(int fd, long offset, int whence) {
