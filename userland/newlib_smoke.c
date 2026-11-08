@@ -273,6 +273,16 @@ int main(int argc, char **argv) {
                 memcmp(payload, readback, sizeof(payload)) == 0 &&
                 fstat(fd, &status) == 0 && S_ISREG(status.st_mode) &&
                 status.st_size == sizeof(payload);
+  char positional_byte = 'N';
+  char positional_readback[sizeof(payload)] = {0};
+  int positional_ok =
+      pread(fd, positional_readback, sizeof(payload), 0) == sizeof(payload) &&
+      memcmp(payload, positional_readback, sizeof(payload)) == 0 &&
+      lseek(fd, 0, SEEK_CUR) == (off_t)sizeof(payload) &&
+      pwrite(fd, &positional_byte, 1, 0) == 1 &&
+      lseek(fd, 0, SEEK_CUR) == (off_t)sizeof(payload) &&
+      pread(fd, positional_readback, 1, 0) == 1 &&
+      positional_readback[0] == 'N';
   int truncate_result = ftruncate(fd, 10);
   int truncate_ok = truncate_result == 0 && fstat(fd, &status) == 0 &&
                     status.st_size == 10;
@@ -284,7 +294,7 @@ int main(int argc, char **argv) {
                   zeroes[2] == 0 && zeroes[3] == 0;
   }
   int close_result = close(fd);
-  if (!file_ok || !truncate_ok || close_result != 0) {
+  if (!file_ok || !positional_ok || !truncate_ok || close_result != 0) {
     printf("file syscall check failed: %d\n", errno);
     fflush(stdout);
     free(allocation);

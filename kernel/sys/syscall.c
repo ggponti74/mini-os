@@ -46,6 +46,7 @@ static uint32_t process_umask = 0022;
 
 typedef struct { int32_t tv_sec; int32_t tv_nsec; } syscall_timespec_t;
 typedef struct { int32_t tv_sec; int32_t tv_usec; } syscall_timeval_t;
+typedef struct { int32_t offset; uint32_t count; } syscall_positional_io_t;
 
 /* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
 static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
@@ -354,6 +355,28 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
                                descriptors[fd].file->offset, arg3, buffer);
     descriptors[fd].file->offset += bytes;
     return (int32_t)bytes;
+  }
+  if (number == SYS_PREAD || number == SYS_PWRITE) {
+    int fd = (int)arg1;
+    void *buffer = (void *)arg2;
+    const syscall_positional_io_t *request =
+        (const syscall_positional_io_t *)arg3;
+    if (!request) return -EFAULT;
+    if (request->offset < 0) return -EINVAL;
+    if (request->count == 0) return 0;
+    if (!buffer) return -EFAULT;
+    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
+      return -EBADF;
+    }
+    syscall_open_file_t *file = descriptors[fd].file;
+    if (number == SYS_PREAD) {
+      if (!file->readable) return -EBADF;
+      return (int32_t)vfs_read(file->node, (uint32_t)request->offset,
+                               request->count, (uint8_t *)buffer);
+    }
+    if (!file->writable) return -EBADF;
+    return (int32_t)vfs_write(file->node, (uint32_t)request->offset,
+                              request->count, (const uint8_t *)buffer);
   }
   if (number == SYS_CLOSE) {
     int fd = (int)arg1;

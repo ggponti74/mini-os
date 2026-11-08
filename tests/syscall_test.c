@@ -257,6 +257,74 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, dup_fd, 0, 0) == 0);
 }
 
+static void test_positional_io(void) {
+  struct test_positional_io_request {
+    int32_t offset;
+    uint32_t count;
+  } request;
+  uint8_t buffer[4] = {0};
+  int fd;
+
+  reset_file();
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 2, SEEK_SET) == 2);
+  request.offset = 0;
+  request.count = 2;
+  CHECK(syscall_dispatch(SYS_PREAD, fd, (uint32_t)buffer,
+                         (uint32_t)&request) == 2);
+  CHECK(buffer[0] == 'a' && buffer[1] == 'b');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  request.offset = 1;
+  request.count = 2;
+  CHECK(syscall_dispatch(SYS_PWRITE, fd, (uint32_t)"XY",
+                         (uint32_t)&request) == 2);
+  CHECK(file_data[0] == 'a' && file_data[1] == 'X' &&
+        file_data[2] == 'Y');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_PREAD, fd, (uint32_t)buffer,
+                         (uint32_t)&request) == 2);
+  CHECK(buffer[0] == 'X' && buffer[1] == 'Y');
+
+  request.offset = -1;
+  CHECK(syscall_dispatch(SYS_PREAD, fd, (uint32_t)buffer,
+                         (uint32_t)&request) == -EINVAL);
+  request.offset = 0;
+  request.count = 1;
+  CHECK(syscall_dispatch(SYS_PREAD, 7, (uint32_t)buffer,
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_PREAD, fd, (uint32_t)buffer, 0) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_PREAD, fd, 0,
+                         (uint32_t)&request) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_PWRITE, fd, (uint32_t)"Z",
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                        O_RDWR | O_APPEND, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 2, SEEK_SET) == 2);
+  request.offset = 0;
+  request.count = 1;
+  CHECK(syscall_dispatch(SYS_PWRITE, fd, (uint32_t)"Z",
+                         (uint32_t)&request) == 1);
+  CHECK(file_data[0] == 'Z');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  request.offset = 5;
+  request.count = 1;
+  CHECK(syscall_dispatch(SYS_PWRITE, fd, (uint32_t)"Q",
+                         (uint32_t)&request) == 1);
+  CHECK(file_node.length == 6 && file_data[3] == 0 &&
+        file_data[4] == 0 && file_data[5] == 'Q');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_standard_input_and_sbrk(void) {
   uint8_t buffer[8] = {0};
 
@@ -335,6 +403,7 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
+  test_positional_io();
   test_open_flags_and_errors();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);
@@ -625,6 +694,9 @@ uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size,
     size = sizeof(file_data) - offset;
   }
   uint8_t *data = node->device_data;
+  for (uint32_t i = node->length; i < offset; i++) {
+    data[i] = 0;
+  }
   for (uint32_t i = 0; i < size; i++) {
     data[offset + i] = buffer[i];
   }
