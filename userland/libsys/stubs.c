@@ -41,6 +41,8 @@ int *__errno_location(void) {
 #define SYS_CLOCK_GETTIME 29
 #define SYS_NANOSLEEP 30
 #define SYS_GETTIMEOFDAY 31
+#define SYS_PREAD 32
+#define SYS_PWRITE 33
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -62,6 +64,19 @@ static int syscall3(int number, int arg1, int arg2, int arg3) {
         : "memory"
     );
     return number;
+}
+
+typedef struct {
+    int offset;
+    unsigned int count;
+} positional_io_request_t;
+
+static int positional_io(int number, int fd, void *buffer,
+                         size_t count, off_t offset) {
+    positional_io_request_t request;
+    request.offset = (int)offset;
+    request.count = (unsigned int)count;
+    return syscall_result(syscall3(number, fd, (int)buffer, (int)&request));
 }
 
 static int syscall_result(int result) {
@@ -91,6 +106,14 @@ int _open(const char *pathname, int flags, ...) {
 }
 
 // 2. Read Stub (POSIX compliant signature)
+int _pread(int fd, void *buf, size_t count, off_t offset) {
+    return positional_io(SYS_PREAD, fd, buf, count, offset);
+}
+
+int _pwrite(int fd, const void *buf, size_t count, off_t offset) {
+    return positional_io(SYS_PWRITE, fd, (void *)buf, count, offset);
+}
+
 int _read(int fd, void *buf, size_t count) {
     return syscall_result(syscall3(3, fd, (int)buf, (int)count));
 }
@@ -225,6 +248,14 @@ int open(const char *pathname, int flags, ...) {
         va_end(ap);
     }
     return syscall_result(syscall3(5, (int)pathname, flags, mode));
+}
+
+int pread(int fd, void *buf, size_t count, off_t offset) {
+    return _pread(fd, buf, count, offset);
+}
+
+int pwrite(int fd, const void *buf, size_t count, off_t offset) {
+    return _pwrite(fd, buf, count, offset);
 }
 
 int read(int fd, void *buf, size_t count) {
