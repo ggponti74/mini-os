@@ -66,6 +66,14 @@ static int syscall3(int number, int arg1, int arg2, int arg3) {
     return number;
 }
 
+static int syscall_result(int result) {
+    if (result < 0) {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
 typedef struct {
     int offset;
     unsigned int count;
@@ -77,14 +85,6 @@ static int positional_io(int number, int fd, void *buffer,
     request.offset = (int)offset;
     request.count = (unsigned int)count;
     return syscall_result(syscall3(number, fd, (int)buffer, (int)&request));
-}
-
-static int syscall_result(int result) {
-    if (result < 0) {
-        errno = -result;
-        return -1;
-    }
-    return result;
 }
 
 // 1. Process Exit Stub
