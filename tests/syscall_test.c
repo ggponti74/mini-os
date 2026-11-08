@@ -190,6 +190,7 @@ static void test_open_flags_and_errors(void) {
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
   CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, (uint32_t)-1, 0) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 257, 0) == -EFBIG);
   CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 5, 0) == 0);
   CHECK(file_node.length == 5);
   CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 3, 0) == 0);
