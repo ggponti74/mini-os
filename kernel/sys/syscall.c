@@ -40,6 +40,7 @@ static uint32_t app_heap_base;
 static uint32_t app_heap_break;
 static uint32_t app_heap_limit;
 static uint8_t app_heap_initialized;
+static uint32_t process_umask = 0022;
 
 void syscall_reset_app_heap(void) {
   app_heap_base = 0;
@@ -121,7 +122,7 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
     return -EISDIR;
   }
   if (created) {
-    node->mode = mode & 0777;
+    node->mode = mode & ~process_umask & 0777;
   }
 
   uint32_t permissions = node->mode & 0777;
@@ -394,7 +395,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (!directory) {
       return -EACCES;
     }
-    directory->mode = arg2 & 0777;
+    directory->mode = arg2 & ~process_umask & 0777;
     return 0;
   }
   if (number == SYS_RMDIR) {
@@ -615,17 +616,26 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     display_set_console_cursor((uint8_t)arg1, (uint8_t)arg2);
     return 0;
   }
+  if (number == SYS_UMASK) {
+    uint32_t previous = process_umask;
+    process_umask = arg1 & 0777;
+    return (int32_t)previous;
+  }
   if (number == SYS_FTRUNCATE) {
     int fd = (int)arg1;
     if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
         !descriptors[fd].file->writable) {
       return -EBADF;
     }
-    if (arg2 != 0) {
-      return -ENOSYS;
+    if ((int32_t)arg2 < 0) {
+      return -EINVAL;
     }
-    descriptors[fd].file->node->length = 0;
-    descriptors[fd].file->offset = 0;
+    if (vfs_truncate(descriptors[fd].file->node, arg2) != 0) {
+      return -EFBIG;
+    }
+    if (descriptors[fd].file->offset > arg2) {
+      descriptors[fd].file->offset = arg2;
+    }
     return 0;
   }
 
