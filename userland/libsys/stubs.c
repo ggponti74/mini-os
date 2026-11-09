@@ -384,6 +384,23 @@ int _getpid(void) {
     return 1;
 }
 
+/* mini-os currently runs applications with a single root identity. */
+uid_t _getuid(void) {
+    return 0;
+}
+
+uid_t _geteuid(void) {
+    return 0;
+}
+
+gid_t _getgid(void) {
+    return 0;
+}
+
+gid_t _getegid(void) {
+    return 0;
+}
+
 int _kill(int pid, int signal) {
     (void)pid;
     (void)signal;
@@ -423,6 +440,22 @@ clock_t _times(struct tms *buffer) {
 
 int getpid(void) {
     return _getpid();
+}
+
+uid_t getuid(void) {
+    return _getuid();
+}
+
+uid_t geteuid(void) {
+    return _geteuid();
+}
+
+gid_t getgid(void) {
+    return _getgid();
+}
+
+gid_t getegid(void) {
+    return _getegid();
 }
 
 int kill(int pid, int signal) {
