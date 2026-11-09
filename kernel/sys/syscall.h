@@ -44,6 +44,9 @@
 #define SYS_FSTATAT 37
 #define SYS_UNLINKAT 38
 #define SYS_RENAMEAT 39
+#define SYS_FACCESSAT 40
+#define SYS_MKDIRAT 41
+#define SYS_FCHMODAT 42
 
 #define AT_REMOVEDIR 0x200
 
