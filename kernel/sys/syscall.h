@@ -42,6 +42,10 @@
 #define SYS_FCHDIR 35
 #define SYS_OPENAT 36
 #define SYS_FSTATAT 37
+#define SYS_UNLINKAT 38
+#define SYS_RENAMEAT 39
+
+#define AT_REMOVEDIR 0x200
 
 #define AT_FDCWD (-100)
 #define CLOCK_REALTIME 0
