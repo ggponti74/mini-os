@@ -131,8 +131,7 @@ int main(int argc, char **argv) {
   int directory_fd = open("/newlib-cwd-test", O_RDONLY);
   if (directory_fd < 0 || fchdir(directory_fd) != 0 ||
       getcwd(nested_cwd, sizeof(nested_cwd)) != nested_cwd ||
-      strcmp(nested_cwd, "/newlib-cwd-test") != 0 ||
-      close(directory_fd) != 0) {
+      strcmp(nested_cwd, "/newlib-cwd-test") != 0) {
     printf("directory descriptor fchdir check failed: %d\n", errno);
     fflush(stdout);
     if (directory_fd >= 0) close(directory_fd);
@@ -157,9 +156,11 @@ int main(int argc, char **argv) {
   if (fchdir(0) != -1 || errno != EBADF) {
     printf("invalid fchdir descriptor check failed: %d\n", errno);
     fflush(stdout);
+    close(directory_fd);
     return 53;
   }
-  if (chdir("/") != 0 || rmdir("newlib-cwd-test") != 0) {
+  if (close(directory_fd) != 0 || chdir("/") != 0 ||
+      rmdir("newlib-cwd-test") != 0) {
     printf("return-to-root check failed: %d\n", errno);
     fflush(stdout);
     return 23;
