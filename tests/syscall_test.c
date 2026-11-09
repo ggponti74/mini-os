@@ -410,6 +410,7 @@ static void test_directory_relative_unlink_rename(void) {
 
   CHECK(syscall_dispatch(SYS_CLOSE, regular_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
+  file_node.name[0] = '\\0';
 }
 
 static void test_sync_calls(void) {
