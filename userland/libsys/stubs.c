@@ -27,6 +27,8 @@ int *__errno_location(void) {
 #define SYS_FSTAT 8
 #define SYS_OPENAT 36
 #define SYS_FSTATAT 37
+#define SYS_UNLINKAT 38
+#define SYS_RENAMEAT 39
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -277,29 +279,19 @@ int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags) {
 }
 
 int unlinkat(int dirfd, const char *pathname, int flags) {
-    if (dirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
-    if (flags == 0) {
-        return _unlink(pathname);
-    }
-    if (flags == AT_REMOVEDIR) {
-        return _rmdir(pathname);
-    }
-    errno = EINVAL;
-    return -1;
+    return syscall_result(syscall3(SYS_UNLINKAT, dirfd, (int)pathname,
+                                   flags));
 }
 
 int _rename(const char *oldpath, const char *newpath);
 
 int renameat(int olddirfd, const char *oldpath,
              int newdirfd, const char *newpath) {
-    if (olddirfd != AT_FDCWD || newdirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
-    return _rename(oldpath, newpath);
+    struct renameat_request { int newdirfd; const char *newpath; } request;
+    request.newdirfd = newdirfd;
+    request.newpath = newpath;
+    return syscall_result(syscall3(SYS_RENAMEAT, olddirfd, (int)oldpath,
+                                   (int)&request));
 }
 
 int fstatat(int dirfd, const char *pathname, struct stat *status, int flags) {
