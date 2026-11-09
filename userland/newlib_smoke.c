@@ -194,6 +194,13 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 50;
   }
+#ifdef _SC_OPEN_MAX
+  if (sysconf(_SC_OPEN_MAX) != 8 || getdtablesize() != 8) {
+    printf("open-descriptor limit check failed: %d\\n", errno);
+    fflush(stdout);
+    return 51;
+  }
+#endif
 
   errno = 0;
   if (_kill(1, 0) != -1 || errno != ENOSYS) {
