@@ -177,6 +177,14 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   if (shell_resolve_path(path, resolved_path, sizeof(resolved_path)) != 0) {
     return -ENOENT;
   }
+  uint32_t resolved_length = 0;
+  while (resolved_path[resolved_length] != '\0' &&
+         resolved_length < SYSCALL_PATH_LENGTH) {
+    resolved_length++;
+  }
+  if (resolved_length == SYSCALL_PATH_LENGTH) {
+    return -ENAMETOOLONG;
+  }
   vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
   int created = 0;
   if (node && (flags & O_CREAT) && (flags & O_EXCL)) {
@@ -217,7 +225,7 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
         return -EMFILE;
       }
       file->node = node;
-      for (uint32_t i = 0; i <= length; i++) {
+      for (uint32_t i = 0; i <= resolved_length; i++) {
         file->path[i] = resolved_path[i];
       }
       file->offset = (flags & O_APPEND) ? node->length : 0;
