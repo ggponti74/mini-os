@@ -132,21 +132,21 @@ int main(int argc, char **argv) {
   errno = 0;
   if (open("/newlib-cwd-test", O_DIRECTORY | O_CREAT | O_RDONLY, 0700) != -1 ||
       errno != EINVAL) {
-    printf("O_DIRECTORY/O_CREAT validation check failed: %d\\n", errno);
+    printf("O_DIRECTORY/O_CREAT validation check failed: %d\n", errno);
     fflush(stdout);
     return 57;
   }
   errno = 0;
   if (open("/newlib-cwd-test", O_DIRECTORY | O_WRONLY) != -1 ||
       errno != EISDIR) {
-    printf("writable O_DIRECTORY open check failed: %d\\n", errno);
+    printf("writable O_DIRECTORY open check failed: %d\n", errno);
     fflush(stdout);
     return 58;
   }
   errno = 0;
   if (open("/newlib-cwd-test/does-not-exist", O_DIRECTORY | O_RDONLY) != -1 ||
       errno != ENOENT) {
-    printf("O_DIRECTORY missing-path check failed: %d\\n", errno);
+    printf("O_DIRECTORY missing-path check failed: %d\n", errno);
     fflush(stdout);
     return 61;
   }
