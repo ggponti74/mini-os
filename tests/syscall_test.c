@@ -194,7 +194,17 @@ static void test_open_flags_and_errors(void) {
         -ENOENT);
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | 0x8000, 0) ==
         -EINVAL);
-  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0) == -EISDIR);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0);
+  CHECK(fd == 3);
+  struct stat directory_status;
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&directory_status, 0) == 0);
+  CHECK(S_ISDIR(directory_status.st_mode));
+  CHECK(syscall_dispatch(SYS_READ, fd, (uint32_t)&read_probe, 1) == -EISDIR);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"x", 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_WRONLY, 0) ==
+        -EISDIR);
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | O_TRUNC, 0);
   CHECK(fd == 3);
   CHECK(file_node.length == 0);
@@ -251,10 +261,26 @@ static void test_open_flags_and_errors(void) {
         0);
   CHECK((chmod_status.st_mode & 0777) == 0600);
   CHECK(syscall_dispatch(SYS_CLOSE, chmod_fd, 0, 0) == 0);
+  int directory_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
+                                       O_RDONLY, 0);
+  CHECK(directory_fd == 3);
   CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
   char cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
   CHECK(strings_equal(cwd, "/dir"));
+  CHECK(syscall_dispatch(SYS_FCHDIR, directory_fd, 0, 0) == 0);
+  char fchdir_cwd[32] = {0};
+  CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)fchdir_cwd,
+                         sizeof(fchdir_cwd), 0) == 0);
+  CHECK(strings_equal(fchdir_cwd, "/dir"));
+  CHECK(syscall_dispatch(SYS_FCHDIR, 0, 0, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FCHDIR, 7, 0, 0) == -EBADF);
+  int regular_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed",
+                                    O_RDONLY, 0);
+  CHECK(regular_fd >= 3);
+  CHECK(syscall_dispatch(SYS_FCHDIR, regular_fd, 0, 0) == -ENOTDIR);
+  CHECK(syscall_dispatch(SYS_CLOSE, regular_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
   char short_cwd[2] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)short_cwd,
                          sizeof(short_cwd), 0) == -ERANGE);

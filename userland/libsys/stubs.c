@@ -47,6 +47,7 @@ int *__errno_location(void) {
 #define SYS_PREAD 32
 #define SYS_PWRITE 33
 #define SYS_FSYNC 34
+#define SYS_FCHDIR 35
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -235,6 +236,10 @@ int _chdir(const char *path) {
     return syscall_result(syscall3(SYS_CHDIR, (int)path, 0, 0));
 }
 
+int _fchdir(int fd) {
+    return syscall_result(syscall3(SYS_FCHDIR, fd, 0, 0));
+}
+
 char *_getcwd(char *buf, size_t size) {
     int result = syscall3(SYS_GETCWD, (int)buf, (int)size, 0);
     if (result < 0) {
@@ -380,6 +385,10 @@ int fchmod(int fd, mode_t mode) {
 
 int chdir(const char *path) {
     return _chdir(path);
+}
+
+int fchdir(int fd) {
+    return _fchdir(fd);
 }
 
 char *getcwd(char *buf, size_t size) {

@@ -128,7 +128,39 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 22;
   }
-  if (chdir("/") != 0 || rmdir("newlib-cwd-test") != 0) {
+  int directory_fd = open("/newlib-cwd-test", O_RDONLY);
+  if (directory_fd < 0 || fchdir(directory_fd) != 0 ||
+      getcwd(nested_cwd, sizeof(nested_cwd)) != nested_cwd ||
+      strcmp(nested_cwd, "/newlib-cwd-test") != 0) {
+    printf("directory descriptor fchdir check failed: %d\n", errno);
+    fflush(stdout);
+    if (directory_fd >= 0) close(directory_fd);
+    return 52;
+  }
+  char directory_byte;
+  errno = 0;
+  if (read(directory_fd, &directory_byte, 1) != -1 || errno != EISDIR) {
+    printf("directory read rejection check failed: %d\n", errno);
+    fflush(stdout);
+    close(directory_fd);
+    return 54;
+  }
+  errno = 0;
+  if (open("/newlib-cwd-test", O_WRONLY) != -1 || errno != EISDIR) {
+    printf("writable directory open rejection check failed: %d\n", errno);
+    fflush(stdout);
+    close(directory_fd);
+    return 55;
+  }
+  errno = 0;
+  if (fchdir(0) != -1 || errno != EBADF) {
+    printf("invalid fchdir descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(directory_fd);
+    return 53;
+  }
+  if (close(directory_fd) != 0 || chdir("/") != 0 ||
+      rmdir("newlib-cwd-test") != 0) {
     printf("return-to-root check failed: %d\n", errno);
     fflush(stdout);
     return 23;
@@ -381,6 +413,16 @@ int main(int argc, char **argv) {
   free(zeroed);
 
   int fd = open("newlib-smoke.dat", O_CREAT | O_TRUNC | O_RDWR, 0666);
+  if (fd >= 0) {
+    errno = 0;
+    if (fchdir(fd) != -1 || errno != ENOTDIR) {
+      printf("regular-file fchdir rejection check failed: %d\n", errno);
+      fflush(stdout);
+      close(fd);
+      free(allocation);
+      return 56;
+    }
+  }
   if (fd < 0) {
     printf("open failed: %d\n", errno);
     fflush(stdout);
