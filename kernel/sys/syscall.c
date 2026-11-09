@@ -178,8 +178,8 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
     return -ENOENT;
   }
   uint32_t resolved_length = 0;
-  while (resolved_path[resolved_length] != '\0' &&
-         resolved_length < SYSCALL_PATH_LENGTH) {
+  while (resolved_length < SYSCALL_PATH_LENGTH &&
+         resolved_path[resolved_length] != '\0') {
     resolved_length++;
   }
   if (resolved_length == SYSCALL_PATH_LENGTH) {
