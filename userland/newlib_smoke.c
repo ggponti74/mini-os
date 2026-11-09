@@ -151,7 +151,31 @@ int main(int argc, char **argv) {
     return 61;
   }
   int directory_fd = open("/newlib-cwd-test", O_DIRECTORY | O_RDONLY);
-  if (directory_fd < 0 || fchdir(directory_fd) != 0 ||
+  if (directory_fd < 0 || chdir("/") != 0 ||
+      chmod("/newlib-cwd-test", 0600) != 0) {
+    printf("directory search-permission setup failed: %d\n", errno);
+    fflush(stdout);
+    if (directory_fd >= 0) close(directory_fd);
+    return 62;
+  }
+  errno = 0;
+  if (chdir("/newlib-cwd-test") != -1 || errno != EACCES) {
+    printf("chdir search-permission check failed: %d\n", errno);
+    fflush(stdout);
+    chmod("/newlib-cwd-test", 0700);
+    close(directory_fd);
+    return 63;
+  }
+  errno = 0;
+  if (fchdir(directory_fd) != -1 || errno != EACCES) {
+    printf("fchdir search-permission check failed: %d\n", errno);
+    fflush(stdout);
+    chmod("/newlib-cwd-test", 0700);
+    close(directory_fd);
+    return 64;
+  }
+  if (chmod("/newlib-cwd-test", 0700) != 0 ||
+      fchdir(directory_fd) != 0 ||
       getcwd(nested_cwd, sizeof(nested_cwd)) != nested_cwd ||
       strcmp(nested_cwd, "/newlib-cwd-test") != 0) {
     printf("directory descriptor fchdir check failed: %d\n", errno);
