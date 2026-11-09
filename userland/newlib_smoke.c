@@ -140,14 +140,14 @@ int main(int argc, char **argv) {
   char directory_byte;
   errno = 0;
   if (read(directory_fd, &directory_byte, 1) != -1 || errno != EISDIR) {
-    printf("directory read rejection check failed: %d\\n", errno);
+    printf("directory read rejection check failed: %d\n", errno);
     fflush(stdout);
     close(directory_fd);
     return 54;
   }
   errno = 0;
   if (open("/newlib-cwd-test", O_WRONLY) != -1 || errno != EISDIR) {
-    printf("writable directory open rejection check failed: %d\\n", errno);
+    printf("writable directory open rejection check failed: %d\n", errno);
     fflush(stdout);
     close(directory_fd);
     return 55;
@@ -416,7 +416,7 @@ int main(int argc, char **argv) {
   if (fd >= 0) {
     errno = 0;
     if (fchdir(fd) != -1 || errno != ENOTDIR) {
-      printf("regular-file fchdir rejection check failed: %d\\n", errno);
+      printf("regular-file fchdir rejection check failed: %d\n", errno);
       fflush(stdout);
       close(fd);
       free(allocation);
