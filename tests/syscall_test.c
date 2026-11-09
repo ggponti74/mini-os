@@ -381,6 +381,73 @@ static void test_directory_relative_syscalls(void) {
 }
 
 
+
+static void test_directory_relative_access_mkdir_chmod(void) {
+  struct at_mode_flags_request { uint32_t mode; uint32_t flags; } request;
+  struct stat status;
+  struct fstatat_request { struct stat *status; uint32_t flags; } stat_request;
+  int directory_fd = syscall_dispatch(
+      SYS_OPEN, (uint32_t)"dir", O_RDONLY | O_DIRECTORY, 0);
+  CHECK(directory_fd >= 3);
+  int regular_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(regular_fd >= 3);
+
+  request.mode = R_OK;
+  request.flags = 0;
+  CHECK(syscall_dispatch(SYS_FACCESSAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == 0);
+  request.mode = X_OK;
+  CHECK(syscall_dispatch(SYS_FACCESSAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -EACCES);
+  CHECK(syscall_dispatch(SYS_FACCESSAT, 99, (uint32_t)"file",
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FACCESSAT, regular_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -ENOTDIR);
+  request.flags = 1;
+  CHECK(syscall_dispatch(SYS_FACCESSAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -EINVAL);
+
+  request.mode = 0700;
+  request.flags = 0;
+  CHECK(syscall_dispatch(SYS_FCHMODAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == 0);
+  request.mode = X_OK;
+  CHECK(syscall_dispatch(SYS_FACCESSAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == 0);
+  request.mode = 0600;
+  request.flags = 1;
+  CHECK(syscall_dispatch(SYS_FCHMODAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -EINVAL);
+  request.flags = 0;
+  CHECK(syscall_dispatch(SYS_FCHMODAT, 99, (uint32_t)"file",
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FCHMODAT, regular_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -ENOTDIR);
+  request.mode = 0600;
+  CHECK(syscall_dispatch(SYS_FCHMODAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == 0);
+
+  CHECK(syscall_dispatch(SYS_MKDIRAT, directory_fd, (uint32_t)"newdir",
+                         0750) == 0);
+  CHECK(vfs_lookup(fs_root, "dir/newdir") != NULL);
+  CHECK(syscall_dispatch(SYS_MKDIRAT, directory_fd, (uint32_t)"newdir",
+                         0750) == -EEXIST);
+  CHECK(syscall_dispatch(SYS_MKDIRAT, 99, (uint32_t)"bad-dir", 0700) ==
+        -EBADF);
+  CHECK(syscall_dispatch(SYS_MKDIRAT, regular_fd, (uint32_t)"bad-dir", 0700) ==
+        -ENOTDIR);
+  stat_request.status = &status;
+  stat_request.flags = 0;
+  CHECK(syscall_dispatch(SYS_FSTATAT, directory_fd, (uint32_t)"newdir",
+                         (uint32_t)&stat_request) == 0);
+  CHECK(S_ISDIR(status.st_mode) && (status.st_mode & 0777) == 0750);
+  CHECK(syscall_dispatch(SYS_RMDIR, (uint32_t)"dir/newdir", 0, 0) == 0);
+  CHECK(vfs_lookup(fs_root, "dir/newdir") == NULL);
+
+  CHECK(syscall_dispatch(SYS_CLOSE, regular_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
+}
+
 static void test_directory_relative_unlink_rename(void) {
   struct renameat_request { int32_t newdirfd; const char *newpath; } request;
   int directory_fd;
@@ -577,6 +644,7 @@ static int32_t test_main(void) {
   test_open_read_seek_and_stat();
   test_directory_relative_syscalls();
   test_directory_relative_unlink_rename();
+  test_directory_relative_access_mkdir_chmod();
   test_sync_calls();
   test_positional_io();
   test_open_flags_and_errors();
