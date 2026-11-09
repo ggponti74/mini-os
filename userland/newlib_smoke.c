@@ -173,8 +173,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 78;
   }
-  if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0) != 0 ||
-      0 != 0) {
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0) != 0) {
     printf("newlib at-file cleanup failed: %d\n", errno);
     fflush(stdout);
     return 79;
