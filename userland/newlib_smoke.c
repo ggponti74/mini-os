@@ -48,6 +48,7 @@ extern uid_t _geteuid(void);
 extern gid_t _getgid(void);
 extern gid_t _getegid(void);
 extern int _gethostname(char *name, size_t length);
+extern int _truncate(const char *path, off_t length);
 extern int _kill(int pid, int signal);
 extern int _fork(void);
 extern int _execve(const char *pathname, char *const argv[], char *const envp[]);
@@ -265,6 +266,49 @@ int main(int argc, char **argv) {
     printf("nanosleep validation check failed: %d\\n", errno);
     fflush(stdout);
     return 29;
+  }
+
+  const char truncate_payload[] = "truncate";
+  int truncate_fd = open("newlib-truncate.dat", O_CREAT | O_TRUNC | O_RDWR, 0600);
+  if (truncate_fd < 0 ||
+      write(truncate_fd, truncate_payload, sizeof(truncate_payload)) !=
+          (int)sizeof(truncate_payload) ||
+      close(truncate_fd) != 0 ||
+      _truncate("newlib-truncate.dat", 4) != 0 ||
+      stat("newlib-truncate.dat", &status) != 0 || status.st_size != 4 ||
+      truncate("newlib-truncate.dat", 8) != 0) {
+    printf("path truncate check failed: %d\\n", errno);
+    fflush(stdout);
+    if (truncate_fd >= 0) close(truncate_fd);
+    unlink("newlib-truncate.dat");
+    return 45;
+  }
+  truncate_fd = open("newlib-truncate.dat", O_RDONLY);
+  char truncate_readback[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+  if (truncate_fd < 0 ||
+      read(truncate_fd, truncate_readback, sizeof(truncate_readback)) !=
+          (int)sizeof(truncate_readback) ||
+      memcmp(truncate_readback, "trun", 4) != 0 ||
+      truncate_readback[4] != 0 || truncate_readback[5] != 0 ||
+      truncate_readback[6] != 0 || truncate_readback[7] != 0 ||
+      close(truncate_fd) != 0 || unlink("newlib-truncate.dat") != 0) {
+    printf("path truncate extension check failed: %d\\n", errno);
+    fflush(stdout);
+    if (truncate_fd >= 0) close(truncate_fd);
+    unlink("newlib-truncate.dat");
+    return 46;
+  }
+  errno = 0;
+  if (truncate("newlib-truncate.dat", -1) != -1 || errno != EINVAL) {
+    printf("negative truncate length check failed: %d\\n", errno);
+    fflush(stdout);
+    return 47;
+  }
+  errno = 0;
+  if (truncate("newlib-truncate-missing.dat", 1) != -1 || errno != ENOENT) {
+    printf("missing truncate path check failed: %d\\n", errno);
+    fflush(stdout);
+    return 48;
   }
 
   mode_t previous_umask = umask(0077);
