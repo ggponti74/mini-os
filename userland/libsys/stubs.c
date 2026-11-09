@@ -29,6 +29,9 @@ int *__errno_location(void) {
 #define SYS_FSTATAT 37
 #define SYS_UNLINKAT 38
 #define SYS_RENAMEAT 39
+#define SYS_FACCESSAT 40
+#define SYS_MKDIRAT 41
+#define SYS_FCHMODAT 42
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -247,35 +250,24 @@ int openat(int dirfd, const char *pathname, int flags, ...) {
 }
 
 int faccessat(int dirfd, const char *pathname, int mode, int flags) {
-    if (dirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
-    if (flags != 0) {
-        errno = EINVAL;
-        return -1;
-    }
-    return _access(pathname, mode);
+    struct at_mode_flags_request { unsigned int mode; unsigned int flags; } request;
+    request.mode = (unsigned int)mode;
+    request.flags = (unsigned int)flags;
+    return syscall_result(syscall3(SYS_FACCESSAT, dirfd, (int)pathname,
+                                   (int)&request));
 }
 
 int mkdirat(int dirfd, const char *pathname, mode_t mode) {
-    if (dirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
-    return _mkdir(pathname, mode);
+    return syscall_result(syscall3(SYS_MKDIRAT, dirfd, (int)pathname,
+                                   (int)mode));
 }
 
 int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags) {
-    if (dirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
-    if (flags != 0) {
-        errno = EINVAL;
-        return -1;
-    }
-    return _chmod(pathname, mode);
+    struct at_mode_flags_request { unsigned int mode; unsigned int flags; } request;
+    request.mode = (unsigned int)mode;
+    request.flags = (unsigned int)flags;
+    return syscall_result(syscall3(SYS_FCHMODAT, dirfd, (int)pathname,
+                                   (int)&request));
 }
 
 int unlinkat(int dirfd, const char *pathname, int flags) {
