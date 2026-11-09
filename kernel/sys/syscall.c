@@ -646,6 +646,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (!directory || !(directory->flags & FS_DIRECTORY)) {
       return -ENOTDIR;
     }
+    if (!(directory->mode & S_IXUSR)) {
+      return -EACCES;
+    }
     if (shell_set_current_directory(resolved_path) != 0) {
       return -ENAMETOOLONG;
     }
@@ -659,6 +662,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     syscall_open_file_t *file = descriptors[fd].file;
     if (!(file->node->flags & FS_DIRECTORY)) {
       return -ENOTDIR;
+    }
+    if (!(file->node->mode & S_IXUSR)) {
+      return -EACCES;
     }
     if (shell_set_current_directory(file->path) != 0) {
       return -ENAMETOOLONG;
