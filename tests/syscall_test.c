@@ -200,8 +200,8 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&directory_status, 0) == 0);
   CHECK(S_ISDIR(directory_status.st_mode));
   CHECK(syscall_dispatch(SYS_READ, fd, (uint32_t)&read_probe, 1) == -EISDIR);
-  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"x", 1) == -EISDIR);
-  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == -EISDIR);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"x", 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_WRONLY, 0) ==
         -EISDIR);
