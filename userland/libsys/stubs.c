@@ -236,6 +236,26 @@ int faccessat(int dirfd, const char *pathname, int mode, int flags) {
     return _access(pathname, mode);
 }
 
+int mkdirat(int dirfd, const char *pathname, mode_t mode) {
+    if (dirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    return _mkdir(pathname, mode);
+}
+
+int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags) {
+    if (dirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    if (flags != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return _chmod(pathname, mode);
+}
+
 int fstatat(int dirfd, const char *pathname, struct stat *status, int flags) {
     if (dirfd != AT_FDCWD) {
         errno = EBADF;
