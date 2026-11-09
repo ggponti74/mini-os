@@ -525,6 +525,15 @@ int main(int argc, char **argv) {
     return 38;
   }
   errno = 0;
+  if (ftruncate(readonly_fd, 0) != -1 || errno != EBADF) {
+    printf("read-only ftruncate check failed: %d\n", errno);
+    fflush(stdout);
+    close(readonly_fd);
+    close(fd);
+    free(allocation);
+    return 68;
+  }
+  errno = 0;
   if (fdatasync(readonly_fd) != -1 || errno != EBADF ||
       close(readonly_fd) != 0) {
     printf("read-only fdatasync check failed: %d\n", errno);
@@ -590,6 +599,20 @@ int main(int argc, char **argv) {
                   zeroes[2] == 0 && zeroes[3] == 0;
   }
   int close_result = close(fd);
+  errno = 0;
+  if (ftruncate(fd, 0) != -1 || errno != EBADF) {
+    printf("closed-descriptor ftruncate check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 69;
+  }
+  errno = 0;
+  if (ftruncate(-1, 0) != -1 || errno != EBADF) {
+    printf("invalid-descriptor ftruncate check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 70;
+  }
   if (!file_ok || !positional_ok || !truncate_ok || close_result != 0) {
     printf("file syscall check failed: %d\n", errno);
     fflush(stdout);
