@@ -350,7 +350,7 @@ static void test_directory_relative_syscalls(void) {
   CHECK(syscall_dispatch(SYS_FSTATAT, 7, (uint32_t)"file",
                          (uint32_t)&stat_request) == -EBADF);
 
-  int regular_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
+  int regular_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
   CHECK(regular_fd >= 3);
   CHECK(syscall_dispatch(SYS_OPENAT, regular_fd, (uint32_t)"file",
                          (uint32_t)&open_request) == -ENOTDIR);
@@ -365,7 +365,7 @@ static void test_directory_relative_syscalls(void) {
   CHECK(S_ISREG(status.st_mode));
 
   int cwd_fd = syscall_dispatch(SYS_OPENAT, (uint32_t)AT_FDCWD,
-                                (uint32_t)"renamed", (uint32_t)&open_request);
+                                (uint32_t)"file", (uint32_t)&open_request);
   CHECK(cwd_fd >= 3);
 
   stat_request.flags = 1;
