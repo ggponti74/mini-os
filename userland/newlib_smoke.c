@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
     openat_ok = 0;
   }
   if (!openat_ok || unlinkat(AT_FDCWD, "newlib-openat.dat", 0) != 0) {
-    printf("openat create/read/mode check failed: %d\\n", errno);
+    printf("openat create/read/mode check failed: %d\n", errno);
     fflush(stdout);
     unlinkat(AT_FDCWD, "newlib-openat.dat", 0);
     return 86;
@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
   errno = 0;
   if (openat(3, "newlib-openat-invalid", O_RDONLY) != -1 ||
       errno != EBADF) {
-    printf("openat directory-descriptor check failed: %d\\n", errno);
+    printf("openat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
     return 87;
   }
