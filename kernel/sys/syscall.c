@@ -49,6 +49,8 @@ static uint32_t process_umask = 0022;
 typedef struct { int32_t tv_sec; int32_t tv_nsec; } syscall_timespec_t;
 typedef struct { int32_t tv_sec; int32_t tv_usec; } syscall_timeval_t;
 typedef struct { int32_t offset; uint32_t count; } syscall_positional_io_t;
+typedef struct { uint32_t flags; uint32_t mode; } syscall_openat_request_t;
+typedef struct { struct stat *status; uint32_t flags; } syscall_fstatat_request_t;
 
 /* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
 static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
@@ -251,6 +253,61 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   return -EMFILE;
 }
 
+
+static int resolve_at_path(int dirfd, const char *path,
+                           char *resolved_path) {
+  if (!path) return -EFAULT;
+  if (!path[0]) return -ENOENT;
+
+  uint32_t path_length = 0;
+  while (path[path_length] && path_length < SYSCALL_PATH_LENGTH) {
+    path_length++;
+  }
+  if (path_length == SYSCALL_PATH_LENGTH) return -ENAMETOOLONG;
+
+  if (path[0] == '/' || dirfd == AT_FDCWD) {
+    return shell_resolve_path(path, resolved_path,
+                              SYSCALL_PATH_LENGTH) == 0
+               ? 0 : -ENAMETOOLONG;
+  }
+
+  if (dirfd < 3 || dirfd >= SYSCALL_FD_COUNT ||
+      !descriptors[dirfd].used) {
+    return -EBADF;
+  }
+
+  syscall_open_file_t *directory = descriptors[dirfd].file;
+  if (!(directory->node->flags & FS_DIRECTORY)) return -ENOTDIR;
+  if (!(directory->node->mode & S_IXUSR)) return -EACCES;
+
+  uint32_t base_length = 0;
+  while (directory->path[base_length] &&
+         base_length < SYSCALL_PATH_LENGTH) {
+    base_length++;
+  }
+  if (base_length == SYSCALL_PATH_LENGTH) return -ENAMETOOLONG;
+
+  uint32_t separator = base_length > 0 &&
+                       directory->path[base_length - 1] != '/';
+  if (base_length + separator + path_length >= SYSCALL_PATH_LENGTH) {
+    return -ENAMETOOLONG;
+  }
+
+  char combined[SYSCALL_PATH_LENGTH];
+  uint32_t offset = 0;
+  for (uint32_t i = 0; i < base_length; i++) {
+    combined[offset++] = directory->path[i];
+  }
+  if (separator) combined[offset++] = '/';
+  for (uint32_t i = 0; i <= path_length; i++) {
+    combined[offset + i] = path[i];
+  }
+
+  return shell_resolve_path(combined, resolved_path,
+                            SYSCALL_PATH_LENGTH) == 0
+             ? 0 : -ENAMETOOLONG;
+}
+
 static void fill_node_stat(struct stat *status, const vfs_node_t *node) {
   status->st_dev = 0;
   status->st_ino = node->inode;
@@ -326,6 +383,17 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   }
   if (number == SYS_OPEN) {
     return open_file((const char *)arg1, arg2, arg3);
+  }
+  if (number == SYS_OPENAT) {
+    int dirfd = (int)arg1;
+    const char *path = (const char *)arg2;
+    const syscall_openat_request_t *request =
+        (const syscall_openat_request_t *)arg3;
+    if (!request) return -EFAULT;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(dirfd, path, resolved_path);
+    if (result != 0) return result;
+    return open_file(resolved_path, request->flags, request->mode);
   }
   if (number == SYS_READ) {
     int fd = (int)arg1;
@@ -462,6 +530,21 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return -ENOENT;
     }
     fill_node_stat(status, node);
+    return 0;
+  }
+  if (number == SYS_FSTATAT) {
+    int dirfd = (int)arg1;
+    const char *path = (const char *)arg2;
+    const syscall_fstatat_request_t *request =
+        (const syscall_fstatat_request_t *)arg3;
+    if (!request || !request->status) return -EFAULT;
+    if (request->flags != 0) return -EINVAL;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(dirfd, path, resolved_path);
+    if (result != 0) return result;
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) return -ENOENT;
+    fill_node_stat(request->status, node);
     return 0;
   }
   if (number == SYS_LSEEK) {
