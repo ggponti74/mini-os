@@ -380,6 +380,38 @@ static void test_directory_relative_syscalls(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
 }
 
+
+static void test_directory_relative_unlink_rename(void) {
+  struct renameat_request { int32_t newdirfd; const char *newpath; } request;
+  int directory_fd;
+  int regular_fd;
+
+  reset_file();
+  directory_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
+                                  O_RDONLY | O_DIRECTORY, 0);
+  CHECK(directory_fd >= 3);
+  regular_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(regular_fd >= 3);
+
+  CHECK(syscall_dispatch(SYS_UNLINKAT, 99, (uint32_t)"file", 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_UNLINKAT, regular_fd, (uint32_t)"file", 0) ==
+        -ENOTDIR);
+  CHECK(syscall_dispatch(SYS_UNLINKAT, directory_fd, (uint32_t)"file", 1) ==
+        -EINVAL);
+
+  request.newdirfd = directory_fd;
+  request.newpath = "renamed";
+  CHECK(syscall_dispatch(SYS_RENAMEAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == 0);
+  CHECK(syscall_dispatch(SYS_UNLINKAT, directory_fd, (uint32_t)"renamed", 0) ==
+        0);
+  CHECK(syscall_dispatch(SYS_UNLINKAT, directory_fd, (uint32_t)"renamed", 0) ==
+        -ENOENT);
+
+  CHECK(syscall_dispatch(SYS_CLOSE, regular_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
+}
+
 static void test_sync_calls(void) {
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
@@ -542,6 +574,7 @@ static int32_t test_main(void) {
 
   test_open_read_seek_and_stat();
   test_directory_relative_syscalls();
+  test_directory_relative_unlink_rename();
   test_sync_calls();
   test_positional_io();
   test_open_flags_and_errors();
@@ -757,7 +790,9 @@ int initrd_move_file(const char *old_name, const char *new_name) {
   if (!old_name || !new_name || !*new_name) {
     return -1;
   }
-  if (strings_equal(old_name, "file") && !strings_equal(new_name, "file")) {
+  if ((strings_equal(old_name, "file") ||
+       strings_equal(old_name, "dir/file")) &&
+      !strings_equal(new_name, "file")) {
     file_node.name[0] = '\0';
     for (size_t i = 0; new_name[i] != '\0' && i < sizeof(file_node.name) - 1; i++) {
       file_node.name[i] = new_name[i];
@@ -771,7 +806,8 @@ int initrd_remove_file(const char *filename) {
   if (!filename) {
     return -1;
   }
-  if (strings_equal(filename, "file")) {
+  if (strings_equal(filename, "file") ||
+      strings_equal(filename, "dir/renamed")) {
     file_node.flags = 0;
     file_node.length = 0;
     file_node.inode = 0;
