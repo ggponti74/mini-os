@@ -41,6 +41,10 @@ _Static_assert(sizeof(struct stat) == 72 &&
                "Newlib i686 stat ABI");
 
 extern int _getpid(void);
+extern uid_t _getuid(void);
+extern uid_t _geteuid(void);
+extern gid_t _getgid(void);
+extern gid_t _getegid(void);
 extern int _kill(int pid, int signal);
 extern int _fork(void);
 extern int _execve(const char *pathname, char *const argv[], char *const envp[]);
@@ -130,6 +134,14 @@ int main(int argc, char **argv) {
     printf("getpid check failed\n");
     fflush(stdout);
     return 10;
+  }
+  if (_getuid() != 0 || getuid() != 0 ||
+      _geteuid() != 0 || geteuid() != 0 ||
+      _getgid() != 0 || getgid() != 0 ||
+      _getegid() != 0 || getegid() != 0) {
+    printf("user/group identity check failed\n");
+    fflush(stdout);
+    return 40;
   }
   errno = 0;
   if (_kill(1, 0) != -1 || errno != ENOSYS) {
