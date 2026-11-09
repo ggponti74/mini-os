@@ -9,6 +9,7 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 
 static int test_sbrk(void) {
@@ -46,6 +47,7 @@ extern uid_t _getuid(void);
 extern uid_t _geteuid(void);
 extern gid_t _getgid(void);
 extern gid_t _getegid(void);
+extern int _gethostname(char *name, size_t length);
 extern int _kill(int pid, int signal);
 extern int _fork(void);
 extern int _execve(const char *pathname, char *const argv[], char *const envp[]);
@@ -143,6 +145,41 @@ int main(int argc, char **argv) {
     printf("user/group identity check failed\n");
     fflush(stdout);
     return 40;
+  }
+  char hostname[16];
+  char short_hostname[4];
+  errno = 0;
+  if (_gethostname(hostname, sizeof(hostname)) != 0 ||
+      strcmp(hostname, "mini-os") != 0 ||
+      gethostname(hostname, sizeof(hostname)) != 0 ||
+      strcmp(hostname, "mini-os") != 0) {
+    printf("hostname check failed: %d\n", errno);
+    fflush(stdout);
+    return 41;
+  }
+  errno = 0;
+  if (gethostname(short_hostname, sizeof(short_hostname)) != -1 ||
+      errno != ENAMETOOLONG || strcmp(short_hostname, "min") != 0) {
+    printf("short hostname check failed: %d\n", errno);
+    fflush(stdout);
+    return 42;
+  }
+  struct utsname system_identity;
+  if (uname(&system_identity) != 0 ||
+      strcmp(system_identity.sysname, "mini-os") != 0 ||
+      strcmp(system_identity.nodename, "mini-os") != 0 ||
+      strcmp(system_identity.release, "0") != 0 ||
+      strcmp(system_identity.version, "development") != 0 ||
+      strcmp(system_identity.machine, "i386") != 0) {
+    printf("uname check failed: %d\n", errno);
+    fflush(stdout);
+    return 43;
+  }
+  errno = 0;
+  if (uname(NULL) != -1 || errno != EFAULT) {
+    printf("uname null-argument check failed: %d\n", errno);
+    fflush(stdout);
+    return 44;
   }
   errno = 0;
   if (_kill(1, 0) != -1 || errno != ENOSYS) {

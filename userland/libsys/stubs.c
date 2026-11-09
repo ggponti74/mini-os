@@ -8,6 +8,7 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include "memory_layout.h"
 
 extern char _end[];
@@ -401,6 +402,60 @@ gid_t _getegid(void) {
     return 0;
 }
 
+/* The current system has one fixed host identity and no hostname service. */
+#define MINI_OS_HOSTNAME "mini-os"
+
+int _gethostname(char *name, size_t length) {
+    static const char hostname[] = MINI_OS_HOSTNAME;
+    if (!name) {
+        errno = EFAULT;
+        return -1;
+    }
+    if (length == 0) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    size_t index = 0;
+    while (index + 1 < length && hostname[index] != '\0') {
+        name[index] = hostname[index];
+        index++;
+    }
+    name[index] = '\0';
+    if (hostname[index] != '\0') {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    return 0;
+}
+
+static void copy_uts_field(char *destination, size_t capacity,
+                           const char *source) {
+    if (capacity == 0) {
+        return;
+    }
+    size_t index = 0;
+    while (index + 1 < capacity && source[index] != '\0') {
+        destination[index] = source[index];
+        index++;
+    }
+    destination[index] = '\0';
+}
+
+int uname(struct utsname *name) {
+    if (!name) {
+        errno = EFAULT;
+        return -1;
+    }
+
+    copy_uts_field(name->sysname, sizeof(name->sysname), MINI_OS_HOSTNAME);
+    copy_uts_field(name->nodename, sizeof(name->nodename), MINI_OS_HOSTNAME);
+    copy_uts_field(name->release, sizeof(name->release), "0");
+    copy_uts_field(name->version, sizeof(name->version), "development");
+    copy_uts_field(name->machine, sizeof(name->machine), "i386");
+    return 0;
+}
+
 int _kill(int pid, int signal) {
     (void)pid;
     (void)signal;
@@ -456,6 +511,10 @@ gid_t getgid(void) {
 
 gid_t getegid(void) {
     return _getegid();
+}
+
+int gethostname(char *name, size_t length) {
+    return _gethostname(name, length);
 }
 
 int kill(int pid, int signal) {
