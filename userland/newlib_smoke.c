@@ -421,6 +421,30 @@ int main(int argc, char **argv) {
   }
   umask(previous_umask);
 
+  int chmod_test_fd = open("newlib-fchmod.dat", O_CREAT | O_EXCL | O_RDWR, 0644);
+  if (chmod_test_fd < 0 || fchmod(chmod_test_fd, 0600) != 0 ||
+      fstat(chmod_test_fd, &status) != 0 ||
+      (status.st_mode & 0777) != 0600) {
+    printf("fchmod permission update check failed: %d\n", errno);
+    fflush(stdout);
+    if (chmod_test_fd >= 0) close(chmod_test_fd);
+    unlink("newlib-fchmod.dat");
+    return 65;
+  }
+  errno = 0;
+  if (fchmod(-1, 0644) != -1 || errno != EBADF) {
+    printf("fchmod invalid descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(chmod_test_fd);
+    unlink("newlib-fchmod.dat");
+    return 66;
+  }
+  if (close(chmod_test_fd) != 0 || unlink("newlib-fchmod.dat") != 0) {
+    printf("fchmod test cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 67;
+  }
+
   char *allocation = malloc(128);
   if (!allocation) {
     printf("malloc failed: %d\n", errno);
