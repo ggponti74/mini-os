@@ -25,6 +25,8 @@ int *__errno_location(void) {
 #define SYS_SBRK 7
 #define SYS_APP_SBRK 26
 #define SYS_FSTAT 8
+#define SYS_OPENAT 36
+#define SYS_FSTATAT 37
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -229,18 +231,17 @@ int _access(const char *pathname, int mode) {
 }
 
 int openat(int dirfd, const char *pathname, int flags, ...) {
-    if (dirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
+    struct openat_request { int flags; int mode; } request;
+    request.flags = flags;
+    request.mode = 0;
     if (flags & O_CREAT) {
         va_list ap;
         va_start(ap, flags);
-        int mode = va_arg(ap, int);
+        request.mode = va_arg(ap, int);
         va_end(ap);
-        return _open(pathname, flags, mode);
     }
-    return _open(pathname, flags);
+    return syscall_result(syscall3(SYS_OPENAT, dirfd, (int)pathname,
+                                   (int)&request));
 }
 
 int faccessat(int dirfd, const char *pathname, int mode, int flags) {
@@ -302,15 +303,11 @@ int renameat(int olddirfd, const char *oldpath,
 }
 
 int fstatat(int dirfd, const char *pathname, struct stat *status, int flags) {
-    if (dirfd != AT_FDCWD) {
-        errno = EBADF;
-        return -1;
-    }
-    if (flags != 0) {
-        errno = EINVAL;
-        return -1;
-    }
-    return _stat(pathname, status);
+    struct fstatat_request { struct stat *status; int flags; } request;
+    request.status = status;
+    request.flags = flags;
+    return syscall_result(syscall3(SYS_FSTATAT, dirfd, (int)pathname,
+                                   (int)&request));
 }
 
 int _rename(const char *oldpath, const char *newpath) {
