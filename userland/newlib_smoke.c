@@ -106,13 +106,13 @@ int main(int argc, char **argv) {
     return 24;
   }
   if (access("newlib-cwd-test", F_OK) != 0) {
-    printf("access existence check failed: %d\\n", errno);
+    printf("access existence check failed: %d\n", errno);
     fflush(stdout);
     return 25;
   }
   errno = 0;
   if (access("newlib-cwd-test", X_OK) == 0 || errno != EACCES) {
-    printf("access execute-permission check failed: %d\\n", errno);
+    printf("access execute-permission check failed: %d\n", errno);
     fflush(stdout);
     return 26;
   }
@@ -121,28 +121,28 @@ int main(int argc, char **argv) {
   if (fstatat(AT_FDCWD, "newlib-cwd-test", &at_status, 0) != 0 ||
       !S_ISDIR(at_status.st_mode) ||
       faccessat(AT_FDCWD, "newlib-cwd-test", F_OK, 0) != 0) {
-    printf("AT_FDCWD path-operation check failed: %d\\n", errno);
+    printf("AT_FDCWD path-operation check failed: %d\n", errno);
     fflush(stdout);
     return 71;
   }
   errno = 0;
   if (faccessat(AT_FDCWD, "newlib-cwd-test", X_OK, 0) != -1 ||
       errno != EACCES) {
-    printf("faccessat permission check failed: %d\\n", errno);
+    printf("faccessat permission check failed: %d\n", errno);
     fflush(stdout);
     return 72;
   }
   errno = 0;
   if (fstatat(3, "newlib-cwd-test", &at_status, 0) != -1 ||
       errno != EBADF) {
-    printf("fstatat directory-descriptor check failed: %d\\n", errno);
+    printf("fstatat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
     return 73;
   }
   errno = 0;
   if (faccessat(AT_FDCWD, "newlib-cwd-test", F_OK, 1) != -1 ||
       errno != EINVAL) {
-    printf("faccessat flags check failed: %d\\n", errno);
+    printf("faccessat flags check failed: %d\n", errno);
     fflush(stdout);
     return 74;
   }
@@ -292,19 +292,19 @@ int main(int argc, char **argv) {
   }
   if (sysconf(_SC_PAGESIZE) != 4096 ||
       getpagesize() != 4096) {
-    printf("page-size query check failed: %d\\n", errno);
+    printf("page-size query check failed: %d\n", errno);
     fflush(stdout);
     return 49;
   }
   errno = 0;
   if (sysconf(-1) != -1 || errno != EINVAL) {
-    printf("invalid sysconf query check failed: %d\\n", errno);
+    printf("invalid sysconf query check failed: %d\n", errno);
     fflush(stdout);
     return 50;
   }
 #ifdef _SC_OPEN_MAX
   if (sysconf(_SC_OPEN_MAX) != 8 || getdtablesize() != 8) {
-    printf("open-descriptor limit check failed: %d\\n", errno);
+    printf("open-descriptor limit check failed: %d\n", errno);
     fflush(stdout);
     return 51;
   }
@@ -339,7 +339,7 @@ int main(int argc, char **argv) {
   errno = 0;
   if (_link("newlib-smoke.dat", "newlib-smoke.link") != -1 ||
       errno != ENOSYS) {
-    printf("link check failed: %d\\n", errno);
+    printf("link check failed: %d\n", errno);
     fflush(stdout);
     return 17;
   }
@@ -384,14 +384,14 @@ int main(int argc, char **argv) {
       clock_gettime(CLOCK_MONOTONIC, &monotonic_after) != 0 ||
       (monotonic_after.tv_sec * 1000000000LL + monotonic_after.tv_nsec) <
           (monotonic_before.tv_sec * 1000000000LL + monotonic_before.tv_nsec + 2000000LL)) {
-    printf("monotonic clock/sleep check failed: %d\\n", errno);
+    printf("monotonic clock/sleep check failed: %d\n", errno);
     fflush(stdout);
     return 28;
   }
   struct timespec invalid_sleep = {0, 1000000000};
   errno = 0;
   if (nanosleep(&invalid_sleep, NULL) != -1 || errno != EINVAL) {
-    printf("nanosleep validation check failed: %d\\n", errno);
+    printf("nanosleep validation check failed: %d\n", errno);
     fflush(stdout);
     return 29;
   }
@@ -405,7 +405,7 @@ int main(int argc, char **argv) {
       _truncate("newlib-truncate.dat", 4) != 0 ||
       stat("newlib-truncate.dat", &status) != 0 || status.st_size != 4 ||
       truncate("newlib-truncate.dat", 8) != 0) {
-    printf("path truncate check failed: %d\\n", errno);
+    printf("path truncate check failed: %d\n", errno);
     fflush(stdout);
     if (truncate_fd >= 0) close(truncate_fd);
     unlink("newlib-truncate.dat");
@@ -420,7 +420,7 @@ int main(int argc, char **argv) {
       truncate_readback[4] != 0 || truncate_readback[5] != 0 ||
       truncate_readback[6] != 0 || truncate_readback[7] != 0 ||
       close(truncate_fd) != 0 || unlink("newlib-truncate.dat") != 0) {
-    printf("path truncate extension check failed: %d\\n", errno);
+    printf("path truncate extension check failed: %d\n", errno);
     fflush(stdout);
     if (truncate_fd >= 0) close(truncate_fd);
     unlink("newlib-truncate.dat");
@@ -428,13 +428,13 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (truncate("newlib-truncate.dat", -1) != -1 || errno != EINVAL) {
-    printf("negative truncate length check failed: %d\\n", errno);
+    printf("negative truncate length check failed: %d\n", errno);
     fflush(stdout);
     return 47;
   }
   errno = 0;
   if (truncate("newlib-truncate-missing.dat", 1) != -1 || errno != ENOENT) {
-    printf("missing truncate path check failed: %d\\n", errno);
+    printf("missing truncate path check failed: %d\n", errno);
     fflush(stdout);
     return 48;
   }
