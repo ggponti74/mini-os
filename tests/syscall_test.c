@@ -221,6 +221,8 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   reset_file();
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, 2, 0, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, 99, 0, 0) == -EBADF);
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
   CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, (uint32_t)-1, 0) == -EINVAL);
@@ -231,6 +233,11 @@ static void test_open_flags_and_errors(void) {
   CHECK(file_node.length == 3);
   CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == 0);
   CHECK(file_node.length == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == -EBADF);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FTRUNCATE, fd, 0, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"newdir", 0750, 0) == 0);
