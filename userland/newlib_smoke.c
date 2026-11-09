@@ -182,6 +182,19 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 44;
   }
+  if (sysconf(_SC_PAGESIZE) != 4096 ||
+      getpagesize() != 4096) {
+    printf("page-size query check failed: %d\\n", errno);
+    fflush(stdout);
+    return 49;
+  }
+  errno = 0;
+  if (sysconf(-1) != -1 || errno != EINVAL) {
+    printf("invalid sysconf query check failed: %d\\n", errno);
+    fflush(stdout);
+    return 50;
+  }
+
   errno = 0;
   if (_kill(1, 0) != -1 || errno != ENOSYS) {
     printf("kill check failed: %d\n", errno);

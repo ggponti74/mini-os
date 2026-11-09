@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <unistd.h>
+#include "memory.h"
 #include "memory_layout.h"
 
 extern char _end[];
@@ -466,6 +468,26 @@ static void copy_uts_field(char *destination, size_t capacity,
         index++;
     }
     destination[index] = '\0';
+}
+
+/* Report the page size used by the physical memory manager. */
+long sysconf(int name) {
+#ifdef _SC_PAGESIZE
+    if (name == _SC_PAGESIZE) {
+        return PAGE_SIZE;
+    }
+#endif
+#if defined(_SC_PAGE_SIZE) && (!defined(_SC_PAGESIZE) || _SC_PAGE_SIZE != _SC_PAGESIZE)
+    if (name == _SC_PAGE_SIZE) {
+        return PAGE_SIZE;
+    }
+#endif
+    errno = EINVAL;
+    return -1;
+}
+
+int getpagesize(void) {
+    return PAGE_SIZE;
 }
 
 int uname(struct utsname *name) {
