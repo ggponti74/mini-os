@@ -273,6 +273,21 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, 3, 0, 0) == 0);
 }
 
+static void test_sync_calls(void) {
+  int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FSYNC, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FSYNC, fd, 1, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FSYNC, fd, 0, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FSYNC, 3, 0, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FSYNC, 0, 0, 0) == -EBADF);
+}
+
 static void test_positional_io(void) {
   struct test_positional_io_request {
     int32_t offset;
@@ -419,6 +434,7 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
+  test_sync_calls();
   test_positional_io();
   test_open_flags_and_errors();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
