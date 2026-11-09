@@ -146,6 +146,40 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 74;
   }
+  if (mkdirat(AT_FDCWD, "newlib-at-create", 0700) != 0 ||
+      fchmodat(AT_FDCWD, "newlib-at-create", 0500, 0) != 0 ||
+      stat("newlib-at-create", &at_status) != 0 ||
+      (at_status.st_mode & 0777) != 0500) {
+    printf("mkdirat/fchmodat mode check failed: %d\n", errno);
+    fflush(stdout);
+    return 75;
+  }
+  errno = 0;
+  if (mkdirat(3, "newlib-at-invalid", 0700) != -1 || errno != EBADF) {
+    printf("mkdirat directory-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    return 76;
+  }
+  errno = 0;
+  if (fchmodat(3, "newlib-at-create", 0700, 0) != -1 || errno != EBADF) {
+    printf("fchmodat directory-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    return 77;
+  }
+  errno = 0;
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 1) != -1 ||
+      errno != EINVAL) {
+    printf("fchmodat flags check failed: %d\n", errno);
+    fflush(stdout);
+    return 78;
+  }
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0) != 0 ||
+      rmdir("newlib-at-create") != 0) {
+    printf("newlib at-file cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 79;
+  }
+
   if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
     fflush(stdout);
