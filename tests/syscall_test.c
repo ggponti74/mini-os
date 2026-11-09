@@ -796,9 +796,11 @@ int initrd_move_file(const char *old_name, const char *new_name) {
        strings_equal(old_name, "dir/file")) &&
       !strings_equal(new_name, "file")) {
     file_node.name[0] = '\0';
-    for (size_t i = 0; new_name[i] != '\0' && i < sizeof(file_node.name) - 1; i++) {
+    size_t i = 0;
+    for (; new_name[i] != '\0' && i < sizeof(file_node.name) - 1; i++) {
       file_node.name[i] = new_name[i];
     }
+    file_node.name[i] = '\0';
     return 0;
   }
   return -1;
