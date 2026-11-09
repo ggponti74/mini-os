@@ -43,6 +43,7 @@ int *__errno_location(void) {
 #define SYS_GETTIMEOFDAY 31
 #define SYS_PREAD 32
 #define SYS_PWRITE 33
+#define SYS_FSYNC 34
 
 #ifndef F_GETFL
 #define F_GETFL 3
@@ -153,6 +154,10 @@ long _lseek(int fd, long offset, int whence) {
 
 int _ftruncate(int fd, off_t length) {
     return syscall_result(syscall3(SYS_FTRUNCATE, fd, (int)length, 0));
+}
+
+int _fsync(int fd) {
+    return syscall_result(syscall3(SYS_FSYNC, fd, 0, 0));
 }
 
 int _clock_gettime(clockid_t clock_id, struct timespec *time) {
@@ -292,6 +297,14 @@ long lseek(int fd, long offset, int whence) {
 
 int ftruncate(int fd, off_t length) {
     return _ftruncate(fd, length);
+}
+
+int fsync(int fd) {
+    return _fsync(fd);
+}
+
+int fdatasync(int fd) {
+    return _fsync(fd);
 }
 
 int clock_gettime(clockid_t clock_id, struct timespec *time) {
