@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
     return 78;
   }
   if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0) != 0 ||
-      rmdir("newlib-at-create") != 0) {
+      0 != 0) {
     printf("newlib at-file cleanup failed: %d\n", errno);
     fflush(stdout);
     return 79;
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
       renameat(AT_FDCWD, "newlib-at-rename-old",
                AT_FDCWD, "newlib-at-rename-new") != 0 ||
       access("newlib-at-rename-new", F_OK) != 0) {
-    printf("renameat path-operation check failed: %d\\n", errno);
+    printf("renameat path-operation check failed: %d\n", errno);
     fflush(stdout);
     if (at_rename_fd >= 0) close(at_rename_fd);
     unlink("newlib-at-rename-old");
@@ -196,32 +196,32 @@ int main(int argc, char **argv) {
   errno = 0;
   if (renameat(3, "newlib-at-rename-new", AT_FDCWD,
                "newlib-at-rename-invalid") != -1 || errno != EBADF) {
-    printf("renameat directory-descriptor check failed: %d\\n", errno);
+    printf("renameat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
     unlink("newlib-at-rename-new");
     return 81;
   }
   if (unlinkat(AT_FDCWD, "newlib-at-rename-new", 0) != 0) {
-    printf("unlinkat file removal check failed: %d\\n", errno);
+    printf("unlinkat file removal check failed: %d\n", errno);
     fflush(stdout);
     return 82;
   }
   errno = 0;
   if (unlinkat(AT_FDCWD, "newlib-at-rename-new", 1) != -1 ||
       errno != EINVAL) {
-    printf("unlinkat flags check failed: %d\\n", errno);
+    printf("unlinkat flags check failed: %d\n", errno);
     fflush(stdout);
     return 83;
   }
   if (unlinkat(AT_FDCWD, "newlib-at-create", AT_REMOVEDIR) != 0) {
-    printf("unlinkat directory removal check failed: %d\\n", errno);
+    printf("unlinkat directory removal check failed: %d\n", errno);
     fflush(stdout);
     return 84;
   }
   errno = 0;
   if (unlinkat(3, "newlib-at-create", AT_REMOVEDIR) != -1 ||
       errno != EBADF) {
-    printf("unlinkat directory-descriptor check failed: %d\\n", errno);
+    printf("unlinkat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
     return 85;
   }
