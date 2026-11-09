@@ -61,6 +61,10 @@ int *__errno_location(void) {
 #define X_OK 1
 #endif
 
+#ifndef AT_FDCWD
+#define AT_FDCWD (-100)
+#endif
+
 static int syscall3(int number, int arg1, int arg2, int arg3) {
     __asm__ volatile (
         "int $0x80"
@@ -218,6 +222,30 @@ int _link(const char *existing, const char *newpath) {
 
 int _access(const char *pathname, int mode) {
     return syscall_result(syscall3(SYS_ACCESS, (int)pathname, mode, 0));
+}
+
+int faccessat(int dirfd, const char *pathname, int mode, int flags) {
+    if (dirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    if (flags != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return _access(pathname, mode);
+}
+
+int fstatat(int dirfd, const char *pathname, struct stat *status, int flags) {
+    if (dirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    if (flags != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return _stat(pathname, status);
 }
 
 int _rename(const char *oldpath, const char *newpath) {

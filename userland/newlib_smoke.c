@@ -116,6 +116,36 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 26;
   }
+
+  struct stat at_status;
+  if (fstatat(AT_FDCWD, "newlib-cwd-test", &at_status, 0) != 0 ||
+      !S_ISDIR(at_status.st_mode) ||
+      faccessat(AT_FDCWD, "newlib-cwd-test", F_OK, 0) != 0) {
+    printf("AT_FDCWD path-operation check failed: %d\n", errno);
+    fflush(stdout);
+    return 71;
+  }
+  errno = 0;
+  if (faccessat(AT_FDCWD, "newlib-cwd-test", X_OK, 0) != -1 ||
+      errno != EACCES) {
+    printf("faccessat permission check failed: %d\n", errno);
+    fflush(stdout);
+    return 72;
+  }
+  errno = 0;
+  if (fstatat(3, "newlib-cwd-test", &at_status, 0) != -1 ||
+      errno != EBADF) {
+    printf("fstatat directory-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    return 73;
+  }
+  errno = 0;
+  if (faccessat(AT_FDCWD, "newlib-cwd-test", F_OK, 1) != -1 ||
+      errno != EINVAL) {
+    printf("faccessat flags check failed: %d\n", errno);
+    fflush(stdout);
+    return 74;
+  }
   if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
     fflush(stdout);
