@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 static int test_sbrk(void) {
