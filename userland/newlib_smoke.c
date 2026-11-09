@@ -225,6 +225,37 @@ int main(int argc, char **argv) {
     return 85;
   }
 
+  const char openat_payload[] = "openat";
+  char openat_readback[sizeof(openat_payload)] = {0};
+  int openat_fd = openat(AT_FDCWD, "newlib-openat.dat",
+                         O_CREAT | O_EXCL | O_RDWR, 0640);
+  int openat_ok =
+      openat_fd >= 0 &&
+      write(openat_fd, openat_payload, sizeof(openat_payload)) ==
+          (int)sizeof(openat_payload) &&
+      lseek(openat_fd, 0, SEEK_SET) == 0 &&
+      read(openat_fd, openat_readback, sizeof(openat_readback)) ==
+          (int)sizeof(openat_readback) &&
+      memcmp(openat_payload, openat_readback, sizeof(openat_payload)) == 0 &&
+      fstat(openat_fd, &at_status) == 0 &&
+      (at_status.st_mode & 0777) == 0640;
+  if (openat_fd >= 0 && close(openat_fd) != 0) {
+    openat_ok = 0;
+  }
+  if (!openat_ok || unlinkat(AT_FDCWD, "newlib-openat.dat", 0) != 0) {
+    printf("openat create/read/mode check failed: %d\\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat.dat", 0);
+    return 86;
+  }
+  errno = 0;
+  if (openat(3, "newlib-openat-invalid", O_RDONLY) != -1 ||
+      errno != EBADF) {
+    printf("openat directory-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    return 87;
+  }
+
   if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
     fflush(stdout);
