@@ -20,6 +20,7 @@
 
 typedef struct {
   vfs_node_t *node;
+  char path[SYSCALL_PATH_LENGTH];
   uint32_t offset;
   uint8_t readable;
   uint8_t writable;
@@ -188,7 +189,7 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   if (!node) {
     return -ENOENT;
   }
-  if (node->flags & FS_DIRECTORY) {
+  if ((node->flags & FS_DIRECTORY) && access_mode != O_RDONLY) {
     return -EISDIR;
   }
   if (created) {
@@ -216,6 +217,9 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
         return -EMFILE;
       }
       file->node = node;
+      for (uint32_t i = 0; i <= length; i++) {
+        file->path[i] = resolved_path[i];
+      }
       file->offset = (flags & O_APPEND) ? node->length : 0;
       file->readable = access_mode != O_WRONLY;
       file->writable = access_mode == O_WRONLY || access_mode == O_RDWR;
@@ -325,6 +329,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
         !descriptors[fd].file->readable) {
       return -EBADF;
     }
+    if (descriptors[fd].file->node->flags & FS_DIRECTORY) {
+      return -EISDIR;
+    }
     uint32_t bytes = vfs_read(descriptors[fd].file->node,
                               descriptors[fd].file->offset,
                               arg3, (uint8_t *)arg2);
@@ -350,6 +357,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
         !descriptors[fd].file->writable) {
       return -EBADF;
     }
+    if (descriptors[fd].file->node->flags & FS_DIRECTORY) {
+      return -EISDIR;
+    }
     if (descriptors[fd].file->append) {
       descriptors[fd].file->offset = descriptors[fd].file->node->length;
     }
@@ -371,6 +381,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       return -EBADF;
     }
     syscall_open_file_t *file = descriptors[fd].file;
+    if (file->node->flags & FS_DIRECTORY) return -EISDIR;
     if (number == SYS_PREAD) {
       if (!file->readable) return -EBADF;
       return (int32_t)vfs_read(file->node, (uint32_t)request->offset,
@@ -627,6 +638,20 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     }
     return 0;
   }
+  if (number == SYS_FCHDIR) {
+    int fd = (int)arg1;
+    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
+      return -EBADF;
+    }
+    syscall_open_file_t *file = descriptors[fd].file;
+    if (!(file->node->flags & FS_DIRECTORY)) {
+      return -ENOTDIR;
+    }
+    if (shell_set_current_directory(file->path) != 0) {
+      return -ENAMETOOLONG;
+    }
+    return 0;
+  }
   if (number == SYS_GETCWD) {
     char *buffer = (char *)arg1;
     uint32_t size = arg2;
@@ -770,6 +795,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     }
     if ((int32_t)arg2 < 0) {
       return -EINVAL;
+    }
+    if (descriptors[fd].file->node->flags & FS_DIRECTORY) {
+      return -EISDIR;
     }
     if (vfs_truncate(descriptors[fd].file->node, arg2) != 0) {
       return -EFBIG;
