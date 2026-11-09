@@ -157,6 +157,28 @@ int _ftruncate(int fd, off_t length) {
     return syscall_result(syscall3(SYS_FTRUNCATE, fd, (int)length, 0));
 }
 
+/* Implement path-based truncation using the existing descriptor operation. */
+int _truncate(const char *path, off_t length) {
+    if (length < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    int fd = _open(path, O_WRONLY);
+    if (fd < 0) {
+        return -1;
+    }
+
+    int result = _ftruncate(fd, length);
+    int saved_errno = errno;
+    int close_result = _close(fd);
+    if (result < 0) {
+        errno = saved_errno;
+        return -1;
+    }
+    return close_result;
+}
+
 int _fsync(int fd) {
     return syscall_result(syscall3(SYS_FSYNC, fd, 0, 0));
 }
@@ -298,6 +320,10 @@ long lseek(int fd, long offset, int whence) {
 
 int ftruncate(int fd, off_t length) {
     return _ftruncate(fd, length);
+}
+
+int truncate(const char *path, off_t length) {
+    return _truncate(path, length);
 }
 
 int fsync(int fd) {
