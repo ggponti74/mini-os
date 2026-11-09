@@ -65,6 +65,10 @@ int *__errno_location(void) {
 #define AT_FDCWD (-100)
 #endif
 
+#ifndef AT_REMOVEDIR
+#define AT_REMOVEDIR 0x200
+#endif
+
 static int syscall3(int number, int arg1, int arg2, int arg3) {
     __asm__ volatile (
         "int $0x80"
@@ -254,6 +258,30 @@ int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags) {
         return -1;
     }
     return _chmod(pathname, mode);
+}
+
+int unlinkat(int dirfd, const char *pathname, int flags) {
+    if (dirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    if (flags == 0) {
+        return _unlink(pathname);
+    }
+    if (flags == AT_REMOVEDIR) {
+        return _rmdir(pathname);
+    }
+    errno = EINVAL;
+    return -1;
+}
+
+int renameat(int olddirfd, const char *oldpath,
+             int newdirfd, const char *newpath) {
+    if (olddirfd != AT_FDCWD || newdirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    return _rename(oldpath, newpath);
 }
 
 int fstatat(int dirfd, const char *pathname, struct stat *status, int flags) {
