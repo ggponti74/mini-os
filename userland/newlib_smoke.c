@@ -433,14 +433,14 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fchmod(-1, 0644) != -1 || errno != EBADF) {
-    printf("fchmod invalid descriptor check failed: %d\\n", errno);
+    printf("fchmod invalid descriptor check failed: %d\n", errno);
     fflush(stdout);
     close(chmod_test_fd);
     unlink("newlib-fchmod.dat");
     return 66;
   }
   if (close(chmod_test_fd) != 0 || unlink("newlib-fchmod.dat") != 0) {
-    printf("fchmod test cleanup failed: %d\\n", errno);
+    printf("fchmod test cleanup failed: %d\n", errno);
     fflush(stdout);
     return 67;
   }
