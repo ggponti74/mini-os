@@ -153,9 +153,11 @@ static int32_t app_sbrk(int32_t increment, uint32_t base, uint32_t limit) {
 
 static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   uint32_t access_mode = flags & O_ACCMODE;
-  uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND | O_EXCL;
+  uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND |
+                                O_EXCL | O_DIRECTORY;
   if ((flags & ~supported_flags) != 0 || access_mode == 3 ||
-      ((flags & O_TRUNC) && access_mode == O_RDONLY)) {
+      ((flags & O_TRUNC) && access_mode == O_RDONLY) ||
+      ((flags & O_DIRECTORY) && (flags & O_CREAT))) {
     return -EINVAL;
   }
   if (!path) {
@@ -196,6 +198,9 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   }
   if (!node) {
     return -ENOENT;
+  }
+  if ((flags & O_DIRECTORY) && !(node->flags & FS_DIRECTORY)) {
+    return -ENOTDIR;
   }
   if ((node->flags & FS_DIRECTORY) && access_mode != O_RDONLY) {
     return -EISDIR;

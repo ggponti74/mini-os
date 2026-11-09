@@ -194,6 +194,16 @@ static void test_open_flags_and_errors(void) {
         -ENOENT);
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR | 0x8000, 0) ==
         -EINVAL);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_DIRECTORY, 0) ==
+        -ENOTDIR);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"missing", O_DIRECTORY, 0) ==
+        -ENOENT);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"missing",
+                         O_DIRECTORY | O_CREAT | O_RDONLY, 0600) == -EINVAL);
+  CHECK(vfs_lookup(fs_root, "missing") == NULL);
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_DIRECTORY | O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0);
   CHECK(fd == 3);
   struct stat directory_status;

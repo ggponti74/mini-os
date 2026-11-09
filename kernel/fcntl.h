@@ -9,6 +9,7 @@
 #define O_CREAT  0x0200
 #define O_TRUNC  0x0400
 #define O_EXCL   0x800
+#define O_DIRECTORY 0x10000
 
 #define F_DUPFD 0
 #define F_GETFD 1

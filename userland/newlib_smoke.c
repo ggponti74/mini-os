@@ -31,7 +31,8 @@ static int test_sbrk(void) {
 }
 
 _Static_assert(O_APPEND == 0x0008 && O_CREAT == 0x0200 &&
-                   O_TRUNC == 0x0400 && O_EXCL == 0x0800,
+                   O_TRUNC == 0x0400 && O_EXCL == 0x0800 &&
+                   O_DIRECTORY == 0x10000,
                "Newlib open flag ABI");
 _Static_assert(ENOSYS == 88 && ENAMETOOLONG == 91 && EOVERFLOW == 139,
                "Newlib errno ABI");
@@ -128,7 +129,28 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 22;
   }
-  int directory_fd = open("/newlib-cwd-test", O_RDONLY);
+  errno = 0;
+  if (open("/newlib-cwd-test", O_DIRECTORY | O_CREAT | O_RDONLY, 0700) != -1 ||
+      errno != EINVAL) {
+    printf("O_DIRECTORY/O_CREAT validation check failed: %d\n", errno);
+    fflush(stdout);
+    return 57;
+  }
+  errno = 0;
+  if (open("/newlib-cwd-test", O_DIRECTORY | O_WRONLY) != -1 ||
+      errno != EISDIR) {
+    printf("writable O_DIRECTORY open check failed: %d\n", errno);
+    fflush(stdout);
+    return 58;
+  }
+  errno = 0;
+  if (open("/newlib-cwd-test/does-not-exist", O_DIRECTORY | O_RDONLY) != -1 ||
+      errno != ENOENT) {
+    printf("O_DIRECTORY missing-path check failed: %d\n", errno);
+    fflush(stdout);
+    return 61;
+  }
+  int directory_fd = open("/newlib-cwd-test", O_DIRECTORY | O_RDONLY);
   if (directory_fd < 0 || fchdir(directory_fd) != 0 ||
       getcwd(nested_cwd, sizeof(nested_cwd)) != nested_cwd ||
       strcmp(nested_cwd, "/newlib-cwd-test") != 0) {
