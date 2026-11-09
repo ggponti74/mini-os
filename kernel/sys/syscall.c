@@ -52,6 +52,7 @@ typedef struct { int32_t offset; uint32_t count; } syscall_positional_io_t;
 typedef struct { uint32_t flags; uint32_t mode; } syscall_openat_request_t;
 typedef struct { struct stat *status; uint32_t flags; } syscall_fstatat_request_t;
 typedef struct { int32_t newdirfd; const char *newpath; } syscall_renameat_request_t;
+typedef struct { uint32_t mode; uint32_t flags; } syscall_at_mode_flags_t;
 
 /* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
 static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
@@ -583,6 +584,53 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
     if (!node) return -ENOENT;
     fill_node_stat(request->status, node);
+    return 0;
+  }
+  if (number == SYS_FACCESSAT) {
+    int dirfd = (int)arg1;
+    const char *path = (const char *)arg2;
+    const syscall_at_mode_flags_t *request =
+        (const syscall_at_mode_flags_t *)arg3;
+    if (!request) return -EFAULT;
+    if (request->flags != 0) return -EINVAL;
+    if (request->mode & ~(R_OK | W_OK | X_OK)) return -EINVAL;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(dirfd, path, resolved_path);
+    if (result != 0) return result;
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) return -ENOENT;
+    if (request->mode == F_OK) return 0;
+    uint32_t permissions = node->mode & 0777;
+    if ((request->mode & R_OK) && !(permissions & S_IRUSR)) return -EACCES;
+    if ((request->mode & W_OK) && !(permissions & S_IWUSR)) return -EACCES;
+    if ((request->mode & X_OK) && !(permissions & S_IXUSR)) return -EACCES;
+    return 0;
+  }
+  if (number == SYS_MKDIRAT) {
+    int dirfd = (int)arg1;
+    const char *path = (const char *)arg2;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(dirfd, path, resolved_path);
+    if (result != 0) return result;
+    if (vfs_lookup(fs_root, resolved_path)) return -EEXIST;
+    vfs_node_t *directory = vfs_create(fs_root, resolved_path, FS_DIRECTORY);
+    if (!directory) return -EACCES;
+    directory->mode = arg3 & ~process_umask & 0777;
+    return 0;
+  }
+  if (number == SYS_FCHMODAT) {
+    int dirfd = (int)arg1;
+    const char *path = (const char *)arg2;
+    const syscall_at_mode_flags_t *request =
+        (const syscall_at_mode_flags_t *)arg3;
+    if (!request) return -EFAULT;
+    if (request->flags != 0) return -EINVAL;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(dirfd, path, resolved_path);
+    if (result != 0) return result;
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) return -ENOENT;
+    node->mode = request->mode & 0777;
     return 0;
   }
   if (number == SYS_LSEEK) {
