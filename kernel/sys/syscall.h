@@ -39,6 +39,7 @@
 #define SYS_PREAD 32
 #define SYS_PWRITE 33
 #define SYS_FSYNC 34
+#define SYS_FCHDIR 35
 #define CLOCK_REALTIME 0
 #define CLOCK_MONOTONIC 1
 
