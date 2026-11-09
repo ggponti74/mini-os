@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
-#include <unistd.h>
 #include "memory_layout.h"
 
 extern char _end[];
@@ -165,14 +164,14 @@ int _truncate(const char *path, off_t length) {
         return -1;
     }
 
-    int fd = open(path, O_WRONLY);
+    int fd = _open(path, O_WRONLY);
     if (fd < 0) {
         return -1;
     }
 
-    int result = ftruncate(fd, length);
+    int result = _ftruncate(fd, length);
     int saved_errno = errno;
-    int close_result = close(fd);
+    int close_result = _close(fd);
     if (result < 0) {
         errno = saved_errno;
         return -1;
