@@ -51,6 +51,7 @@ typedef struct { int32_t tv_sec; int32_t tv_usec; } syscall_timeval_t;
 typedef struct { int32_t offset; uint32_t count; } syscall_positional_io_t;
 typedef struct { uint32_t flags; uint32_t mode; } syscall_openat_request_t;
 typedef struct { struct stat *status; uint32_t flags; } syscall_fstatat_request_t;
+typedef struct { int32_t newdirfd; const char *newpath; } syscall_renameat_request_t;
 
 /* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
 static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
@@ -531,6 +532,43 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     }
     fill_node_stat(status, node);
     return 0;
+  }
+
+  if (number == SYS_UNLINKAT) {
+    int dirfd = (int)arg1;
+    const char *path = (const char *)arg2;
+    uint32_t flags = arg3;
+    if (flags != 0 && flags != AT_REMOVEDIR) return -EINVAL;
+    char resolved_path[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(dirfd, path, resolved_path);
+    if (result != 0) return result;
+    vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
+    if (!node) return -ENOENT;
+    if (flags == AT_REMOVEDIR) {
+      if (!(node->flags & FS_DIRECTORY)) return -ENOTDIR;
+      result = initrd_remove_directory(resolved_path);
+      if (result == 0) return 0;
+      if (result == -2) return -ENOTEMPTY;
+      return -ENOENT;
+    }
+    if (node->flags & FS_DIRECTORY) return -EISDIR;
+    return initrd_remove_file(resolved_path) == 0 ? 0 : -ENOENT;
+  }
+  if (number == SYS_RENAMEAT) {
+    int olddirfd = (int)arg1;
+    const char *oldpath = (const char *)arg2;
+    const syscall_renameat_request_t *request =
+        (const syscall_renameat_request_t *)arg3;
+    if (!request || !request->newpath) return -EFAULT;
+    char old_resolved[SYSCALL_PATH_LENGTH];
+    char new_resolved[SYSCALL_PATH_LENGTH];
+    int result = resolve_at_path(olddirfd, oldpath, old_resolved);
+    if (result != 0) return result;
+    result = resolve_at_path(request->newdirfd, request->newpath,
+                             new_resolved);
+    if (result != 0) return result;
+    if (!vfs_lookup(fs_root, old_resolved)) return -ENOENT;
+    return initrd_move_file(old_resolved, new_resolved) == 0 ? 0 : -EACCES;
   }
   if (number == SYS_FSTATAT) {
     int dirfd = (int)arg1;
