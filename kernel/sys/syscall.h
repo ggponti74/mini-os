@@ -38,6 +38,7 @@
 #define SYS_GETTIMEOFDAY 31
 #define SYS_PREAD 32
 #define SYS_PWRITE 33
+#define SYS_FSYNC 34
 #define CLOCK_REALTIME 0
 #define CLOCK_MONOTONIC 1
 

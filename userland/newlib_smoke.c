@@ -281,6 +281,32 @@ int main(int argc, char **argv) {
     free(allocation);
     return 33;
   }
+  if (fsync(fd) != 0 || fdatasync(fd) != 0) {
+    printf("file sync check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 37;
+  }
+  int readonly_fd = open("newlib-smoke.dat", O_RDONLY);
+  errno = 0;
+  if (readonly_fd < 0 || fsync(readonly_fd) != -1 || errno != EBADF) {
+    printf("read-only fsync check failed: %d\n", errno);
+    fflush(stdout);
+    if (readonly_fd >= 0) close(readonly_fd);
+    close(fd);
+    free(allocation);
+    return 38;
+  }
+  errno = 0;
+  if (fdatasync(readonly_fd) != -1 || errno != EBADF ||
+      close(readonly_fd) != 0) {
+    printf("read-only fdatasync check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 39;
+  }
   int file_flags = fcntl(fd, F_GETFL);
   if (file_flags != O_RDWR ||
       fcntl(fd, F_SETFL, file_flags | O_APPEND) != 0 ||
