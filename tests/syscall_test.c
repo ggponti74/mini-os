@@ -264,6 +264,8 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CHMOD, (uint32_t)"renamed", (uint32_t)0755, 0) ==
         0);
   CHECK(syscall_dispatch(SYS_ACCESS, (uint32_t)"renamed", X_OK, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCHMOD, 2, (uint32_t)0600, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FCHMOD, 99, (uint32_t)0600, 0) == -EBADF);
   int chmod_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"renamed", O_RDONLY, 0);
   CHECK(chmod_fd >= 3);
   CHECK(syscall_dispatch(SYS_FCHMOD, chmod_fd, (uint32_t)0600, 0) == 0);
@@ -271,6 +273,7 @@ static void test_open_flags_and_errors(void) {
         0);
   CHECK((chmod_status.st_mode & 0777) == 0600);
   CHECK(syscall_dispatch(SYS_CLOSE, chmod_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCHMOD, chmod_fd, (uint32_t)0644, 0) == -EBADF);
   int directory_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
                                        O_RDONLY, 0);
   CHECK(directory_fd == 3);
