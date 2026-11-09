@@ -274,6 +274,10 @@ static void test_open_flags_and_errors(void) {
   int directory_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
                                        O_RDONLY, 0);
   CHECK(directory_fd == 3);
+  directory_node.mode = 0600;
+  CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == -EACCES);
+  CHECK(syscall_dispatch(SYS_FCHDIR, directory_fd, 0, 0) == -EACCES);
+  directory_node.mode = 0700;
   CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
   char cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
