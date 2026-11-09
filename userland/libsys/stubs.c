@@ -482,12 +482,21 @@ long sysconf(int name) {
         return PAGE_SIZE;
     }
 #endif
+#ifdef _SC_OPEN_MAX
+    if (name == _SC_OPEN_MAX) {
+        return 8; /* SYSCALL_FD_COUNT, including the three standard descriptors. */
+    }
+#endif
     errno = EINVAL;
     return -1;
 }
 
 int getpagesize(void) {
     return PAGE_SIZE;
+}
+
+int getdtablesize(void) {
+    return 8; /* SYSCALL_FD_COUNT, including the three standard descriptors. */
 }
 
 int uname(struct utsname *name) {
