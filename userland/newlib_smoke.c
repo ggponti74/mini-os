@@ -425,7 +425,7 @@ int main(int argc, char **argv) {
   if (chmod_test_fd < 0 || fchmod(chmod_test_fd, 0600) != 0 ||
       fstat(chmod_test_fd, &status) != 0 ||
       (status.st_mode & 0777) != 0600) {
-    printf("fchmod permission update check failed: %d\\n", errno);
+    printf("fchmod permission update check failed: %d\n", errno);
     fflush(stdout);
     if (chmod_test_fd >= 0) close(chmod_test_fd);
     unlink("newlib-fchmod.dat");
