@@ -228,6 +228,21 @@ int _access(const char *pathname, int mode) {
     return syscall_result(syscall3(SYS_ACCESS, (int)pathname, mode, 0));
 }
 
+int openat(int dirfd, const char *pathname, int flags, ...) {
+    if (dirfd != AT_FDCWD) {
+        errno = EBADF;
+        return -1;
+    }
+    if (flags & O_CREAT) {
+        va_list ap;
+        va_start(ap, flags);
+        int mode = va_arg(ap, int);
+        va_end(ap);
+        return _open(pathname, flags, mode);
+    }
+    return _open(pathname, flags);
+}
+
 int faccessat(int dirfd, const char *pathname, int mode, int flags) {
     if (dirfd != AT_FDCWD) {
         errno = EBADF;
