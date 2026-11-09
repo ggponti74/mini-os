@@ -261,13 +261,13 @@ static void test_open_flags_and_errors(void) {
         0);
   CHECK((chmod_status.st_mode & 0777) == 0600);
   CHECK(syscall_dispatch(SYS_CLOSE, chmod_fd, 0, 0) == 0);
+  int directory_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
+                                       O_RDONLY, 0);
+  CHECK(directory_fd == 3);
   CHECK(syscall_dispatch(SYS_CHDIR, (uint32_t)"dir", 0, 0) == 0);
   char cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)cwd, sizeof(cwd), 0) == 0);
   CHECK(strings_equal(cwd, "/dir"));
-  int directory_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
-                                       O_RDONLY, 0);
-  CHECK(directory_fd == 3);
   CHECK(syscall_dispatch(SYS_FCHDIR, directory_fd, 0, 0) == 0);
   char fchdir_cwd[32] = {0};
   CHECK(syscall_dispatch(SYS_GETCWD, (uint32_t)fchdir_cwd,
