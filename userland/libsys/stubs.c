@@ -275,6 +275,8 @@ int unlinkat(int dirfd, const char *pathname, int flags) {
     return -1;
 }
 
+int _rename(const char *oldpath, const char *newpath);
+
 int renameat(int olddirfd, const char *oldpath,
              int newdirfd, const char *newpath) {
     if (olddirfd != AT_FDCWD || newdirfd != AT_FDCWD) {
