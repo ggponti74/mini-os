@@ -40,6 +40,10 @@
 #define SYS_PWRITE 33
 #define SYS_FSYNC 34
 #define SYS_FCHDIR 35
+#define SYS_OPENAT 36
+#define SYS_FSTATAT 37
+
+#define AT_FDCWD (-100)
 #define CLOCK_REALTIME 0
 #define CLOCK_MONOTONIC 1
 

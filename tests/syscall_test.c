@@ -323,6 +323,63 @@ static void test_open_flags_and_errors(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, 3, 0, 0) == 0);
 }
 
+
+static void test_directory_relative_syscalls(void) {
+  struct openat_request { uint32_t flags; uint32_t mode; } open_request;
+  struct fstatat_request { struct stat *status; uint32_t flags; } stat_request;
+  struct stat status;
+
+  open_request.flags = O_RDONLY;
+  open_request.mode = 0;
+  stat_request.status = &status;
+  stat_request.flags = 0;
+
+  int directory_fd = syscall_dispatch(
+      SYS_OPEN, (uint32_t)"dir", O_RDONLY | O_DIRECTORY, 0);
+  CHECK(directory_fd >= 3);
+
+  int fd = syscall_dispatch(SYS_OPENAT, directory_fd,
+                            (uint32_t)"file", (uint32_t)&open_request);
+  CHECK(fd >= 3 && fd != directory_fd);
+  CHECK(syscall_dispatch(SYS_FSTATAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&stat_request) == 0);
+  CHECK(S_ISREG(status.st_mode) && status.st_ino == 42);
+
+  CHECK(syscall_dispatch(SYS_OPENAT, 7, (uint32_t)"file",
+                         (uint32_t)&open_request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FSTATAT, 7, (uint32_t)"file",
+                         (uint32_t)&stat_request) == -EBADF);
+
+  int regular_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(regular_fd >= 3);
+  CHECK(syscall_dispatch(SYS_OPENAT, regular_fd, (uint32_t)"file",
+                         (uint32_t)&open_request) == -ENOTDIR);
+  CHECK(syscall_dispatch(SYS_FSTATAT, regular_fd, (uint32_t)"file",
+                         (uint32_t)&stat_request) == -ENOTDIR);
+
+  int absolute_fd = syscall_dispatch(SYS_OPENAT, 99, (uint32_t)"/file",
+                                     (uint32_t)&open_request);
+  CHECK(absolute_fd >= 3);
+  CHECK(syscall_dispatch(SYS_FSTATAT, 99, (uint32_t)"/file",
+                         (uint32_t)&stat_request) == 0);
+  CHECK(S_ISREG(status.st_mode));
+
+  int cwd_fd = syscall_dispatch(SYS_OPENAT, (uint32_t)AT_FDCWD,
+                                (uint32_t)"file", (uint32_t)&open_request);
+  CHECK(cwd_fd >= 3);
+
+  stat_request.flags = 1;
+  CHECK(syscall_dispatch(SYS_FSTATAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&stat_request) == -EINVAL);
+  stat_request.flags = 0;
+
+  CHECK(syscall_dispatch(SYS_CLOSE, cwd_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, absolute_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, regular_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
+}
+
 static void test_sync_calls(void) {
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
@@ -484,6 +541,7 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
+  test_directory_relative_syscalls();
   test_sync_calls();
   test_positional_io();
   test_open_flags_and_errors();
@@ -630,6 +688,11 @@ int shell_resolve_path(const char *path, char *resolved, uint32_t size) {
 
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
   (void)root;
+  if ((strings_equal(path, "dir/file") ||
+       strings_equal(path, "/dir/file") ||
+       strings_equal(path, "/file")) && file_node.flags != 0) {
+    return &file_node;
+  }
   if (strings_equal(path, file_node.name) && file_node.flags != 0) {
     return &file_node;
   }
