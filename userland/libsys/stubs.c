@@ -178,6 +178,7 @@ int _write(int fd, const void *buf, size_t count) {
 }
 
 int _fstat(int fd, struct stat *status);
+int _close(int fd);
 
 DIR *fdopendir(int fd) {
     struct stat status;
