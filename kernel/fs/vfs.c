@@ -39,6 +39,15 @@ int vfs_truncate(vfs_node_t *node, uint32_t length) {
     return node->truncate(node, length);
 }
 
+int vfs_readdir(vfs_node_t *directory, uint32_t index,
+                vfs_dirent_t *entry) {
+    if (!directory || !(directory->flags & FS_DIRECTORY) || !entry ||
+        !directory->readdir) {
+        return -1;
+    }
+    return directory->readdir(directory, index, entry);
+}
+
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path) {
     if (!path) {
         return NULL;
