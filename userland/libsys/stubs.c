@@ -196,6 +196,22 @@ struct dirent *readdir(DIR *directory) {
     return &directory->entry;
 }
 
+long telldir(DIR *directory) {
+    if (!directory || !directory->used) { errno = EBADF; return -1; }
+    return (long)directory->index;
+}
+
+void seekdir(DIR *directory, long location) {
+    if (!directory || !directory->used) { errno = EBADF; return; }
+    if (location < 0) { errno = EINVAL; return; }
+    directory->index = (unsigned int)location;
+}
+
+void rewinddir(DIR *directory) {
+    if (!directory || !directory->used) { errno = EBADF; return; }
+    directory->index = 0;
+}
+
 int closedir(DIR *directory) {
     if (!directory || !directory->used) { errno = EBADF; return -1; }
     int result = _close(directory->fd);
