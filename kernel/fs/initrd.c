@@ -320,6 +320,39 @@ static const char *initrd_child_name(const char *name, const char *directory,
   return child;
 }
 
+static int initrd_readdir(vfs_node_t *directory, uint32_t index,
+                           vfs_dirent_t *entry) {
+  if (!directory || !(directory->flags & FS_DIRECTORY) || !entry) {
+    return -1;
+  }
+
+  size_t directory_length = strlen(directory->name);
+  uint32_t child_index = 0;
+  for (uint32_t i = 0; i < node_count; i++) {
+    const char *name = initrd_child_name(file_pool[i].node.name,
+                                         directory->name,
+                                         directory_length);
+    if (!name || is_dot_entry(name)) {
+      continue;
+    }
+    if (child_index++ != index) {
+      continue;
+    }
+
+    size_t length = strlen(name);
+    if (length >= sizeof(entry->name)) {
+      return -1;
+    }
+    for (size_t j = 0; j <= length; j++) {
+      entry->name[j] = name[j];
+    }
+    entry->inode = file_pool[i].node.inode;
+    entry->type = file_pool[i].node.flags;
+    return 1;
+  }
+  return 0;
+}
+
 void initrd_list_files(const char *directory) {
     // Collect valid, non-dot node indices
     uint32_t valid_indices[64]; 
@@ -552,6 +585,7 @@ static vfs_node_t *initrd_create_file(vfs_node_t *parent, const char *name,
   item->node.write = flags == FS_FILE ? initrd_write_file : NULL;
   item->node.truncate = flags == FS_FILE ? initrd_truncate_file : NULL;
   item->node.create = flags == FS_DIRECTORY ? initrd_create_file : NULL;
+  item->node.readdir = flags == FS_DIRECTORY ? initrd_readdir : NULL;
   item->node.device_data = flags == FS_FILE ? item->data : NULL;
 
   return &item->node;
@@ -566,6 +600,7 @@ vfs_node_t *initrd_init(void) {
   initrd_root.flags = FS_DIRECTORY;
   initrd_root.mode = 0700;
   initrd_root.create = initrd_create_file;
+  initrd_root.readdir = initrd_readdir;
   fs_root = &initrd_root;
 
   // 2. Parse TAR Archive from initrd_start to initrd_end
