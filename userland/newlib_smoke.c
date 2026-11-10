@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -771,6 +772,22 @@ int main(int argc, char **argv) {
     free(allocation);
     return 8;
   }
+  DIR *root_directory = opendir("/");
+  if (!root_directory) {
+    printf("opendir root failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 88;
+  }
+  struct dirent *directory_entry = readdir(root_directory);
+  if (!directory_entry || !directory_entry->d_name[0] ||
+      closedir(root_directory) != 0) {
+    printf("readdir/closedir check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 89;
+  }
+
   printf("Newlib syscall smoke test passed\n");
   int flush_result = fflush(stdout);
   free(allocation);
