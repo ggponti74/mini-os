@@ -397,6 +397,17 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     if (result != 0) return result;
     return open_file(resolved_path, request->flags, request->mode);
   }
+  if (number == SYS_READDIR) {
+    int fd = (int)arg1;
+    vfs_dirent_t *entry = (vfs_dirent_t *)arg3;
+    if (!entry) return -EFAULT;
+    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used)
+      return -EBADF;
+    syscall_open_file_t *file = descriptors[fd].file;
+    if (!(file->node->flags & FS_DIRECTORY)) return -ENOTDIR;
+    if (!file->readable) return -EBADF;
+    return vfs_readdir(file->node, arg2, entry);
+  }
   if (number == SYS_READ) {
     int fd = (int)arg1;
     if (arg3 == 0) {

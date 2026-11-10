@@ -203,6 +203,16 @@ static void test_open_flags_and_errors(void) {
   CHECK(vfs_lookup(fs_root, "missing") == NULL);
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_DIRECTORY | O_RDONLY, 0);
   CHECK(fd == 3);
+  vfs_dirent_t directory_entry;
+  CHECK(syscall_dispatch(SYS_READDIR, fd, 0,
+                         (uint32_t)&directory_entry) == 1);
+  CHECK(strings_equal(directory_entry.name, "file"));
+  CHECK(directory_entry.inode == 42 && directory_entry.type == FS_FILE);
+  CHECK(syscall_dispatch(SYS_READDIR, fd, 1,
+                         (uint32_t)&directory_entry) == 0);
+  CHECK(syscall_dispatch(SYS_READDIR, fd, 0, 0) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_READDIR, 99, 0,
+                         (uint32_t)&directory_entry) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0);
   CHECK(fd == 3);
@@ -909,6 +919,18 @@ int initrd_remove_directory(const char *dirname) {
     }
   }
   return -1;
+}
+
+int vfs_readdir(vfs_node_t *directory, uint32_t index,
+                vfs_dirent_t *entry) {
+  if (!directory || !entry || !(directory->flags & FS_DIRECTORY)) return -1;
+  if (directory != &directory_node) return 0;
+  if (index != 0) return 0;
+  entry->name[0] = 'f'; entry->name[1] = 'i'; entry->name[2] = 'l';
+  entry->name[3] = 'e'; entry->name[4] = '\0';
+  entry->inode = 42;
+  entry->type = FS_FILE;
+  return 1;
 }
 
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,

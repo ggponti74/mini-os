@@ -32,6 +32,7 @@ int *__errno_location(void) {
 #define SYS_FACCESSAT 40
 #define SYS_MKDIRAT 41
 #define SYS_FCHMODAT 42
+#define SYS_READDIR 43
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -99,6 +100,26 @@ typedef struct {
     unsigned int count;
 } positional_io_request_t;
 
+typedef struct {
+    char name[128];
+    unsigned int inode;
+    unsigned int type;
+} directory_entry_request_t;
+
+typedef struct dirent {
+    unsigned long d_ino;
+    char d_name[256];
+} mini_dirent_t;
+
+typedef struct __dirstream {
+    int fd;
+    unsigned int index;
+    mini_dirent_t entry;
+    int used;
+} DIR;
+
+static DIR directory_streams[8];
+
 static int positional_io(int number, int fd, void *buffer,
                          size_t count, off_t offset) {
     positional_io_request_t request;
@@ -141,6 +162,47 @@ int _read(int fd, void *buf, size_t count) {
 // 3. Write Stub (POSIX compliant signature)
 int _write(int fd, const void *buf, size_t count) {
     return syscall_result(syscall3(4, fd, (int)buf, (int)count));
+}
+
+DIR *opendir(const char *path) {
+    int slot = -1;
+    for (int i = 0; i < 8; i++) {
+        if (!directory_streams[i].used) { slot = i; break; }
+    }
+    if (slot < 0) { errno = EMFILE; return NULL; }
+    int fd = _open(path, O_RDONLY | O_DIRECTORY);
+    if (fd < 0) return NULL;
+    directory_streams[slot].fd = fd;
+    directory_streams[slot].index = 0;
+    directory_streams[slot].used = 1;
+    return &directory_streams[slot];
+}
+
+struct dirent *readdir(DIR *directory) {
+    if (!directory || !directory->used) { errno = EBADF; return NULL; }
+    directory_entry_request_t entry;
+    int result = syscall3(SYS_READDIR, directory->fd, (int)directory->index,
+                          (int)&entry);
+    if (result < 0) { errno = -result; return NULL; }
+    if (result == 0) return NULL;
+    directory->index++;
+    directory->entry.d_ino = entry.inode;
+    unsigned int i = 0;
+    while (i < sizeof(directory->entry.d_name) - 1 && entry.name[i]) {
+        directory->entry.d_name[i] = entry.name[i];
+        i++;
+    }
+    directory->entry.d_name[i] = '\0';
+    return &directory->entry;
+}
+
+int closedir(DIR *directory) {
+    if (!directory || !directory->used) { errno = EBADF; return -1; }
+    int result = _close(directory->fd);
+    directory->used = 0;
+    directory->fd = -1;
+    directory->index = 0;
+    return result;
 }
 
 int _close(int fd) {
