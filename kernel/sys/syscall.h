@@ -47,6 +47,7 @@
 #define SYS_FACCESSAT 40
 #define SYS_MKDIRAT 41
 #define SYS_FCHMODAT 42
+#define SYS_READDIR 43
 
 #define AT_REMOVEDIR 0x200
 
