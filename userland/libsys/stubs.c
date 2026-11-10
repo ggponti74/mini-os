@@ -120,6 +120,19 @@ typedef struct __dirstream {
 
 static DIR directory_streams[8];
 
+static DIR *allocate_directory_stream(int fd) {
+    for (int i = 0; i < 8; i++) {
+        if (!directory_streams[i].used) {
+            directory_streams[i].fd = fd;
+            directory_streams[i].index = 0;
+            directory_streams[i].used = 1;
+            return &directory_streams[i];
+        }
+    }
+    errno = EMFILE;
+    return NULL;
+}
+
 static int positional_io(int number, int fd, void *buffer,
                          size_t count, off_t offset) {
     positional_io_request_t request;
@@ -164,18 +177,37 @@ int _write(int fd, const void *buf, size_t count) {
     return syscall_result(syscall3(4, fd, (int)buf, (int)count));
 }
 
-DIR *opendir(const char *path) {
-    int slot = -1;
-    for (int i = 0; i < 8; i++) {
-        if (!directory_streams[i].used) { slot = i; break; }
+int _fstat(int fd, struct stat *status);
+
+DIR *fdopendir(int fd) {
+    struct stat status;
+    if (_fstat(fd, &status) < 0) return NULL;
+    if (!S_ISDIR(status.st_mode)) {
+        errno = ENOTDIR;
+        return NULL;
     }
-    if (slot < 0) { errno = EMFILE; return NULL; }
+    return allocate_directory_stream(fd);
+}
+
+DIR *opendir(const char *path) {
     int fd = _open(path, O_RDONLY | O_DIRECTORY);
     if (fd < 0) return NULL;
-    directory_streams[slot].fd = fd;
-    directory_streams[slot].index = 0;
-    directory_streams[slot].used = 1;
-    return &directory_streams[slot];
+
+    DIR *directory = fdopendir(fd);
+    if (!directory) {
+        int saved_errno = errno;
+        _close(fd);
+        errno = saved_errno;
+    }
+    return directory;
+}
+
+int dirfd(DIR *directory) {
+    if (!directory || !directory->used) {
+        errno = EBADF;
+        return -1;
+    }
+    return directory->fd;
 }
 
 struct dirent *readdir(DIR *directory) {
