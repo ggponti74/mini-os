@@ -780,12 +780,42 @@ int main(int argc, char **argv) {
     return 88;
   }
   struct dirent *directory_entry = readdir(root_directory);
+  long directory_position = telldir(root_directory);
   if (!directory_entry || !directory_entry->d_name[0] ||
-      closedir(root_directory) != 0) {
-    printf("readdir/closedir check failed: %d\n", errno);
+      directory_position != 1) {
+    printf("readdir/telldir check failed: %d\\n", errno);
     fflush(stdout);
+    closedir(root_directory);
     free(allocation);
     return 89;
+  }
+  DIR *second_directory = opendir("/");
+  if (!second_directory || telldir(second_directory) != 0) {
+    printf("independent directory position check failed: %d\\n", errno);
+    fflush(stdout);
+    if (second_directory) closedir(second_directory);
+    closedir(root_directory);
+    free(allocation);
+    return 90;
+  }
+  rewinddir(root_directory);
+  directory_entry = readdir(root_directory);
+  if (!directory_entry || telldir(root_directory) != directory_position) {
+    printf("rewinddir check failed: %d\\n", errno);
+    fflush(stdout);
+    closedir(second_directory);
+    closedir(root_directory);
+    free(allocation);
+    return 91;
+  }
+  seekdir(root_directory, directory_position);
+  if (telldir(root_directory) != directory_position ||
+      closedir(second_directory) != 0 ||
+      closedir(root_directory) != 0) {
+    printf("seekdir/closedir check failed: %d\\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 92;
   }
 
   printf("Newlib syscall smoke test passed\n");
