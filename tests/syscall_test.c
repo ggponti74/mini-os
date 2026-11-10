@@ -911,6 +911,18 @@ int initrd_remove_directory(const char *dirname) {
   return -1;
 }
 
+int vfs_readdir(vfs_node_t *directory, uint32_t index,
+                vfs_dirent_t *entry) {
+  if (!directory || !entry || !(directory->flags & FS_DIRECTORY)) return -1;
+  if (directory != &directory_node) return 0;
+  if (index != 0) return 0;
+  entry->name[0] = 'f'; entry->name[1] = 'i'; entry->name[2] = 'l';
+  entry->name[3] = 'e'; entry->name[4] = '\0';
+  entry->inode = 42;
+  entry->type = FS_FILE;
+  return 1;
+}
+
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,
                   uint8_t *buffer) {
   if (offset >= node->length) {
