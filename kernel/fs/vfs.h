@@ -22,6 +22,15 @@ typedef void     (*vfs_close_t)(struct vfs_node *node);
 // Callback to create a child entry inside a directory node
 typedef struct vfs_node *(*vfs_create_t)(struct vfs_node *parent, const char *name, uint32_t flags);
 
+typedef struct {
+    char name[128];
+    uint32_t inode;
+    uint32_t type;        // FS_FILE or FS_DIRECTORY
+} vfs_dirent_t;
+
+typedef int (*vfs_readdir_t)(struct vfs_node *directory, uint32_t index,
+                             vfs_dirent_t *entry);
+
 typedef struct vfs_node {
     char name[128];
     uint32_t flags;       // FS_FILE or FS_DIRECTORY
@@ -37,7 +46,8 @@ typedef struct vfs_node {
     vfs_close_t  close;
     vfs_create_t create; // Directory callback for creating files/dirs
     
-    void *device_data; 
+    void *device_data;
+    vfs_readdir_t readdir; // Enumerate direct children by zero-based index
 } vfs_node_t;
 
 extern vfs_node_t *fs_root;
@@ -46,6 +56,8 @@ extern vfs_node_t *fs_root;
 uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer);
 uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size, const uint8_t *buffer);
 int vfs_truncate(vfs_node_t *node, uint32_t length);
+// Returns 1 for an entry, 0 at end of directory, or -1 on error.
+int vfs_readdir(vfs_node_t *directory, uint32_t index, vfs_dirent_t *entry);
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path);
 
 // Top-level creation wrapper
