@@ -818,6 +818,35 @@ int main(int argc, char **argv) {
     return 92;
   }
 
+  int directory_fd_for_stream = open("/", O_RDONLY | O_DIRECTORY);
+  DIR *fd_stream = directory_fd_for_stream >= 0
+                       ? fdopendir(directory_fd_for_stream) : NULL;
+  if (!fd_stream || dirfd(fd_stream) != directory_fd_for_stream ||
+      closedir(fd_stream) != 0) {
+    printf("fdopendir/dirfd ownership check failed: %d\n", errno);
+    fflush(stdout);
+    if (directory_fd_for_stream >= 0 && !fd_stream)
+      close(directory_fd_for_stream);
+    free(allocation);
+    return 93;
+  }
+
+  int regular_fd_for_stream =
+      open("newlib-fdopendir-file", O_CREAT | O_EXCL | O_RDWR, 0600);
+  errno = 0;
+  if (regular_fd_for_stream < 0 ||
+      fdopendir(regular_fd_for_stream) != NULL || errno != ENOTDIR ||
+      fstat(regular_fd_for_stream, &status) != 0 ||
+      close(regular_fd_for_stream) != 0 ||
+      unlink("newlib-fdopendir-file") != 0) {
+    printf("fdopendir non-directory rejection check failed: %d\n", errno);
+    fflush(stdout);
+    if (regular_fd_for_stream >= 0) close(regular_fd_for_stream);
+    unlink("newlib-fdopendir-file");
+    free(allocation);
+    return 94;
+  }
+
   printf("Newlib syscall smoke test passed\n");
   int flush_result = fflush(stdout);
   free(allocation);
