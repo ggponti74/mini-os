@@ -959,14 +959,36 @@ int main(int argc, char **argv) {
   int cloexec_duplicate_fd = fcntl(fd, F_DUPFD_CLOEXEC, 5);
   if (cloexec_duplicate_fd != 6 ||
       fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC ||
-      fcntl(cloexec_duplicate_fd, F_GETFL) != fcntl(fd, F_GETFL) ||
-      close(cloexec_duplicate_fd) != 0) {
-    printf("fcntl close-on-exec duplicate check failed: %d\n", errno);
+      fcntl(cloexec_duplicate_fd, F_GETFL) != fcntl(fd, F_GETFL)) {
+    printf("fcntl close-on-exec duplicate check failed: %d\\n", errno);
     fflush(stdout);
     if (cloexec_duplicate_fd >= 0) close(cloexec_duplicate_fd);
     close(fd);
     free(allocation);
     return 97;
+  }
+  if (lseek(fd, 7, SEEK_SET) != 7 ||
+      lseek(cloexec_duplicate_fd, 0, SEEK_CUR) != 7 ||
+      lseek(cloexec_duplicate_fd, 0, SEEK_SET) != 0 ||
+      lseek(fd, 0, SEEK_CUR) != 0 ||
+      fcntl(cloexec_duplicate_fd, F_SETFD, 0) != 0 ||
+      fcntl(cloexec_duplicate_fd, F_GETFD) != 0 ||
+      fcntl(fd, F_GETFD) != FD_CLOEXEC ||
+      fcntl(cloexec_duplicate_fd, F_SETFD, FD_CLOEXEC) != 0 ||
+      fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC) {
+    printf("fcntl close-on-exec duplicate state check failed: %d\\n", errno);
+    fflush(stdout);
+    close(cloexec_duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 113;
+  }
+  if (close(cloexec_duplicate_fd) != 0) {
+    printf("fcntl close-on-exec duplicate cleanup failed: %d\\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 114;
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD, -1) != -1 || errno != EINVAL) {
