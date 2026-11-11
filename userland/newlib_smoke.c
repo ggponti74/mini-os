@@ -92,6 +92,44 @@ int main(int argc, char **argv) {
   }
 
   errno = 0;
+  if (fcntl(0, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
+    printf("stdin invalid descriptor-flag check failed: %d\\n", errno);
+    fflush(stdout);
+    return 126;
+  }
+  errno = 0;
+  if (fcntl(1, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
+    printf("stdout invalid descriptor-flag check failed: %d\\n", errno);
+    fflush(stdout);
+    return 127;
+  }
+  errno = 0;
+  if (fcntl(2, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
+    printf("stderr invalid descriptor-flag check failed: %d\\n", errno);
+    fflush(stdout);
+    return 128;
+  }
+  errno = 0;
+  if (fcntl(1, F_SETFL, O_APPEND) != -1 || errno != EINVAL) {
+    printf("standard stream F_SETFL rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 129;
+  }
+  errno = 0;
+  if (fcntl(1, F_DUPFD, 3) != -1 || errno != EINVAL) {
+    printf("standard stream F_DUPFD rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 130;
+  }
+  errno = 0;
+  if (fcntl(1, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
+    printf("standard stream F_DUPFD_CLOEXEC rejection check failed: %d\\n",
+           errno);
+    fflush(stdout);
+    return 131;
+  }
+
+  errno = 0;
   if (!test_sbrk()) {
     printf("sbrk check failed: %d\n", errno);
     fflush(stdout);
