@@ -574,6 +574,72 @@ static void test_positional_io(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
+static void test_vector_io(void) {
+  struct test_iovec { void *base; uint32_t length; } vectors[3];
+  char first[4] = {0};
+  char second[4] = {0};
+  int fd;
+
+  reset_file();
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+
+  vectors[0].base = (void *)"DE";
+  vectors[0].length = 2;
+  vectors[1].base = (void *)"FG";
+  vectors[1].length = 2;
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 2) == 4);
+  CHECK(file_node.length == 4 && file_data[0] == 'D' &&
+        file_data[1] == 'E' && file_data[2] == 'F' &&
+        file_data[3] == 'G');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+
+  vectors[0].base = first;
+  vectors[0].length = 2;
+  vectors[1].base = second;
+  vectors[1].length = 2;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 2) == 4);
+  CHECK(first[0] == 'D' && first[1] == 'E' &&
+        second[0] == 'F' && second[1] == 'G');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 4);
+
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  vectors[0].base = first;
+  vectors[0].length = 2;
+  vectors[1].base = second;
+  vectors[1].length = 4;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 2) == 4);
+  CHECK(second[0] == 'F' && second[1] == 'G');
+
+  CHECK(syscall_dispatch(SYS_READV, 7, (uint32_t)vectors, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_WRITEV, 7, (uint32_t)vectors, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_READV, fd, 0, 1) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, 0, 1) == -EFAULT);
+  vectors[0].base = NULL;
+  vectors[0].length = 1;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == -EFAULT);
+  vectors[0].length = 0;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == 0);
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 17) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)-1) == -EINVAL);
+
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 254, SEEK_SET) == 254);
+  vectors[0].base = (void *)"XY";
+  vectors[0].length = 2;
+  vectors[1].base = (void *)"Z";
+  vectors[1].length = 1;
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 2) == 2);
+  CHECK(file_node.length == sizeof(file_data));
+  CHECK(file_data[254] == 'X' && file_data[255] == 'Y');
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_standard_input_and_sbrk(void) {
   uint8_t buffer[8] = {0};
 
@@ -657,6 +723,7 @@ static int32_t test_main(void) {
   test_directory_relative_access_mkdir_chmod();
   test_sync_calls();
   test_positional_io();
+  test_vector_io();
   test_open_flags_and_errors();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);
