@@ -647,6 +647,100 @@ static void test_vector_io(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
+static void test_positional_vector_io(void) {
+  struct test_iovec { void *base; uint32_t length; } vectors[2];
+  struct test_positional_iovec_request {
+    int32_t offset;
+    uint32_t vector_count;
+  } request;
+  char first[4] = {0};
+  char second[4] = {0};
+  int fd;
+
+  reset_file();
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  vectors[0].base = (void *)"AB";
+  vectors[0].length = 2;
+  vectors[1].base = (void *)"CD";
+  vectors[1].length = 2;
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 2) == 4);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 2, SEEK_SET) == 2);
+
+  vectors[0].base = first;
+  vectors[0].length = 2;
+  vectors[1].base = second;
+  vectors[1].length = 2;
+  request.offset = 0;
+  request.vector_count = 2;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 4);
+  CHECK(first[0] == 'A' && first[1] == 'B' &&
+        second[0] == 'C' && second[1] == 'D');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  vectors[0].base = (void *)"xy";
+  vectors[0].length = 2;
+  vectors[1].base = (void *)"z";
+  vectors[1].length = 1;
+  request.offset = 1;
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 3);
+  CHECK(file_data[0] == 'A' && file_data[1] == 'x' &&
+        file_data[2] == 'y' && file_data[3] == 'z');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  vectors[0].base = first;
+  vectors[0].length = 4;
+  vectors[1].base = second;
+  vectors[1].length = 2;
+  file_node.length = sizeof(file_data);
+  request.offset = 254;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 2);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  request.offset = -1;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EINVAL);
+  request.offset = 0;
+  request.vector_count = 1;
+  CHECK(syscall_dispatch(SYS_PREADV, 7, (uint32_t)vectors,
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_PREADV, fd, 0,
+                         (uint32_t)&request) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors, 0) == -EFAULT);
+  vectors[0].base = NULL;
+  vectors[0].length = 1;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EFAULT);
+  vectors[0].length = 0;
+  request.vector_count = 17;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EINVAL);
+  request.vector_count = 1;
+  vectors[0].base = first;
+  vectors[0].length = 2;
+  request.offset = INT32_MAX;
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EINVAL);
+  request.offset = 0;
+  request.vector_count = 0;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 0);
+  CHECK(syscall_dispatch(SYS_PREADV, 7, (uint32_t)vectors,
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(fd == 3);
+  request.offset = 0;
+  request.vector_count = 1;
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_standard_input_and_sbrk(void) {
   uint8_t buffer[8] = {0};
 
@@ -731,6 +825,7 @@ static int32_t test_main(void) {
   test_sync_calls();
   test_positional_io();
   test_vector_io();
+  test_positional_vector_io();
   test_open_flags_and_errors();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);

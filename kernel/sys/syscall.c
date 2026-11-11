@@ -54,6 +54,7 @@ typedef struct { struct stat *status; uint32_t flags; } syscall_fstatat_request_
 typedef struct { int32_t newdirfd; const char *newpath; } syscall_renameat_request_t;
 typedef struct { uint32_t mode; uint32_t flags; } syscall_at_mode_flags_t;
 typedef struct { void *base; uint32_t length; } syscall_iovec_t;
+typedef struct { int32_t offset; uint32_t vector_count; } syscall_positional_iovec_request_t;
 
 #define SYSCALL_IOV_MAX 16
 
@@ -377,6 +378,47 @@ static int32_t syscall_vector_io(uint32_t operation, int fd,
   return transferred;
 }
 
+static int32_t syscall_positional_vector_io(uint32_t operation, int fd,
+                                                  const syscall_iovec_t *vectors,
+                                                  int vector_count,
+                                                  int32_t offset) {
+  if (offset < 0) return -EINVAL;
+  if (vector_count < 0 || vector_count > SYSCALL_IOV_MAX) return -EINVAL;
+  if (vector_count > 0 && !vectors) return -EFAULT;
+
+  uint32_t total_length = 0;
+  for (int i = 0; i < vector_count; i++) {
+    if (vectors[i].length != 0 && !vectors[i].base) return -EFAULT;
+    if (vectors[i].length > (uint32_t)INT32_MAX - total_length)
+      return -EINVAL;
+    total_length += vectors[i].length;
+  }
+  if (total_length > (uint32_t)(INT32_MAX - offset)) return -EINVAL;
+
+  if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used)
+    return -EBADF;
+  syscall_open_file_t *file = descriptors[fd].file;
+  if (file->node->flags & FS_DIRECTORY) return -EISDIR;
+  if (operation == SYS_PREADV && !file->readable) return -EBADF;
+  if (operation == SYS_PWRITEV && !file->writable) return -EBADF;
+
+  int32_t transferred = 0;
+  uint32_t syscall_number = operation == SYS_PREADV ? SYS_PREAD : SYS_PWRITE;
+  for (int i = 0; i < vector_count; i++) {
+    if (vectors[i].length == 0) continue;
+    syscall_positional_io_t request;
+    request.offset = offset + transferred;
+    request.count = vectors[i].length;
+    int32_t result = syscall_dispatch(syscall_number, (uint32_t)fd,
+                                      (uint32_t)vectors[i].base,
+                                      (uint32_t)&request);
+    if (result < 0) return transferred > 0 ? transferred : result;
+    transferred += result;
+    if ((uint32_t)result < vectors[i].length) break;
+  }
+  return transferred;
+}
+
 static int32_t read_stdin(uint8_t *buffer, uint32_t count) {
   while (!stdin_line_ready) {
     int key;
@@ -445,6 +487,15 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   if (number == SYS_READV || number == SYS_WRITEV) {
     return syscall_vector_io(number, (int)arg1,
                              (const syscall_iovec_t *)arg2, (int)arg3);
+  }
+  if (number == SYS_PREADV || number == SYS_PWRITEV) {
+    const syscall_positional_iovec_request_t *request =
+        (const syscall_positional_iovec_request_t *)arg3;
+    if (!request) return -EFAULT;
+    return syscall_positional_vector_io(number, (int)arg1,
+                                        (const syscall_iovec_t *)arg2,
+                                        (int)request->vector_count,
+                                        request->offset);
   }
   if (number == SYS_READDIR) {
     int fd = (int)arg1;

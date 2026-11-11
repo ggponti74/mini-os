@@ -35,6 +35,8 @@ int *__errno_location(void) {
 #define SYS_READDIR 43
 #define SYS_READV 44
 #define SYS_WRITEV 45
+#define SYS_PREADV 46
+#define SYS_PWRITEV 47
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -489,6 +491,24 @@ ssize_t readv(int fd, const struct iovec *vectors, int vector_count) {
 ssize_t writev(int fd, const struct iovec *vectors, int vector_count) {
     return syscall_result(syscall3(SYS_WRITEV, fd, (int)vectors,
                                    vector_count));
+}
+
+ssize_t preadv(int fd, const struct iovec *vectors, int vector_count,
+               off_t offset) {
+    positional_io_request_t request;
+    request.offset = (int)offset;
+    request.count = (unsigned int)vector_count;
+    return syscall_result(syscall3(SYS_PREADV, fd, (int)vectors,
+                                   (int)&request));
+}
+
+ssize_t pwritev(int fd, const struct iovec *vectors, int vector_count,
+                off_t offset) {
+    positional_io_request_t request;
+    request.offset = (int)offset;
+    request.count = (unsigned int)vector_count;
+    return syscall_result(syscall3(SYS_PWRITEV, fd, (int)vectors,
+                                   (int)&request));
 }
 
 int pread(int fd, void *buf, size_t count, off_t offset) {
