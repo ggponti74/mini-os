@@ -1016,7 +1016,7 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
       descriptor->flags = (uint8_t)arg3;
       return 0;
     }
-    if (arg2 == F_DUPFD) {
+    if (arg2 == F_DUPFD || arg2 == F_DUPFD_CLOEXEC) {
       int minimum = (int)arg3;
       if (minimum < 0) {
         return -EINVAL;
@@ -1028,7 +1028,8 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
         if (!descriptors[newfd].used) {
           descriptors[newfd].file = file;
           descriptors[newfd].used = 1;
-          descriptors[newfd].flags = 0;
+          descriptors[newfd].flags =
+              (arg2 == F_DUPFD_CLOEXEC) ? FD_CLOEXEC : 0;
           file->references++;
           return newfd;
         }
