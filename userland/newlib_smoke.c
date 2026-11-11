@@ -921,7 +921,7 @@ int main(int argc, char **argv) {
     readonly_access_ok = 0;
   }
   if (!readonly_access_ok) {
-    printf("fcntl read-only access-mode preservation check failed: %d\\n",
+    printf("fcntl read-only access-mode preservation check failed: %d\n",
            errno);
     fflush(stdout);
     if (readonly_access_fd >= 0) close(readonly_access_fd);
