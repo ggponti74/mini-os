@@ -1551,8 +1551,9 @@ int main(int argc, char **argv) {
       pread(fd, positional_readback, 1, 0) == 1 &&
       positional_readback[0] == 'N';
   int truncate_result = ftruncate(fd, 10);
-  int truncate_ok = truncate_result == 0 && fstat(fd, &status) == 0 &&
-                    status.st_size == 10;
+  int truncate_ok = truncate_result == 0 &&
+                    lseek(fd, 0, SEEK_CUR) == (off_t)sizeof(payload) &&
+                    fstat(fd, &status) == 0 && status.st_size == 10;
   if (truncate_ok) {
     char zeroes[4] = {1, 1, 1, 1};
     truncate_ok = lseek(fd, 6, SEEK_SET) == 6 &&
