@@ -873,6 +873,42 @@ int main(int argc, char **argv) {
     free(allocation);
     return 99;
   }
+  errno = 0;
+  if (fcntl(99, F_GETFD) != -1 || errno != EBADF) {
+    printf("fcntl invalid-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 100;
+  }
+  errno = 0;
+  if (fcntl(fd, 999) != -1 || errno != EINVAL) {
+    printf("fcntl invalid-command check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 101;
+  }
+  errno = 0;
+  if (fcntl(fd, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
+    printf("fcntl invalid-descriptor-flags check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 102;
+  }
+  errno = 0;
+  if (fcntl(fd, F_SETFL, O_RDWR | 0x40000000) != -1 || errno != EINVAL) {
+    printf("fcntl unsupported-status-flags check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 103;
+  }
   int cloexec_duplicate_fd = fcntl(fd, F_DUPFD_CLOEXEC, 5);
   if (cloexec_duplicate_fd < 5 ||
       fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC ||
