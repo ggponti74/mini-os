@@ -816,6 +816,17 @@ int main(int argc, char **argv) {
     free(allocation);
     return 34;
   }
+
+  if (fcntl(fd, F_SETFL, O_WRONLY | O_APPEND) != 0 ||
+      fcntl(fd, F_GETFL) != (O_RDWR | O_APPEND) ||
+      fcntl(fd, F_SETFL, O_RDONLY) != 0 ||
+      fcntl(fd, F_GETFL) != O_RDWR) {
+    printf("fcntl access-mode preservation check failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 112;
+  }
   int append_fd = open("newlib-fcntl-append.dat",
                        O_CREAT | O_EXCL | O_RDWR, 0600);
   char append_readback[2] = {0};
