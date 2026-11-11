@@ -53,6 +53,9 @@ typedef struct { uint32_t flags; uint32_t mode; } syscall_openat_request_t;
 typedef struct { struct stat *status; uint32_t flags; } syscall_fstatat_request_t;
 typedef struct { int32_t newdirfd; const char *newpath; } syscall_renameat_request_t;
 typedef struct { uint32_t mode; uint32_t flags; } syscall_at_mode_flags_t;
+typedef struct { void *base; uint32_t length; } syscall_iovec_t;
+
+#define SYSCALL_IOV_MAX 16
 
 /* Divide a 64-bit value by a 32-bit divisor without libgcc helpers. */
 static uint32_t syscall_divide_u64_u32(uint64_t dividend, uint32_t divisor,
@@ -332,6 +335,34 @@ static void fill_node_stat(struct stat *status, const vfs_node_t *node) {
   status->st_spare4[1] = 0;
 }
 
+static int32_t syscall_vector_io(uint32_t operation, int fd,
+                                    const syscall_iovec_t *vectors,
+                                    int vector_count) {
+  if (vector_count < 0 || vector_count > SYSCALL_IOV_MAX) return -EINVAL;
+  if (vector_count > 0 && !vectors) return -EFAULT;
+
+  uint32_t total_length = 0;
+  for (int i = 0; i < vector_count; i++) {
+    if (vectors[i].length != 0 && !vectors[i].base) return -EFAULT;
+    if (vectors[i].length > (uint32_t)INT32_MAX - total_length)
+      return -EINVAL;
+    total_length += vectors[i].length;
+  }
+
+  int32_t transferred = 0;
+  uint32_t syscall_number = operation == SYS_READV ? SYS_READ : SYS_WRITE;
+  for (int i = 0; i < vector_count; i++) {
+    if (vectors[i].length == 0) continue;
+    int32_t result = syscall_dispatch(syscall_number, (uint32_t)fd,
+                                      (uint32_t)vectors[i].base,
+                                      vectors[i].length);
+    if (result < 0) return transferred > 0 ? transferred : result;
+    transferred += result;
+    if ((uint32_t)result < vectors[i].length) break;
+  }
+  return transferred;
+}
+
 static int32_t read_stdin(uint8_t *buffer, uint32_t count) {
   while (!stdin_line_ready) {
     int key;
@@ -396,6 +427,10 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
     int result = resolve_at_path(dirfd, path, resolved_path);
     if (result != 0) return result;
     return open_file(resolved_path, request->flags, request->mode);
+  }
+  if (number == SYS_READV || number == SYS_WRITEV) {
+    return syscall_vector_io(number, (int)arg1,
+                             (const syscall_iovec_t *)arg2, (int)arg3);
   }
   if (number == SYS_READDIR) {
     int fd = (int)arg1;
