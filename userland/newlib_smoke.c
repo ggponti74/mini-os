@@ -873,6 +873,18 @@ int main(int argc, char **argv) {
     free(allocation);
     return 109;
   }
+  int low_minimum_duplicate_fd = fcntl(fd, F_DUPFD, 0);
+  if (low_minimum_duplicate_fd != 4 ||
+      fcntl(low_minimum_duplicate_fd, F_GETFD) != 0 ||
+      close(low_minimum_duplicate_fd) != 0) {
+    printf("fcntl below-standard duplicate minimum check failed: %d\\n", errno);
+    fflush(stdout);
+    if (low_minimum_duplicate_fd >= 0) close(low_minimum_duplicate_fd);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 110;
+  }
   if (fcntl(duplicate_fd, F_SETFL, O_RDWR | O_APPEND) != 0 ||
       (fcntl(fd, F_GETFL) & O_APPEND) == 0 ||
       fcntl(fd, F_SETFL, O_RDWR) != 0 ||
@@ -919,6 +931,19 @@ int main(int argc, char **argv) {
     close(fd);
     free(allocation);
     return 103;
+  }
+  int low_minimum_cloexec_fd = fcntl(fd, F_DUPFD_CLOEXEC, 1);
+  if (low_minimum_cloexec_fd != 4 ||
+      fcntl(low_minimum_cloexec_fd, F_GETFD) != FD_CLOEXEC ||
+      close(low_minimum_cloexec_fd) != 0) {
+    printf("fcntl below-standard close-on-exec duplicate minimum check failed: %d\\n",
+           errno);
+    fflush(stdout);
+    if (low_minimum_cloexec_fd >= 0) close(low_minimum_cloexec_fd);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 111;
   }
   int cloexec_duplicate_fd = fcntl(fd, F_DUPFD_CLOEXEC, 5);
   if (cloexec_duplicate_fd != 6 ||
