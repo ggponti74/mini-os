@@ -623,6 +623,11 @@ static void test_vector_io(void) {
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 17) == -EINVAL);
   CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors,
                          (uint32_t)-1) == -EINVAL);
+  vectors[0].base = first;
+  vectors[0].length = 0x7fffffff;
+  vectors[1].base = second;
+  vectors[1].length = 1;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 2) == -EINVAL);
 
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 254, SEEK_SET) == 254);
   vectors[0].base = (void *)"XY";
