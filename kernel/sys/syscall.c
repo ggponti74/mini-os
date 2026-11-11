@@ -35,6 +35,7 @@ typedef struct {
 } syscall_fd_t;
 
 static syscall_fd_t descriptors[SYSCALL_FD_COUNT];
+static uint8_t standard_descriptor_flags[3];
 static syscall_open_file_t open_files[SYSCALL_FD_COUNT];
 static uint8_t stdin_line[STDIN_LINE_CAPACITY];
 static uint32_t stdin_line_length;
@@ -1001,8 +1002,18 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
   }
   if (number == SYS_FCNTL) {
     int fd = (int)arg1;
-    if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used) {
+    if (fd < 0 || fd >= SYSCALL_FD_COUNT ||
+        (fd >= 3 && !descriptors[fd].used)) {
       return -EBADF;
+    }
+    if (fd < 3) {
+      if (arg2 == F_GETFD) return standard_descriptor_flags[fd];
+      if (arg2 == F_SETFD) {
+        if (arg3 & ~FD_CLOEXEC) return -EINVAL;
+        standard_descriptor_flags[fd] = (uint8_t)arg3;
+        return 0;
+      }
+      return -EINVAL;
     }
     syscall_fd_t *descriptor = &descriptors[fd];
     syscall_open_file_t *file = descriptor->file;
