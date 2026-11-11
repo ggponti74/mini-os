@@ -816,6 +816,30 @@ int main(int argc, char **argv) {
     free(allocation);
     return 34;
   }
+  int append_fd = open("newlib-fcntl-append.dat",
+                       O_CREAT | O_EXCL | O_RDWR, 0600);
+  char append_readback[2] = {0};
+  int append_ok =
+      append_fd >= 0 && write(append_fd, "A", 1) == 1 &&
+      lseek(append_fd, 0, SEEK_SET) == 0 &&
+      fcntl(append_fd, F_SETFL, O_RDWR | O_APPEND) == 0 &&
+      write(append_fd, "B", 1) == 1 &&
+      lseek(append_fd, 0, SEEK_SET) == 0 &&
+      read(append_fd, append_readback, sizeof(append_readback)) ==
+          (int)sizeof(append_readback) &&
+      append_readback[0] == 'A' && append_readback[1] == 'B';
+  if (append_fd >= 0 && close(append_fd) != 0) {
+    append_ok = 0;
+  }
+  if (!append_ok || unlink("newlib-fcntl-append.dat") != 0) {
+    printf("fcntl append-write behavior check failed: %d\n", errno);
+    fflush(stdout);
+    unlink("newlib-fcntl-append.dat");
+    close(fd);
+    free(allocation);
+    return 98;
+  }
+
   if (fcntl(fd, F_GETFD) != 0 ||
       fcntl(fd, F_SETFD, FD_CLOEXEC) != 0 ||
       fcntl(fd, F_GETFD) != FD_CLOEXEC ||
