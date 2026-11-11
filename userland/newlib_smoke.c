@@ -867,6 +867,25 @@ int main(int argc, char **argv) {
     free(allocation);
     return 161;
   }
+  int writeonly_setfl_fd = open("newlib-smoke.dat", O_WRONLY);
+  int writeonly_setfl_ok =
+      writeonly_setfl_fd >= 0 &&
+      fcntl(writeonly_setfl_fd, F_SETFL, O_WRONLY | O_APPEND) == 0 &&
+      fcntl(writeonly_setfl_fd, F_GETFL) == (O_WRONLY | O_APPEND) &&
+      fcntl(writeonly_setfl_fd, F_SETFL, O_WRONLY) == 0 &&
+      fcntl(writeonly_setfl_fd, F_GETFL) == O_WRONLY;
+  if (writeonly_setfl_fd >= 0 && close(writeonly_setfl_fd) != 0) {
+    writeonly_setfl_ok = 0;
+  }
+  if (!writeonly_setfl_ok) {
+    printf("fcntl write-only F_SETFL append toggle check failed: %d\n", errno);
+    fflush(stdout);
+    if (writeonly_setfl_fd >= 0) close(writeonly_setfl_fd);
+    close(readonly_fd);
+    close(fd);
+    free(allocation);
+    return 162;
+  }
   errno = 0;
   if (readonly_fd < 0 || fsync(readonly_fd) != -1 || errno != EBADF) {
     printf("read-only fsync check failed: %d\n", errno);
