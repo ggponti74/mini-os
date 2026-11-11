@@ -972,6 +972,43 @@ int main(int argc, char **argv) {
     free(allocation);
     return 120;
   }
+  int exhaustion_fds[3] = {-1, -1, -1};
+  for (int i = 0; i < 3; i++) {
+    exhaustion_fds[i] = fcntl(fd, F_DUPFD, 3);
+    if (exhaustion_fds[i] < 0) break;
+  }
+  errno = 0;
+  int duplicate_exhaustion_result = fcntl(fd, F_DUPFD, 3);
+  int duplicate_exhaustion_errno = errno;
+  errno = 0;
+  int cloexec_exhaustion_result = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+  int cloexec_exhaustion_errno = errno;
+  if (exhaustion_fds[0] < 0 || exhaustion_fds[1] < 0 ||
+      exhaustion_fds[2] < 0 || duplicate_exhaustion_result != -1 ||
+      duplicate_exhaustion_errno != EMFILE ||
+      cloexec_exhaustion_result != -1 ||
+      cloexec_exhaustion_errno != EMFILE) {
+    printf("fcntl duplicate descriptor exhaustion check failed: %d/%d\\n",
+           duplicate_exhaustion_errno, cloexec_exhaustion_errno);
+    fflush(stdout);
+    for (int i = 0; i < 3; i++) {
+      if (exhaustion_fds[i] >= 0) close(exhaustion_fds[i]);
+    }
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 121;
+  }
+  for (int i = 0; i < 3; i++) {
+    if (close(exhaustion_fds[i]) != 0) {
+      printf("fcntl duplicate exhaustion cleanup failed: %d\\n", errno);
+      fflush(stdout);
+      close(duplicate_fd);
+      close(fd);
+      free(allocation);
+      return 122;
+    }
+  }
   errno = 0;
   if (fcntl(fd, 999) != -1 || errno != EINVAL) {
     printf("fcntl invalid-command check failed: %d\n", errno);
