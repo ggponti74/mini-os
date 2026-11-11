@@ -1124,6 +1124,60 @@ int main(int argc, char **argv) {
     free(allocation);
     return 120;
   }
+  errno = 0;
+  if (fcntl(-1, F_GETFD) != -1 || errno != EBADF) {
+    printf("fcntl F_GETFD negative-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 143;
+  }
+  errno = 0;
+  if (fcntl(-1, F_SETFD, FD_CLOEXEC) != -1 || errno != EBADF) {
+    printf("fcntl F_SETFD negative-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 144;
+  }
+  errno = 0;
+  if (fcntl(-1, F_GETFL) != -1 || errno != EBADF) {
+    printf("fcntl F_GETFL negative-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 145;
+  }
+  errno = 0;
+  if (fcntl(-1, F_SETFL, O_APPEND) != -1 || errno != EBADF) {
+    printf("fcntl F_SETFL negative-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 146;
+  }
+  errno = 0;
+  if (fcntl(-1, F_DUPFD, 3) != -1 || errno != EBADF) {
+    printf("fcntl F_DUPFD negative-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 147;
+  }
+  errno = 0;
+  if (fcntl(-1, F_DUPFD_CLOEXEC, 3) != -1 || errno != EBADF) {
+    printf("fcntl F_DUPFD_CLOEXEC negative-descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 148;
+  }
   int exhaustion_fds[3] = {-1, -1, -1};
   for (int i = 0; i < 3; i++) {
     exhaustion_fds[i] = fcntl(fd, F_DUPFD, 3);
