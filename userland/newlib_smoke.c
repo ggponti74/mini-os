@@ -294,6 +294,12 @@ int main(int argc, char **argv) {
     return 77;
   }
   errno = 0;
+  if (fchmodat(AT_FDCWD, "", 0700, 0) != -1 || errno != ENOENT) {
+    printf("fchmodat empty path check failed: %d\n", errno);
+    fflush(stdout);
+    return 182;
+  }
+  errno = 0;
   if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 1) != -1 ||
       errno != EINVAL) {
     printf("fchmodat flags check failed: %d\n", errno);
