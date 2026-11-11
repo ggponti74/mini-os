@@ -930,6 +930,30 @@ int main(int argc, char **argv) {
     free(allocation);
     return 164;
   }
+  int setfl_descriptor_flags_fd = open("newlib-smoke.dat", O_RDWR);
+  int setfl_descriptor_flags_ok =
+      setfl_descriptor_flags_fd >= 0 &&
+      fcntl(setfl_descriptor_flags_fd, F_SETFD, FD_CLOEXEC) == 0 &&
+      fcntl(setfl_descriptor_flags_fd, F_GETFD) == FD_CLOEXEC &&
+      fcntl(setfl_descriptor_flags_fd, F_SETFL, O_RDWR | O_APPEND) == 0 &&
+      fcntl(setfl_descriptor_flags_fd, F_GETFL) == (O_RDWR | O_APPEND) &&
+      fcntl(setfl_descriptor_flags_fd, F_GETFD) == FD_CLOEXEC &&
+      fcntl(setfl_descriptor_flags_fd, F_SETFL, O_RDWR) == 0 &&
+      fcntl(setfl_descriptor_flags_fd, F_GETFD) == FD_CLOEXEC;
+  if (setfl_descriptor_flags_fd >= 0 &&
+      close(setfl_descriptor_flags_fd) != 0) {
+    setfl_descriptor_flags_ok = 0;
+  }
+  if (!setfl_descriptor_flags_ok) {
+    printf("fcntl F_SETFL descriptor-flag preservation check failed: %d\n",
+           errno);
+    fflush(stdout);
+    if (setfl_descriptor_flags_fd >= 0) close(setfl_descriptor_flags_fd);
+    close(readonly_fd);
+    close(fd);
+    free(allocation);
+    return 165;
+  }
   errno = 0;
   if (readonly_fd < 0 || fsync(readonly_fd) != -1 || errno != EBADF) {
     printf("read-only fsync check failed: %d\n", errno);
