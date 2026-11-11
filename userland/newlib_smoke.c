@@ -326,6 +326,23 @@ int main(int argc, char **argv) {
     return 80;
   }
   errno = 0;
+  if (renameat(AT_FDCWD, "", AT_FDCWD,
+               "newlib-at-rename-new") != -1 || errno != ENOENT ||
+      access("newlib-at-rename-new", F_OK) != 0) {
+    printf("renameat empty source-path check failed: %d\n", errno);
+    fflush(stdout);
+    unlink("newlib-at-rename-new");
+    return 184;
+  }
+  errno = 0;
+  if (renameat(AT_FDCWD, "newlib-at-rename-new", AT_FDCWD, "") != -1 ||
+      errno != ENOENT || access("newlib-at-rename-new", F_OK) != 0) {
+    printf("renameat empty destination-path check failed: %d\n", errno);
+    fflush(stdout);
+    unlink("newlib-at-rename-new");
+    return 185;
+  }
+  errno = 0;
   if (renameat(3, "newlib-at-rename-new", AT_FDCWD,
                "newlib-at-rename-invalid") != -1 || errno != EBADF) {
     printf("renameat directory-descriptor check failed: %d\n", errno);
@@ -344,6 +361,12 @@ int main(int argc, char **argv) {
     printf("unlinkat flags check failed: %d\n", errno);
     fflush(stdout);
     return 83;
+  }
+  errno = 0;
+  if (unlinkat(AT_FDCWD, "", 0) != -1 || errno != ENOENT) {
+    printf("unlinkat empty path check failed: %d\n", errno);
+    fflush(stdout);
+    return 186;
   }
   if (unlinkat(AT_FDCWD, "newlib-at-create", AT_REMOVEDIR) != 0) {
     printf("unlinkat directory removal check failed: %d\n", errno);
@@ -387,6 +410,12 @@ int main(int argc, char **argv) {
     printf("openat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
     return 87;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "", O_RDONLY) != -1 || errno != ENOENT) {
+    printf("openat empty path check failed: %d\n", errno);
+    fflush(stdout);
+    return 183;
   }
 
   if (chdir("newlib-cwd-test") != 0) {
