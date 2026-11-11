@@ -780,7 +780,7 @@ int main(int argc, char **argv) {
   if (cloexec_fd < 0 || fcntl(cloexec_fd, F_GETFD) != FD_CLOEXEC ||
       (fcntl(cloexec_fd, F_GETFL) & O_CLOEXEC) != 0 ||
       close(cloexec_fd) != 0 || unlink("newlib-cloexec.dat") != 0) {
-    printf("open O_CLOEXEC check failed: %d\\n", errno);
+    printf("open O_CLOEXEC check failed: %d\n", errno);
     fflush(stdout);
     if (cloexec_fd >= 0) close(cloexec_fd);
     unlink("newlib-cloexec.dat");
