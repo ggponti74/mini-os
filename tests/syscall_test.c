@@ -352,6 +352,48 @@ static void test_open_flags_and_errors(void) {
 }
 
 
+static void test_dup2_replacement_and_shared_state(void) {
+  uint8_t byte = 0;
+
+  reset_file();
+  int source_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  int target_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(source_fd == 3);
+  CHECK(target_fd == 4);
+
+  CHECK(syscall_dispatch(SYS_LSEEK, source_fd, 1, SEEK_SET) == 1);
+  CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 2, SEEK_SET) == 2);
+  CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_SETFD, FD_CLOEXEC) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_GETFD, 0) == FD_CLOEXEC);
+
+  CHECK(syscall_dispatch(SYS_DUP2, source_fd, target_fd, 0) == target_fd);
+  CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_CUR) == 1);
+
+  CHECK(syscall_dispatch(SYS_READ, target_fd, (uint32_t)&byte, 1) == 1);
+  CHECK(byte == 'b');
+  CHECK(syscall_dispatch(SYS_READ, source_fd, (uint32_t)&byte, 1) == 1);
+  CHECK(byte == 'c');
+  CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_CUR) == 3);
+
+  CHECK(syscall_dispatch(SYS_DUP2, target_fd, target_fd, 0) == target_fd);
+  CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_CUR) == 3);
+  CHECK(syscall_dispatch(SYS_FCNTL, source_fd, F_SETFL, O_RDWR | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_GETFL, 0) ==
+        (O_RDWR | O_APPEND));
+
+  CHECK(syscall_dispatch(SYS_CLOSE, source_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_SET) == 0);
+  CHECK(syscall_dispatch(SYS_READ, target_fd, (uint32_t)&byte, 1) == 1);
+  CHECK(byte == 'a');
+
+  CHECK(syscall_dispatch(SYS_DUP2, 99, target_fd, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_DUP2, target_fd, 2, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_DUP2, target_fd, SYSCALL_FD_COUNT, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, target_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_DUP2, target_fd, 3, 0) == -EBADF);
+}
+
 static void test_directory_relative_syscalls(void) {
   struct openat_request { uint32_t flags; uint32_t mode; } open_request;
   struct fstatat_request { struct stat *status; uint32_t flags; } stat_request;
@@ -837,6 +879,7 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
+  test_dup2_replacement_and_shared_state();
   test_directory_relative_syscalls();
   test_directory_relative_unlink_rename();
   test_directory_relative_access_mkdir_chmod();
