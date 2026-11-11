@@ -859,7 +859,7 @@ int main(int argc, char **argv) {
   if (writeonly_append_fd < 0 ||
       fcntl(writeonly_append_fd, F_GETFL) != (O_WRONLY | O_APPEND) ||
       close(writeonly_append_fd) != 0) {
-    printf("fcntl write-only append status check failed: %d\\n", errno);
+    printf("fcntl write-only append status check failed: %d\n", errno);
     fflush(stdout);
     if (writeonly_append_fd >= 0) close(writeonly_append_fd);
     close(readonly_fd);
