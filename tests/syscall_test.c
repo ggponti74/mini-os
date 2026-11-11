@@ -175,8 +175,26 @@ static void test_open_flags_and_errors(void) {
   CHECK(minimum_dup >= 5);
   CHECK(syscall_dispatch(SYS_FCNTL, minimum_dup, F_GETFD, 0) == 0);
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, minimum_dup, F_SETFL, O_WRONLY) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_WRONLY);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL,
+                         O_WRONLY | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, minimum_dup, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+
+  int cloexec_dup =
+      syscall_dispatch(SYS_FCNTL, fd, F_DUPFD_CLOEXEC, 4);
+  CHECK(cloexec_dup >= 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, cloexec_dup, F_GETFD, 0) ==
+        FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, cloexec_dup, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, (uint32_t)-1) == -EINVAL);
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD, 8) == -EMFILE);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD_CLOEXEC,
+                         (uint32_t)-1) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_DUPFD_CLOEXEC, 8) == -EMFILE);
+  CHECK(syscall_dispatch(SYS_CLOSE, cloexec_dup, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, minimum_dup, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 
