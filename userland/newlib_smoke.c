@@ -1079,6 +1079,14 @@ int main(int argc, char **argv) {
     free(allocation);
     return 100;
   }
+  if (fcntl(99, F_GETFL) != -1 || errno != EBADF) {
+    printf("fcntl F_GETFL invalid-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 142;
+  }
   errno = 0;
   if (fcntl(99, F_SETFD, FD_CLOEXEC) != -1 || errno != EBADF) {
     printf("fcntl F_SETFD invalid-descriptor check failed: %d\n", errno);
