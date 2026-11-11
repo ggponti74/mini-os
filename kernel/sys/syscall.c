@@ -162,7 +162,7 @@ static int32_t app_sbrk(int32_t increment, uint32_t base, uint32_t limit) {
 static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   uint32_t access_mode = flags & O_ACCMODE;
   uint32_t supported_flags = O_ACCMODE | O_CREAT | O_TRUNC | O_APPEND |
-                                O_EXCL | O_DIRECTORY;
+                                O_EXCL | O_DIRECTORY | O_CLOEXEC;
   if ((flags & ~supported_flags) != 0 || access_mode == 3 ||
       ((flags & O_TRUNC) && access_mode == O_RDONLY) ||
       ((flags & O_DIRECTORY) && (flags & O_CREAT))) {
@@ -248,7 +248,7 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
       file->references = 1;
       descriptors[fd].file = file;
       descriptors[fd].used = 1;
-      descriptors[fd].flags = 0;
+      descriptors[fd].flags = (flags & O_CLOEXEC) ? FD_CLOEXEC : 0;
       if (flags & O_TRUNC) {
         node->length = 0;
         file->offset = 0;

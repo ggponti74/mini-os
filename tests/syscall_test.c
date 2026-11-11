@@ -352,6 +352,28 @@ static void test_open_flags_and_errors(void) {
 }
 
 
+static void test_open_cloexec(void) {
+  reset_file();
+
+  int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                            O_RDONLY | O_CLOEXEC, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_RDONLY);
+
+  int duplicate = syscall_dispatch(SYS_DUP, fd, 0, 0);
+  CHECK(duplicate == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, duplicate, F_GETFD, 0) == 0);
+
+  CHECK(syscall_dispatch(SYS_CLOSE, duplicate, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_dup2_replacement_and_shared_state(void) {
   uint8_t byte = 0;
 
@@ -879,6 +901,7 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_open_read_seek_and_stat();
+  test_open_cloexec();
   test_dup2_replacement_and_shared_state();
   test_directory_relative_syscalls();
   test_directory_relative_unlink_rename();
