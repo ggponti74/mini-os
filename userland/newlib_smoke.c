@@ -832,7 +832,7 @@ int main(int argc, char **argv) {
     append_ok = 0;
   }
   if (!append_ok || unlink("newlib-fcntl-append.dat") != 0) {
-    printf("fcntl append-write behavior check failed: %d\\n", errno);
+    printf("fcntl append-write behavior check failed: %d\n", errno);
     fflush(stdout);
     unlink("newlib-fcntl-append.dat");
     close(fd);
