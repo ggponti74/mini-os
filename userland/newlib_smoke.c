@@ -1328,14 +1328,25 @@ int main(int argc, char **argv) {
     free(allocation);
     return 101;
   }
-  errno = 0;
-  if (fcntl(fd, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
-    printf("fcntl invalid-descriptor-flags check failed: %d\n", errno);
+  if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0 ||
+      fcntl(fd, F_GETFD) != FD_CLOEXEC) {
+    printf("fcntl invalid-descriptor-flags setup failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
     free(allocation);
-    return 102;
+    return 172;
+  }
+  errno = 0;
+  if (fcntl(fd, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL ||
+      fcntl(fd, F_GETFD) != FD_CLOEXEC) {
+    printf("fcntl invalid-descriptor-flags state preservation check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 173;
   }
   errno = 0;
   if (fcntl(fd, F_SETFL, O_RDWR | 0x40000000) != -1 || errno != EINVAL) {
