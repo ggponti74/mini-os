@@ -854,6 +854,19 @@ int main(int argc, char **argv) {
     free(allocation);
     return 116;
   }
+  int writeonly_append_fd = open("newlib-smoke.dat",
+                                  O_WRONLY | O_APPEND);
+  if (writeonly_append_fd < 0 ||
+      fcntl(writeonly_append_fd, F_GETFL) != (O_WRONLY | O_APPEND) ||
+      close(writeonly_append_fd) != 0) {
+    printf("fcntl write-only append status check failed: %d\n", errno);
+    fflush(stdout);
+    if (writeonly_append_fd >= 0) close(writeonly_append_fd);
+    close(readonly_fd);
+    close(fd);
+    free(allocation);
+    return 161;
+  }
   errno = 0;
   if (readonly_fd < 0 || fsync(readonly_fd) != -1 || errno != EBADF) {
     printf("read-only fsync check failed: %d\n", errno);
