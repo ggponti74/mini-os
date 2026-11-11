@@ -788,6 +788,22 @@ int main(int argc, char **argv) {
     free(allocation);
     return 95;
   }
+  int openat_cloexec_fd = openat(
+      AT_FDCWD, "newlib-openat-cloexec.dat",
+      O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, 0600);
+  if (openat_cloexec_fd < 0 ||
+      fcntl(openat_cloexec_fd, F_GETFD) != FD_CLOEXEC ||
+      (fcntl(openat_cloexec_fd, F_GETFL) & O_CLOEXEC) != 0 ||
+      close(openat_cloexec_fd) != 0 ||
+      unlink("newlib-openat-cloexec.dat") != 0) {
+    printf("openat O_CLOEXEC check failed: %d\\n", errno);
+    fflush(stdout);
+    if (openat_cloexec_fd >= 0) close(openat_cloexec_fd);
+    unlink("newlib-openat-cloexec.dat");
+    close(fd);
+    free(allocation);
+    return 96;
+  }
   int file_flags = fcntl(fd, F_GETFL);
   if (file_flags != O_RDWR ||
       fcntl(fd, F_SETFL, file_flags | O_APPEND) != 0 ||
