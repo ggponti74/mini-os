@@ -866,7 +866,7 @@ int main(int argc, char **argv) {
       (fcntl(fd, F_GETFL) & O_APPEND) == 0 ||
       fcntl(fd, F_SETFL, O_RDWR) != 0 ||
       (fcntl(duplicate_fd, F_GETFL) & O_APPEND) != 0) {
-    printf("fcntl shared status-flag check failed: %d\\n", errno);
+    printf("fcntl shared status-flag check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
