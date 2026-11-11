@@ -66,6 +66,10 @@ int *__errno_location(void) {
 #define F_SETFL 4
 #endif
 
+#ifndef F_DUPFD_CLOEXEC
+#define F_DUPFD_CLOEXEC 14
+#endif
+
 #ifndef F_OK
 #define F_OK 0
 #define R_OK 4
@@ -448,7 +452,8 @@ int _dup2(int oldfd, int newfd) {
 
 int _fcntl(int fd, int command, ...) {
     int argument = 0;
-    if (command == F_SETFL || command == F_SETFD || command == F_DUPFD) {
+    if (command == F_SETFL || command == F_SETFD ||
+        command == F_DUPFD || command == F_DUPFD_CLOEXEC) {
         va_list ap;
         va_start(ap, command);
         argument = va_arg(ap, int);
