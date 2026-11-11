@@ -389,7 +389,7 @@ static void test_dup2_replacement_and_shared_state(void) {
 
   CHECK(syscall_dispatch(SYS_DUP2, 99, target_fd, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 2, 0) == -EBADF);
-  CHECK(syscall_dispatch(SYS_DUP2, target_fd, SYSCALL_FD_COUNT, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_DUP2, target_fd, 8, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, target_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 3, 0) == -EBADF);
 }
