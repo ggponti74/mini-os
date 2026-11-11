@@ -796,7 +796,7 @@ int main(int argc, char **argv) {
       (fcntl(openat_cloexec_fd, F_GETFL) & O_CLOEXEC) != 0 ||
       close(openat_cloexec_fd) != 0 ||
       unlink("newlib-openat-cloexec.dat") != 0) {
-    printf("openat O_CLOEXEC check failed: %d\\n", errno);
+    printf("openat O_CLOEXEC check failed: %d\n", errno);
     fflush(stdout);
     if (openat_cloexec_fd >= 0) close(openat_cloexec_fd);
     unlink("newlib-openat-cloexec.dat");
@@ -875,7 +875,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(99, F_GETFD) != -1 || errno != EBADF) {
-    printf("fcntl invalid-descriptor check failed: %d\\n", errno);
+    printf("fcntl invalid-descriptor check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -884,7 +884,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, 999) != -1 || errno != EINVAL) {
-    printf("fcntl invalid-command check failed: %d\\n", errno);
+    printf("fcntl invalid-command check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -893,7 +893,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
-    printf("fcntl invalid-descriptor-flags check failed: %d\\n", errno);
+    printf("fcntl invalid-descriptor-flags check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -902,7 +902,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_SETFL, O_RDWR | 0x40000000) != -1 || errno != EINVAL) {
-    printf("fcntl unsupported-status-flags check failed: %d\\n", errno);
+    printf("fcntl unsupported-status-flags check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -914,7 +914,7 @@ int main(int argc, char **argv) {
       fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC ||
       fcntl(cloexec_duplicate_fd, F_GETFL) != fcntl(fd, F_GETFL) ||
       close(cloexec_duplicate_fd) != 0) {
-    printf("fcntl close-on-exec duplicate check failed: %d\\n", errno);
+    printf("fcntl close-on-exec duplicate check failed: %d\n", errno);
     fflush(stdout);
     if (cloexec_duplicate_fd >= 0) close(cloexec_duplicate_fd);
     close(fd);
