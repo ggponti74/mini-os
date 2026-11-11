@@ -116,10 +116,34 @@ int main(int argc, char **argv) {
     return 129;
   }
   errno = 0;
+  if (fcntl(0, F_SETFL, O_APPEND) != -1 || errno != EINVAL) {
+    printf("stdin F_SETFL rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 132;
+  }
+  errno = 0;
+  if (fcntl(2, F_SETFL, O_APPEND) != -1 || errno != EINVAL) {
+    printf("stderr F_SETFL rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 133;
+  }
+  errno = 0;
   if (fcntl(1, F_DUPFD, 3) != -1 || errno != EINVAL) {
     printf("standard stream F_DUPFD rejection check failed: %d\\n", errno);
     fflush(stdout);
     return 130;
+  }
+  errno = 0;
+  if (fcntl(0, F_DUPFD, 3) != -1 || errno != EINVAL) {
+    printf("stdin F_DUPFD rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 134;
+  }
+  errno = 0;
+  if (fcntl(2, F_DUPFD, 3) != -1 || errno != EINVAL) {
+    printf("stderr F_DUPFD rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 135;
   }
   errno = 0;
   if (fcntl(1, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
@@ -127,6 +151,18 @@ int main(int argc, char **argv) {
            errno);
     fflush(stdout);
     return 131;
+  }
+  errno = 0;
+  if (fcntl(0, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
+    printf("stdin F_DUPFD_CLOEXEC rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 136;
+  }
+  errno = 0;
+  if (fcntl(2, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
+    printf("stderr F_DUPFD_CLOEXEC rejection check failed: %d\\n", errno);
+    fflush(stdout);
+    return 137;
   }
 
   errno = 0;
