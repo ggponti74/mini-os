@@ -945,7 +945,7 @@ int main(int argc, char **argv) {
     setfl_descriptor_flags_ok = 0;
   }
   if (!setfl_descriptor_flags_ok) {
-    printf("fcntl F_SETFL descriptor-flag preservation check failed: %d\\n",
+    printf("fcntl F_SETFL descriptor-flag preservation check failed: %d\n",
            errno);
     fflush(stdout);
     if (setfl_descriptor_flags_fd >= 0) close(setfl_descriptor_flags_fd);
