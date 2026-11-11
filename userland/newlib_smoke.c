@@ -775,6 +775,19 @@ int main(int argc, char **argv) {
     free(allocation);
     return 39;
   }
+  int cloexec_fd = open("newlib-cloexec.dat", O_CREAT | O_EXCL |
+                         O_RDWR | O_CLOEXEC, 0600);
+  if (cloexec_fd < 0 || fcntl(cloexec_fd, F_GETFD) != FD_CLOEXEC ||
+      (fcntl(cloexec_fd, F_GETFL) & O_CLOEXEC) != 0 ||
+      close(cloexec_fd) != 0 || unlink("newlib-cloexec.dat") != 0) {
+    printf("open O_CLOEXEC check failed: %d\\n", errno);
+    fflush(stdout);
+    if (cloexec_fd >= 0) close(cloexec_fd);
+    unlink("newlib-cloexec.dat");
+    close(fd);
+    free(allocation);
+    return 95;
+  }
   int file_flags = fcntl(fd, F_GETFL);
   if (file_flags != O_RDWR ||
       fcntl(fd, F_SETFL, file_flags | O_APPEND) != 0 ||
