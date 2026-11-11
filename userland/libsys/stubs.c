@@ -632,7 +632,8 @@ int dup2(int oldfd, int newfd) {
 
 int fcntl(int fd, int command, ...) {
     int argument = 0;
-    if (command == F_SETFL || command == F_SETFD || command == F_DUPFD) {
+    if (command == F_SETFL || command == F_SETFD ||
+        command == F_DUPFD || command == F_DUPFD_CLOEXEC) {
         va_list ap;
         va_start(ap, command);
         argument = va_arg(ap, int);
