@@ -818,8 +818,12 @@ int main(int argc, char **argv) {
   }
   if (fcntl(fd, F_GETFD) != 0 ||
       fcntl(fd, F_SETFD, FD_CLOEXEC) != 0 ||
+      fcntl(fd, F_GETFD) != FD_CLOEXEC ||
+      fcntl(fd, F_SETFD, 0) != 0 ||
+      fcntl(fd, F_GETFD) != 0 ||
+      fcntl(fd, F_SETFD, FD_CLOEXEC) != 0 ||
       fcntl(fd, F_GETFD) != FD_CLOEXEC) {
-    printf("fcntl descriptor-flag check failed: %d\n", errno);
+    printf("fcntl descriptor-flag set/clear check failed: %d\n", errno);
     fflush(stdout);
     close(fd);
     free(allocation);
