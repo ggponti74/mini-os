@@ -50,6 +50,8 @@
 #define SYS_READDIR 43
 #define SYS_READV 44
 #define SYS_WRITEV 45
+#define SYS_PREADV 46
+#define SYS_PWRITEV 47
 
 #define AT_REMOVEDIR 0x200
 
