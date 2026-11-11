@@ -1348,6 +1348,29 @@ int main(int argc, char **argv) {
     free(allocation);
     return 173;
   }
+  if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0 ||
+      fcntl(duplicate_fd, F_SETFD, 0) != 0 ||
+      fcntl(fd, F_GETFD) != FD_CLOEXEC ||
+      fcntl(duplicate_fd, F_GETFD) != 0) {
+    printf("fcntl duplicate descriptor-flag setup failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 174;
+  }
+  errno = 0;
+  if (fcntl(duplicate_fd, F_SETFD, FD_CLOEXEC | 2) != -1 ||
+      errno != EINVAL || fcntl(fd, F_GETFD) != FD_CLOEXEC ||
+      fcntl(duplicate_fd, F_GETFD) != 0) {
+    printf("fcntl invalid duplicate descriptor-flags state check failed: %d\\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 175;
+  }
   errno = 0;
   if (fcntl(fd, F_SETFL, O_RDWR | 0x40000000) != -1 || errno != EINVAL) {
     printf("fcntl unsupported-status-flags check failed: %d\n", errno);
