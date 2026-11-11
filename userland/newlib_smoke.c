@@ -636,6 +636,48 @@ int main(int argc, char **argv) {
     return 74;
   }
 
+  vector_fd = open("newlib-positional-vector.dat",
+                    O_CREAT | O_TRUNC | O_RDWR, 0600);
+  char positional_first[4] = {0};
+  char positional_second[4] = {0};
+  struct iovec positional_read_vectors[2] = {
+      {positional_first, 3}, {positional_second, 3}};
+  struct iovec positional_write_vectors[2] = {
+      {(void *)"Pre", 3}, {(void *)"adv", 3}};
+  if (vector_fd < 0 || writev(vector_fd, positional_write_vectors, 2) != 6 ||
+      lseek(vector_fd, 4, SEEK_SET) != 4 ||
+      preadv(vector_fd, positional_read_vectors, 2, 0) != 6 ||
+      memcmp(positional_first, "Pre", 3) != 0 ||
+      memcmp(positional_second, "adv", 3) != 0 ||
+      lseek(vector_fd, 0, SEEK_CUR) != 4) {
+    printf("Newlib preadv check failed: %d\n", errno);
+    fflush(stdout);
+    if (vector_fd >= 0) close(vector_fd);
+    unlink("newlib-positional-vector.dat");
+    return 76;
+  }
+  struct iovec positional_patch_vectors[2] = {
+      {(void *)"P", 1}, {(void *)"W", 1}};
+  if (pwritev(vector_fd, positional_patch_vectors, 2, 0) != 2 ||
+      lseek(vector_fd, 0, SEEK_CUR) != 4) {
+    printf("Newlib pwritev check failed: %d\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-positional-vector.dat");
+    return 77;
+  }
+  errno = 0;
+  if (preadv(-1, positional_read_vectors, 2, 0) != -1 ||
+      errno != EBADF || close(vector_fd) != 0 ||
+      unlink("newlib-positional-vector.dat") != 0) {
+    printf("Newlib positional vector cleanup/error check failed: %d\n",
+           errno);
+    fflush(stdout);
+    if (vector_fd >= 0) close(vector_fd);
+    unlink("newlib-positional-vector.dat");
+    return 78;
+  }
+
   char *allocation = malloc(128);
   if (!allocation) {
     printf("malloc failed: %d\n", errno);
