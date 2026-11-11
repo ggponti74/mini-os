@@ -1033,6 +1033,44 @@ int main(int argc, char **argv) {
     return 124;
   }
   errno = 0;
+  if (fcntl(fd, F_DUPFD, 8) != -1 || errno != EMFILE) {
+    printf("fcntl F_DUPFD descriptor-table boundary check failed: %d\\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 138;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD_CLOEXEC, 8) != -1 || errno != EMFILE) {
+    printf("fcntl F_DUPFD_CLOEXEC descriptor-table boundary check failed: %d\\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 139;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD, 0x7fffffff) != -1 || errno != EMFILE) {
+    printf("fcntl F_DUPFD large minimum check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 140;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD_CLOEXEC, 0x7fffffff) != -1 || errno != EMFILE) {
+    printf("fcntl F_DUPFD_CLOEXEC large minimum check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 141;
+  }
+  errno = 0;
   if (fcntl(99, F_GETFD) != -1 || errno != EBADF) {
     printf("fcntl invalid-descriptor check failed: %d\n", errno);
     fflush(stdout);
