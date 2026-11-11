@@ -648,7 +648,11 @@ int main(int argc, char **argv) {
     umask(previous_umask);
     return 27;
   }
-  umask(previous_umask);
+  if (umask(previous_umask) != 0077) {
+    printf("umask previous-mask return check failed: %d\\n", errno);
+    fflush(stdout);
+    return 176;
+  }
 
   int chmod_test_fd = open("newlib-fchmod.dat", O_CREAT | O_EXCL | O_RDWR, 0644);
   if (chmod_test_fd < 0 || fchmod(chmod_test_fd, 0600) != 0 ||
