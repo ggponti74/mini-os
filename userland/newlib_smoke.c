@@ -1373,6 +1373,37 @@ int main(int argc, char **argv) {
     free(allocation);
     return 168;
   }
+  if (fcntl(fd, F_SETFL, O_RDWR) != 0 ||
+      fcntl(duplicate_fd, F_SETFL, O_RDWR | O_APPEND) != 0 ||
+      fcntl(fd, F_GETFL) != (O_RDWR | O_APPEND)) {
+    printf("fcntl duplicate invalid-status-flags setup failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 169;
+  }
+  errno = 0;
+  if (fcntl(duplicate_fd, F_SETFL, O_RDWR | O_APPEND | 0x40000000) != -1 ||
+      errno != EINVAL ||
+      fcntl(fd, F_GETFL) != (O_RDWR | O_APPEND) ||
+      fcntl(duplicate_fd, F_GETFL) != (O_RDWR | O_APPEND)) {
+    printf("fcntl invalid-status-flags duplicate state check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 170;
+  }
+  if (fcntl(fd, F_SETFL, O_RDWR) != 0) {
+    printf("fcntl duplicate invalid-status-flags cleanup failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 171;
+  }
   int low_minimum_cloexec_fd = fcntl(fd, F_DUPFD_CLOEXEC, 1);
   if (low_minimum_cloexec_fd != 4 ||
       fcntl(low_minimum_cloexec_fd, F_GETFD) != FD_CLOEXEC ||
