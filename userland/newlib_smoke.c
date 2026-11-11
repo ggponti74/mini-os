@@ -605,6 +605,15 @@ int main(int argc, char **argv) {
     unlink("newlib-vector.dat");
     return 71;
   }
+#ifdef _SC_IOV_MAX
+  if (sysconf(_SC_IOV_MAX) != 16) {
+    printf("Newlib vector I/O limit check failed: %d\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 75;
+  }
+#endif
   errno = 0;
   if (readv(-1, read_vectors, 2) != -1 || errno != EBADF) {
     printf("Newlib readv invalid descriptor check failed: %d\\n", errno);
