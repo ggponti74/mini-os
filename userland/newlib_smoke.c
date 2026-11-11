@@ -934,10 +934,13 @@ int main(int argc, char **argv) {
     return 112;
   }
   int append_fd = open("newlib-fcntl-append.dat",
-                       O_CREAT | O_EXCL | O_RDWR, 0600);
+                       O_CREAT | O_EXCL | O_RDWR | O_APPEND, 0600);
   char append_readback[2] = {0};
   int append_ok =
-      append_fd >= 0 && write(append_fd, "A", 1) == 1 &&
+      append_fd >= 0 &&
+      fcntl(append_fd, F_GETFL) == (O_RDWR | O_APPEND) &&
+      fcntl(append_fd, F_SETFL, O_RDWR) == 0 &&
+      write(append_fd, "A", 1) == 1 &&
       lseek(append_fd, 0, SEEK_SET) == 0 &&
       fcntl(append_fd, F_SETFL, O_RDWR | O_APPEND) == 0 &&
       write(append_fd, "B", 1) == 1 &&
