@@ -10,6 +10,7 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -584,6 +585,46 @@ int main(int argc, char **argv) {
     printf("fchmod test cleanup failed: %d\n", errno);
     fflush(stdout);
     return 67;
+  }
+
+  int vector_fd = open("newlib-vector.dat", O_CREAT | O_TRUNC | O_RDWR, 0600);
+  struct iovec write_vectors[2] = {
+      {(void *)"New", 3}, {(void *)"lib", 3}};
+  char vector_first[4] = {0};
+  char vector_second[4] = {0};
+  struct iovec read_vectors[2] = {
+      {vector_first, 3}, {vector_second, 3}};
+  if (vector_fd < 0 || writev(vector_fd, write_vectors, 2) != 6 ||
+      lseek(vector_fd, 0, SEEK_SET) != 0 ||
+      readv(vector_fd, read_vectors, 2) != 6 ||
+      memcmp(vector_first, "New", 3) != 0 ||
+      memcmp(vector_second, "lib", 3) != 0) {
+    printf("Newlib vector I/O check failed: %d\\n", errno);
+    fflush(stdout);
+    if (vector_fd >= 0) close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 71;
+  }
+  errno = 0;
+  if (readv(-1, read_vectors, 2) != -1 || errno != EBADF) {
+    printf("Newlib readv invalid descriptor check failed: %d\\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 72;
+  }
+  errno = 0;
+  if (writev(vector_fd, NULL, 1) != -1 || errno != EFAULT) {
+    printf("Newlib writev null vector check failed: %d\\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 73;
+  }
+  if (close(vector_fd) != 0 || unlink("newlib-vector.dat") != 0) {
+    printf("Newlib vector I/O cleanup failed: %d\\n", errno);
+    fflush(stdout);
+    return 74;
   }
 
   char *allocation = malloc(128);
