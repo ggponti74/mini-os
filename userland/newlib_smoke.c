@@ -862,6 +862,17 @@ int main(int argc, char **argv) {
     free(allocation);
     return 36;
   }
+  int next_duplicate_fd = fcntl(fd, F_DUPFD, 5);
+  if (next_duplicate_fd != 6 || fcntl(next_duplicate_fd, F_GETFD) != 0 ||
+      close(next_duplicate_fd) != 0) {
+    printf("fcntl lowest-free duplicate check failed: %d\n", errno);
+    fflush(stdout);
+    if (next_duplicate_fd >= 0) close(next_duplicate_fd);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 109;
+  }
   if (fcntl(duplicate_fd, F_SETFL, O_RDWR | O_APPEND) != 0 ||
       (fcntl(fd, F_GETFL) & O_APPEND) == 0 ||
       fcntl(fd, F_SETFL, O_RDWR) != 0 ||
@@ -910,7 +921,7 @@ int main(int argc, char **argv) {
     return 103;
   }
   int cloexec_duplicate_fd = fcntl(fd, F_DUPFD_CLOEXEC, 5);
-  if (cloexec_duplicate_fd < 5 ||
+  if (cloexec_duplicate_fd != 6 ||
       fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC ||
       fcntl(cloexec_duplicate_fd, F_GETFL) != fcntl(fd, F_GETFL) ||
       close(cloexec_duplicate_fd) != 0) {
