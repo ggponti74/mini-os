@@ -255,6 +255,12 @@ int main(int argc, char **argv) {
     return 179;
   }
   errno = 0;
+  if (faccessat(AT_FDCWD, "", F_OK, 0) != -1 || errno != ENOENT) {
+    printf("faccessat empty path check failed: %d\\n", errno);
+    fflush(stdout);
+    return 180;
+  }
+  errno = 0;
   if (faccessat(AT_FDCWD, "newlib-cwd-test", F_OK, 1) != -1 ||
       errno != EINVAL) {
     printf("faccessat flags check failed: %d\n", errno);
