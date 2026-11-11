@@ -1346,6 +1346,33 @@ int main(int argc, char **argv) {
     free(allocation);
     return 103;
   }
+  if (fcntl(fd, F_SETFL, O_RDWR | O_APPEND) != 0) {
+    printf("fcntl invalid-status-flags setup failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 166;
+  }
+  errno = 0;
+  if (fcntl(fd, F_SETFL, O_RDWR | O_APPEND | 0x40000000) != -1 ||
+      errno != EINVAL || fcntl(fd, F_GETFL) != (O_RDWR | O_APPEND)) {
+    printf("fcntl invalid-status-flags state preservation check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 167;
+  }
+  if (fcntl(fd, F_SETFL, O_RDWR) != 0) {
+    printf("fcntl invalid-status-flags cleanup failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 168;
+  }
   int low_minimum_cloexec_fd = fcntl(fd, F_DUPFD_CLOEXEC, 1);
   if (low_minimum_cloexec_fd != 4 ||
       fcntl(low_minimum_cloexec_fd, F_GETFD) != FD_CLOEXEC ||
