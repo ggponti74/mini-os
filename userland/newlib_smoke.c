@@ -936,6 +936,43 @@ int main(int argc, char **argv) {
     return 100;
   }
   errno = 0;
+  if (fcntl(99, F_SETFD, FD_CLOEXEC) != -1 || errno != EBADF) {
+    printf("fcntl F_SETFD invalid-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 117;
+  }
+  errno = 0;
+  if (fcntl(99, F_SETFL, O_APPEND) != -1 || errno != EBADF) {
+    printf("fcntl F_SETFL invalid-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 118;
+  }
+  errno = 0;
+  if (fcntl(99, F_DUPFD, 3) != -1 || errno != EBADF) {
+    printf("fcntl F_DUPFD invalid-descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 119;
+  }
+  errno = 0;
+  if (fcntl(99, F_DUPFD_CLOEXEC, 3) != -1 || errno != EBADF) {
+    printf("fcntl F_DUPFD_CLOEXEC invalid-descriptor check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 120;
+  }
+  errno = 0;
   if (fcntl(fd, 999) != -1 || errno != EINVAL) {
     printf("fcntl invalid-command check failed: %d\n", errno);
     fflush(stdout);
