@@ -372,6 +372,20 @@ static void test_open_cloexec(void) {
   CHECK(fd == 3);
   CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  struct openat_request { uint32_t flags; uint32_t mode; } request;
+  int directory_fd = syscall_dispatch(
+      SYS_OPEN, (uint32_t)"dir", O_RDONLY | O_DIRECTORY, 0);
+  CHECK(directory_fd == 3);
+  request.flags = O_RDONLY | O_CLOEXEC;
+  request.mode = 0;
+  fd = syscall_dispatch(SYS_OPENAT, directory_fd, (uint32_t)"file",
+                        (uint32_t)&request);
+  CHECK(fd == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFD, 0) == FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) == O_RDONLY);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
 }
 
 static void test_dup2_replacement_and_shared_state(void) {
