@@ -1013,6 +1013,9 @@ int32_t syscall_dispatch(uint32_t number, uint32_t arg1, uint32_t arg2,
         standard_descriptor_flags[fd] = (uint8_t)arg3;
         return 0;
       }
+      if (arg2 == F_GETFL) {
+        return fd == 0 ? O_RDONLY : O_WRONLY;
+      }
       return -EINVAL;
     }
     syscall_fd_t *descriptor = &descriptors[fd];
