@@ -1363,6 +1363,48 @@ int main(int argc, char **argv) {
   }
   int close_result = close(fd);
   errno = 0;
+  if (fcntl(fd, F_GETFD) != -1 || errno != EBADF) {
+    printf("closed-descriptor fcntl F_GETFD check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 149;
+  }
+  errno = 0;
+  if (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1 || errno != EBADF) {
+    printf("closed-descriptor fcntl F_SETFD check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 150;
+  }
+  errno = 0;
+  if (fcntl(fd, F_GETFL) != -1 || errno != EBADF) {
+    printf("closed-descriptor fcntl F_GETFL check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 151;
+  }
+  errno = 0;
+  if (fcntl(fd, F_SETFL, O_APPEND) != -1 || errno != EBADF) {
+    printf("closed-descriptor fcntl F_SETFL check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 152;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD, 3) != -1 || errno != EBADF) {
+    printf("closed-descriptor fcntl F_DUPFD check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 153;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD_CLOEXEC, 3) != -1 || errno != EBADF) {
+    printf("closed-descriptor fcntl F_DUPFD_CLOEXEC check failed: %d\n", errno);
+    fflush(stdout);
+    free(allocation);
+    return 154;
+  }
+  errno = 0;
   if (ftruncate(fd, 0) != -1 || errno != EBADF) {
     printf("closed-descriptor ftruncate check failed: %d\n", errno);
     fflush(stdout);
