@@ -349,6 +349,20 @@ static int32_t syscall_vector_io(uint32_t operation, int fd,
     total_length += vectors[i].length;
   }
 
+  if (total_length == 0) {
+    if (operation == SYS_READV) {
+      if (fd == 0) return 0;
+      if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
+          !descriptors[fd].file->readable) return -EBADF;
+    } else {
+      if (fd == 1 || fd == 2) return 0;
+      if (fd < 3 || fd >= SYSCALL_FD_COUNT || !descriptors[fd].used ||
+          !descriptors[fd].file->writable) return -EBADF;
+    }
+    if (descriptors[fd].file->node->flags & FS_DIRECTORY) return -EISDIR;
+    return 0;
+  }
+
   int32_t transferred = 0;
   uint32_t syscall_number = operation == SYS_READV ? SYS_READ : SYS_WRITE;
   for (int i = 0; i < vector_count; i++) {
