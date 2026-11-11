@@ -243,6 +243,12 @@ int main(int argc, char **argv) {
     return 177;
   }
   errno = 0;
+  if (fstatat(AT_FDCWD, NULL, &at_status, 0) != -1 || errno != EFAULT) {
+    printf("fstatat null path check failed: %d\\n", errno);
+    fflush(stdout);
+    return 178;
+  }
+  errno = 0;
   if (faccessat(AT_FDCWD, "newlib-cwd-test", F_OK, 1) != -1 ||
       errno != EINVAL) {
     printf("faccessat flags check failed: %d\n", errno);
