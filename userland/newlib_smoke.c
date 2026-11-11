@@ -908,6 +908,28 @@ int main(int argc, char **argv) {
     free(allocation);
     return 163;
   }
+  int readonly_access_fd = open("newlib-smoke.dat", O_RDONLY);
+  int readonly_access_ok =
+      readonly_access_fd >= 0 &&
+      fcntl(readonly_access_fd, F_SETFL, O_WRONLY) == 0 &&
+      fcntl(readonly_access_fd, F_GETFL) == O_RDONLY &&
+      fcntl(readonly_access_fd, F_SETFL, O_RDWR | O_APPEND) == 0 &&
+      fcntl(readonly_access_fd, F_GETFL) == (O_RDONLY | O_APPEND) &&
+      fcntl(readonly_access_fd, F_SETFL, O_RDONLY) == 0 &&
+      fcntl(readonly_access_fd, F_GETFL) == O_RDONLY;
+  if (readonly_access_fd >= 0 && close(readonly_access_fd) != 0) {
+    readonly_access_ok = 0;
+  }
+  if (!readonly_access_ok) {
+    printf("fcntl read-only access-mode preservation check failed: %d\n",
+           errno);
+    fflush(stdout);
+    if (readonly_access_fd >= 0) close(readonly_access_fd);
+    close(readonly_fd);
+    close(fd);
+    free(allocation);
+    return 164;
+  }
   errno = 0;
   if (readonly_fd < 0 || fsync(readonly_fd) != -1 || errno != EBADF) {
     printf("read-only fsync check failed: %d\n", errno);
