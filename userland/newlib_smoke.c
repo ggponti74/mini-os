@@ -282,6 +282,12 @@ int main(int argc, char **argv) {
     return 76;
   }
   errno = 0;
+  if (mkdirat(AT_FDCWD, "", 0700) != -1 || errno != ENOENT) {
+    printf("mkdirat empty path check failed: %d\\n", errno);
+    fflush(stdout);
+    return 181;
+  }
+  errno = 0;
   if (fchmodat(3, "newlib-at-create", 0700, 0) != -1 || errno != EBADF) {
     printf("fchmodat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
