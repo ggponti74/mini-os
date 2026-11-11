@@ -854,10 +854,10 @@ int main(int argc, char **argv) {
     return 35;
   }
   int duplicate_fd = fcntl(fd, F_DUPFD, 5);
-  if (duplicate_fd < 5 || fcntl(duplicate_fd, F_GETFD) != 0 ||
-      close(duplicate_fd) != 0) {
+  if (duplicate_fd < 5 || fcntl(duplicate_fd, F_GETFD) != 0) {
     printf("fcntl minimum-duplicate check failed: %d\n", errno);
     fflush(stdout);
+    if (duplicate_fd >= 0) close(duplicate_fd);
     close(fd);
     free(allocation);
     return 36;
@@ -920,6 +920,51 @@ int main(int argc, char **argv) {
     close(fd);
     free(allocation);
     return 97;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD, -1) != -1 || errno != EINVAL) {
+    printf("fcntl negative duplicate minimum check failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 104;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD, 8) != -1 || errno != EMFILE) {
+    printf("fcntl exhausted duplicate minimum check failed: %d\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 105;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD_CLOEXEC, -1) != -1 || errno != EINVAL) {
+    printf("fcntl negative close-on-exec duplicate minimum check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 106;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD_CLOEXEC, 8) != -1 || errno != EMFILE) {
+    printf("fcntl exhausted close-on-exec duplicate minimum check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 107;
+  }
+  if (close(duplicate_fd) != 0) {
+    printf("fcntl duplicate cleanup failed: %d\n", errno);
+    fflush(stdout);
+    close(fd);
+    free(allocation);
+    return 108;
   }
   int file_ok = write(fd, payload, sizeof(payload)) == sizeof(payload) &&
                 lseek(fd, 0, SEEK_SET) == 0 &&
