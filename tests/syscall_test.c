@@ -694,6 +694,7 @@ static void test_positional_vector_io(void) {
   vectors[0].length = 4;
   vectors[1].base = second;
   vectors[1].length = 2;
+  file_node.length = sizeof(file_data);
   request.offset = 254;
   CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
                          (uint32_t)&request) == 2);
