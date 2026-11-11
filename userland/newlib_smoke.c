@@ -834,6 +834,18 @@ int main(int argc, char **argv) {
     free(allocation);
     return 36;
   }
+  int cloexec_duplicate_fd = fcntl(fd, F_DUPFD_CLOEXEC, 5);
+  if (cloexec_duplicate_fd < 5 ||
+      fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC ||
+      fcntl(cloexec_duplicate_fd, F_GETFL) != fcntl(fd, F_GETFL) ||
+      close(cloexec_duplicate_fd) != 0) {
+    printf("fcntl close-on-exec duplicate check failed: %d\\n", errno);
+    fflush(stdout);
+    if (cloexec_duplicate_fd >= 0) close(cloexec_duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 97;
+  }
   int file_ok = write(fd, payload, sizeof(payload)) == sizeof(payload) &&
                 lseek(fd, 0, SEEK_SET) == 0 &&
                 read(fd, readback, sizeof(readback)) == sizeof(readback) &&
