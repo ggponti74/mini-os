@@ -698,6 +698,11 @@ long sysconf(int name) {
         return 8; /* SYSCALL_FD_COUNT, including the three standard descriptors. */
     }
 #endif
+#ifdef _SC_IOV_MAX
+    if (name == _SC_IOV_MAX) {
+        return 16; /* SYSCALL_IOV_MAX in the kernel. */
+    }
+#endif
     errno = EINVAL;
     return -1;
 }
