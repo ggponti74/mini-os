@@ -927,6 +927,25 @@ int main(int argc, char **argv) {
     return 99;
   }
   errno = 0;
+  if (fcntl(fd, F_DUPFD, -1) != -1 || errno != EINVAL) {
+    printf("fcntl F_DUPFD negative minimum check failed: %d\\n", errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 123;
+  }
+  errno = 0;
+  if (fcntl(fd, F_DUPFD_CLOEXEC, -1) != -1 || errno != EINVAL) {
+    printf("fcntl F_DUPFD_CLOEXEC negative minimum check failed: %d\\n",
+           errno);
+    fflush(stdout);
+    close(duplicate_fd);
+    close(fd);
+    free(allocation);
+    return 124;
+  }
+  errno = 0;
   if (fcntl(99, F_GETFD) != -1 || errno != EBADF) {
     printf("fcntl invalid-descriptor check failed: %d\n", errno);
     fflush(stdout);
