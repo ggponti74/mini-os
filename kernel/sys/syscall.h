@@ -48,6 +48,8 @@
 #define SYS_MKDIRAT 41
 #define SYS_FCHMODAT 42
 #define SYS_READDIR 43
+#define SYS_READV 44
+#define SYS_WRITEV 45
 
 #define AT_REMOVEDIR 0x200
 

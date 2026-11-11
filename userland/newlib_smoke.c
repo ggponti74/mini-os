@@ -10,6 +10,7 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -107,13 +108,13 @@ int main(int argc, char **argv) {
     return 24;
   }
   if (access("newlib-cwd-test", F_OK) != 0) {
-    printf("access existence check failed: %d\\n", errno);
+    printf("access existence check failed: %d\n", errno);
     fflush(stdout);
     return 25;
   }
   errno = 0;
   if (access("newlib-cwd-test", X_OK) == 0 || errno != EACCES) {
-    printf("access execute-permission check failed: %d\\n", errno);
+    printf("access execute-permission check failed: %d\n", errno);
     fflush(stdout);
     return 26;
   }
@@ -403,19 +404,19 @@ int main(int argc, char **argv) {
   }
   if (sysconf(_SC_PAGESIZE) != 4096 ||
       getpagesize() != 4096) {
-    printf("page-size query check failed: %d\\n", errno);
+    printf("page-size query check failed: %d\n", errno);
     fflush(stdout);
     return 49;
   }
   errno = 0;
   if (sysconf(-1) != -1 || errno != EINVAL) {
-    printf("invalid sysconf query check failed: %d\\n", errno);
+    printf("invalid sysconf query check failed: %d\n", errno);
     fflush(stdout);
     return 50;
   }
 #ifdef _SC_OPEN_MAX
   if (sysconf(_SC_OPEN_MAX) != 8 || getdtablesize() != 8) {
-    printf("open-descriptor limit check failed: %d\\n", errno);
+    printf("open-descriptor limit check failed: %d\n", errno);
     fflush(stdout);
     return 51;
   }
@@ -450,7 +451,7 @@ int main(int argc, char **argv) {
   errno = 0;
   if (_link("newlib-smoke.dat", "newlib-smoke.link") != -1 ||
       errno != ENOSYS) {
-    printf("link check failed: %d\\n", errno);
+    printf("link check failed: %d\n", errno);
     fflush(stdout);
     return 17;
   }
@@ -495,14 +496,14 @@ int main(int argc, char **argv) {
       clock_gettime(CLOCK_MONOTONIC, &monotonic_after) != 0 ||
       (monotonic_after.tv_sec * 1000000000LL + monotonic_after.tv_nsec) <
           (monotonic_before.tv_sec * 1000000000LL + monotonic_before.tv_nsec + 2000000LL)) {
-    printf("monotonic clock/sleep check failed: %d\\n", errno);
+    printf("monotonic clock/sleep check failed: %d\n", errno);
     fflush(stdout);
     return 28;
   }
   struct timespec invalid_sleep = {0, 1000000000};
   errno = 0;
   if (nanosleep(&invalid_sleep, NULL) != -1 || errno != EINVAL) {
-    printf("nanosleep validation check failed: %d\\n", errno);
+    printf("nanosleep validation check failed: %d\n", errno);
     fflush(stdout);
     return 29;
   }
@@ -516,7 +517,7 @@ int main(int argc, char **argv) {
       _truncate("newlib-truncate.dat", 4) != 0 ||
       stat("newlib-truncate.dat", &status) != 0 || status.st_size != 4 ||
       truncate("newlib-truncate.dat", 8) != 0) {
-    printf("path truncate check failed: %d\\n", errno);
+    printf("path truncate check failed: %d\n", errno);
     fflush(stdout);
     if (truncate_fd >= 0) close(truncate_fd);
     unlink("newlib-truncate.dat");
@@ -531,7 +532,7 @@ int main(int argc, char **argv) {
       truncate_readback[4] != 0 || truncate_readback[5] != 0 ||
       truncate_readback[6] != 0 || truncate_readback[7] != 0 ||
       close(truncate_fd) != 0 || unlink("newlib-truncate.dat") != 0) {
-    printf("path truncate extension check failed: %d\\n", errno);
+    printf("path truncate extension check failed: %d\n", errno);
     fflush(stdout);
     if (truncate_fd >= 0) close(truncate_fd);
     unlink("newlib-truncate.dat");
@@ -539,13 +540,13 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (truncate("newlib-truncate.dat", -1) != -1 || errno != EINVAL) {
-    printf("negative truncate length check failed: %d\\n", errno);
+    printf("negative truncate length check failed: %d\n", errno);
     fflush(stdout);
     return 47;
   }
   errno = 0;
   if (truncate("newlib-truncate-missing.dat", 1) != -1 || errno != ENOENT) {
-    printf("missing truncate path check failed: %d\\n", errno);
+    printf("missing truncate path check failed: %d\n", errno);
     fflush(stdout);
     return 48;
   }
@@ -584,6 +585,55 @@ int main(int argc, char **argv) {
     printf("fchmod test cleanup failed: %d\n", errno);
     fflush(stdout);
     return 67;
+  }
+
+  int vector_fd = open("newlib-vector.dat", O_CREAT | O_TRUNC | O_RDWR, 0600);
+  struct iovec write_vectors[2] = {
+      {(void *)"New", 3}, {(void *)"lib", 3}};
+  char vector_first[4] = {0};
+  char vector_second[4] = {0};
+  struct iovec read_vectors[2] = {
+      {vector_first, 3}, {vector_second, 3}};
+  if (vector_fd < 0 || writev(vector_fd, write_vectors, 2) != 6 ||
+      lseek(vector_fd, 0, SEEK_SET) != 0 ||
+      readv(vector_fd, read_vectors, 2) != 6 ||
+      memcmp(vector_first, "New", 3) != 0 ||
+      memcmp(vector_second, "lib", 3) != 0) {
+    printf("Newlib vector I/O check failed: %d\n", errno);
+    fflush(stdout);
+    if (vector_fd >= 0) close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 71;
+  }
+#ifdef _SC_IOV_MAX
+  if (sysconf(_SC_IOV_MAX) != 16) {
+    printf("Newlib vector I/O limit check failed: %d\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 75;
+  }
+#endif
+  errno = 0;
+  if (readv(-1, read_vectors, 2) != -1 || errno != EBADF) {
+    printf("Newlib readv invalid descriptor check failed: %d\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 72;
+  }
+  errno = 0;
+  if (writev(vector_fd, NULL, 1) != -1 || errno != EFAULT) {
+    printf("Newlib writev null vector check failed: %d\n", errno);
+    fflush(stdout);
+    close(vector_fd);
+    unlink("newlib-vector.dat");
+    return 73;
+  }
+  if (close(vector_fd) != 0 || unlink("newlib-vector.dat") != 0) {
+    printf("Newlib vector I/O cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 74;
   }
 
   char *allocation = malloc(128);
@@ -783,7 +833,7 @@ int main(int argc, char **argv) {
   long directory_position = telldir(root_directory);
   if (!directory_entry || !directory_entry->d_name[0] ||
       directory_position != 1) {
-    printf("readdir/telldir check failed: %d\\n", errno);
+    printf("readdir/telldir check failed: %d\n", errno);
     fflush(stdout);
     closedir(root_directory);
     free(allocation);
@@ -791,7 +841,7 @@ int main(int argc, char **argv) {
   }
   DIR *second_directory = opendir("/");
   if (!second_directory || telldir(second_directory) != 0) {
-    printf("independent directory position check failed: %d\\n", errno);
+    printf("independent directory position check failed: %d\n", errno);
     fflush(stdout);
     if (second_directory) closedir(second_directory);
     closedir(root_directory);
@@ -801,7 +851,7 @@ int main(int argc, char **argv) {
   rewinddir(root_directory);
   directory_entry = readdir(root_directory);
   if (!directory_entry || telldir(root_directory) != directory_position) {
-    printf("rewinddir check failed: %d\\n", errno);
+    printf("rewinddir check failed: %d\n", errno);
     fflush(stdout);
     closedir(second_directory);
     closedir(root_directory);
@@ -812,7 +862,7 @@ int main(int argc, char **argv) {
   if (telldir(root_directory) != directory_position ||
       closedir(second_directory) != 0 ||
       closedir(root_directory) != 0) {
-    printf("seekdir/closedir check failed: %d\\n", errno);
+    printf("seekdir/closedir check failed: %d\n", errno);
     fflush(stdout);
     free(allocation);
     return 92;

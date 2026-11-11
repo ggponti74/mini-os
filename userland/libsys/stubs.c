@@ -33,6 +33,8 @@ int *__errno_location(void) {
 #define SYS_MKDIRAT 41
 #define SYS_FCHMODAT 42
 #define SYS_READDIR 43
+#define SYS_READV 44
+#define SYS_WRITEV 45
 #define SYS_LSEEK 13
 #define SYS_FTRUNCATE 12
 #define SYS_MKDIR 14
@@ -474,6 +476,21 @@ int open(const char *pathname, int flags, ...) {
     return syscall_result(syscall3(5, (int)pathname, flags, mode));
 }
 
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+
+ssize_t readv(int fd, const struct iovec *vectors, int vector_count) {
+    return syscall_result(syscall3(SYS_READV, fd, (int)vectors,
+                                   vector_count));
+}
+
+ssize_t writev(int fd, const struct iovec *vectors, int vector_count) {
+    return syscall_result(syscall3(SYS_WRITEV, fd, (int)vectors,
+                                   vector_count));
+}
+
 int pread(int fd, void *buf, size_t count, off_t offset) {
     return _pread(fd, buf, count, offset);
 }
@@ -679,6 +696,11 @@ long sysconf(int name) {
 #ifdef _SC_OPEN_MAX
     if (name == _SC_OPEN_MAX) {
         return 8; /* SYSCALL_FD_COUNT, including the three standard descriptors. */
+    }
+#endif
+#ifdef _SC_IOV_MAX
+    if (name == _SC_IOV_MAX) {
+        return 16; /* SYSCALL_IOV_MAX in the kernel. */
     }
 #endif
     errno = EINVAL;
