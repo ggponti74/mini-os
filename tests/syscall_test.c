@@ -620,6 +620,8 @@ static void test_vector_io(void) {
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == -EFAULT);
   vectors[0].length = 0;
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == 0);
+  CHECK(syscall_dispatch(SYS_READV, 7, (uint32_t)vectors, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_WRITEV, 7, (uint32_t)vectors, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 17) == -EINVAL);
   CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors,
                          (uint32_t)-1) == -EINVAL);
