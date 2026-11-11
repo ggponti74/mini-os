@@ -79,11 +79,14 @@ int main(int argc, char **argv) {
   }
   if (fcntl(0, F_GETFD) != 0 || fcntl(1, F_GETFD) != 0 ||
       fcntl(2, F_GETFD) != 0 ||
+      fcntl(0, F_GETFL) != O_RDONLY ||
+      fcntl(1, F_GETFL) != O_WRONLY ||
+      fcntl(2, F_GETFL) != O_WRONLY ||
       fcntl(1, F_SETFD, FD_CLOEXEC) != 0 ||
       fcntl(1, F_GETFD) != FD_CLOEXEC ||
       fcntl(1, F_SETFD, 0) != 0 ||
       fcntl(1, F_GETFD) != 0) {
-    printf("standard descriptor fcntl flag check failed: %d\\n", errno);
+    printf("standard descriptor fcntl flag/status check failed: %d\\n", errno);
     fflush(stdout);
     return 125;
   }
