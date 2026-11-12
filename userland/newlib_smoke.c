@@ -86,81 +86,81 @@ int main(int argc, char **argv) {
       fcntl(1, F_GETFD) != FD_CLOEXEC ||
       fcntl(1, F_SETFD, 0) != 0 ||
       fcntl(1, F_GETFD) != 0) {
-    printf("standard descriptor fcntl flag/status check failed: %d\\n", errno);
+    printf("standard descriptor fcntl flag/status check failed: %d\n", errno);
     fflush(stdout);
     return 125;
   }
 
   errno = 0;
   if (fcntl(0, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
-    printf("stdin invalid descriptor-flag check failed: %d\\n", errno);
+    printf("stdin invalid descriptor-flag check failed: %d\n", errno);
     fflush(stdout);
     return 126;
   }
   errno = 0;
   if (fcntl(1, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
-    printf("stdout invalid descriptor-flag check failed: %d\\n", errno);
+    printf("stdout invalid descriptor-flag check failed: %d\n", errno);
     fflush(stdout);
     return 127;
   }
   errno = 0;
   if (fcntl(2, F_SETFD, FD_CLOEXEC | 2) != -1 || errno != EINVAL) {
-    printf("stderr invalid descriptor-flag check failed: %d\\n", errno);
+    printf("stderr invalid descriptor-flag check failed: %d\n", errno);
     fflush(stdout);
     return 128;
   }
   errno = 0;
   if (fcntl(1, F_SETFL, O_APPEND) != -1 || errno != EINVAL) {
-    printf("standard stream F_SETFL rejection check failed: %d\\n", errno);
+    printf("standard stream F_SETFL rejection check failed: %d\n", errno);
     fflush(stdout);
     return 129;
   }
   errno = 0;
   if (fcntl(0, F_SETFL, O_APPEND) != -1 || errno != EINVAL) {
-    printf("stdin F_SETFL rejection check failed: %d\\n", errno);
+    printf("stdin F_SETFL rejection check failed: %d\n", errno);
     fflush(stdout);
     return 132;
   }
   errno = 0;
   if (fcntl(2, F_SETFL, O_APPEND) != -1 || errno != EINVAL) {
-    printf("stderr F_SETFL rejection check failed: %d\\n", errno);
+    printf("stderr F_SETFL rejection check failed: %d\n", errno);
     fflush(stdout);
     return 133;
   }
   errno = 0;
   if (fcntl(1, F_DUPFD, 3) != -1 || errno != EINVAL) {
-    printf("standard stream F_DUPFD rejection check failed: %d\\n", errno);
+    printf("standard stream F_DUPFD rejection check failed: %d\n", errno);
     fflush(stdout);
     return 130;
   }
   errno = 0;
   if (fcntl(0, F_DUPFD, 3) != -1 || errno != EINVAL) {
-    printf("stdin F_DUPFD rejection check failed: %d\\n", errno);
+    printf("stdin F_DUPFD rejection check failed: %d\n", errno);
     fflush(stdout);
     return 134;
   }
   errno = 0;
   if (fcntl(2, F_DUPFD, 3) != -1 || errno != EINVAL) {
-    printf("stderr F_DUPFD rejection check failed: %d\\n", errno);
+    printf("stderr F_DUPFD rejection check failed: %d\n", errno);
     fflush(stdout);
     return 135;
   }
   errno = 0;
   if (fcntl(1, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
-    printf("standard stream F_DUPFD_CLOEXEC rejection check failed: %d\\n",
+    printf("standard stream F_DUPFD_CLOEXEC rejection check failed: %d\n",
            errno);
     fflush(stdout);
     return 131;
   }
   errno = 0;
   if (fcntl(0, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
-    printf("stdin F_DUPFD_CLOEXEC rejection check failed: %d\\n", errno);
+    printf("stdin F_DUPFD_CLOEXEC rejection check failed: %d\n", errno);
     fflush(stdout);
     return 136;
   }
   errno = 0;
   if (fcntl(2, F_DUPFD_CLOEXEC, 3) != -1 || errno != EINVAL) {
-    printf("stderr F_DUPFD_CLOEXEC rejection check failed: %d\\n", errno);
+    printf("stderr F_DUPFD_CLOEXEC rejection check failed: %d\n", errno);
     fflush(stdout);
     return 137;
   }
@@ -238,25 +238,25 @@ int main(int argc, char **argv) {
   errno = 0;
   if (fstatat(AT_FDCWD, "newlib-cwd-test", NULL, 0) != -1 ||
       errno != EFAULT) {
-    printf("fstatat null status check failed: %d\\n", errno);
+    printf("fstatat null status check failed: %d\n", errno);
     fflush(stdout);
     return 177;
   }
   errno = 0;
   if (fstatat(AT_FDCWD, NULL, &at_status, 0) != -1 || errno != EFAULT) {
-    printf("fstatat null path check failed: %d\\n", errno);
+    printf("fstatat null path check failed: %d\n", errno);
     fflush(stdout);
     return 178;
   }
   errno = 0;
   if (fstatat(AT_FDCWD, "", &at_status, 0) != -1 || errno != ENOENT) {
-    printf("fstatat empty path check failed: %d\\n", errno);
+    printf("fstatat empty path check failed: %d\n", errno);
     fflush(stdout);
     return 179;
   }
   errno = 0;
   if (faccessat(AT_FDCWD, "", F_OK, 0) != -1 || errno != ENOENT) {
-    printf("faccessat empty path check failed: %d\\n", errno);
+    printf("faccessat empty path check failed: %d\n", errno);
     fflush(stdout);
     return 180;
   }
@@ -283,7 +283,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (mkdirat(AT_FDCWD, "", 0700) != -1 || errno != ENOENT) {
-    printf("mkdirat empty path check failed: %d\\n", errno);
+    printf("mkdirat empty path check failed: %d\n", errno);
     fflush(stdout);
     return 181;
   }
@@ -741,6 +741,71 @@ int main(int argc, char **argv) {
     close(at_dirfd_b);
     return 195;
   }
+  int absolute_at_fd = openat(-1, "/newlib-at-absolute.dat",
+                             O_CREAT | O_EXCL | O_RDWR, 0600);
+  if (absolute_at_fd < 0 || close(absolute_at_fd) != 0) {
+    printf("absolute openat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 221;
+  }
+  errno = 0;
+  if (fstatat(-1, "/newlib-at-absolute.dat", &at_status, 0) != 0 ||
+      !S_ISREG(at_status.st_mode) || errno != 0) {
+    printf("absolute fstatat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 222;
+  }
+  errno = 0;
+  if (faccessat(-1, "/newlib-at-absolute.dat", F_OK, 0) != 0 || errno != 0) {
+    printf("absolute faccessat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 223;
+  }
+  errno = 0;
+  if (fchmodat(-1, "/newlib-at-absolute.dat", 0400, 0) != 0 || errno != 0) {
+    printf("absolute fchmodat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 224;
+  }
+  if (renameat(-1, "/newlib-at-absolute.dat", -1,
+               "/newlib-at-absolute-renamed.dat") != 0) {
+    printf("absolute renameat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 225;
+  }
+  if (unlinkat(-1, "/newlib-at-absolute-renamed.dat", 0) != 0) {
+    printf("absolute unlinkat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute-renamed.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 226;
+  }
+  if (mkdirat(-1, "/newlib-at-absolute-dir", 0700) != 0 ||
+      fstatat(-1, "/newlib-at-absolute-dir", &at_status, 0) != 0 ||
+      !S_ISDIR(at_status.st_mode) ||
+      unlinkat(-1, "/newlib-at-absolute-dir", AT_REMOVEDIR) != 0) {
+    printf("absolute mkdirat/rmdir invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute-dir", AT_REMOVEDIR);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 227;
+  }
   if (unlinkat(at_dirfd_b, "moved.dat", 0) != 0 ||
       mkdirat(at_dirfd_b, "nested", 0700) != 0 ||
       fchmodat(at_dirfd_b, "nested", 0500, 0) != 0 ||
@@ -1066,7 +1131,7 @@ int main(int argc, char **argv) {
     return 27;
   }
   if (umask(previous_umask) != 0077) {
-    printf("umask previous-mask return check failed: %d\\n", errno);
+    printf("umask previous-mask return check failed: %d\n", errno);
     fflush(stdout);
     return 176;
   }
@@ -1518,7 +1583,7 @@ int main(int argc, char **argv) {
   if (low_minimum_duplicate_fd != 4 ||
       fcntl(low_minimum_duplicate_fd, F_GETFD) != 0 ||
       close(low_minimum_duplicate_fd) != 0) {
-    printf("fcntl below-standard duplicate minimum check failed: %d\\n", errno);
+    printf("fcntl below-standard duplicate minimum check failed: %d\n", errno);
     fflush(stdout);
     if (low_minimum_duplicate_fd >= 0) close(low_minimum_duplicate_fd);
     close(duplicate_fd);
@@ -1539,7 +1604,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD, -1) != -1 || errno != EINVAL) {
-    printf("fcntl F_DUPFD negative minimum check failed: %d\\n", errno);
+    printf("fcntl F_DUPFD negative minimum check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -1548,7 +1613,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD_CLOEXEC, -1) != -1 || errno != EINVAL) {
-    printf("fcntl F_DUPFD_CLOEXEC negative minimum check failed: %d\\n",
+    printf("fcntl F_DUPFD_CLOEXEC negative minimum check failed: %d\n",
            errno);
     fflush(stdout);
     close(duplicate_fd);
@@ -1558,7 +1623,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD, 8) != -1 || errno != EMFILE) {
-    printf("fcntl F_DUPFD descriptor-table boundary check failed: %d\\n",
+    printf("fcntl F_DUPFD descriptor-table boundary check failed: %d\n",
            errno);
     fflush(stdout);
     close(duplicate_fd);
@@ -1568,7 +1633,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD_CLOEXEC, 8) != -1 || errno != EMFILE) {
-    printf("fcntl F_DUPFD_CLOEXEC descriptor-table boundary check failed: %d\\n",
+    printf("fcntl F_DUPFD_CLOEXEC descriptor-table boundary check failed: %d\n",
            errno);
     fflush(stdout);
     close(duplicate_fd);
@@ -1578,7 +1643,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD, 0x7fffffff) != -1 || errno != EMFILE) {
-    printf("fcntl F_DUPFD large minimum check failed: %d\\n", errno);
+    printf("fcntl F_DUPFD large minimum check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -1587,7 +1652,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (fcntl(fd, F_DUPFD_CLOEXEC, 0x7fffffff) != -1 || errno != EMFILE) {
-    printf("fcntl F_DUPFD_CLOEXEC large minimum check failed: %d\\n", errno);
+    printf("fcntl F_DUPFD_CLOEXEC large minimum check failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -1719,7 +1784,7 @@ int main(int argc, char **argv) {
       duplicate_exhaustion_errno != EMFILE ||
       cloexec_exhaustion_result != -1 ||
       cloexec_exhaustion_errno != EMFILE) {
-    printf("fcntl duplicate descriptor exhaustion check failed: %d/%d\\n",
+    printf("fcntl duplicate descriptor exhaustion check failed: %d/%d\n",
            duplicate_exhaustion_errno, cloexec_exhaustion_errno);
     fflush(stdout);
     for (int i = 0; i < 3; i++) {
@@ -1732,7 +1797,7 @@ int main(int argc, char **argv) {
   }
   for (int i = 0; i < 3; i++) {
     if (close(exhaustion_fds[i]) != 0) {
-      printf("fcntl duplicate exhaustion cleanup failed: %d\\n", errno);
+      printf("fcntl duplicate exhaustion cleanup failed: %d\n", errno);
       fflush(stdout);
       close(duplicate_fd);
       close(fd);
@@ -1773,7 +1838,7 @@ int main(int argc, char **argv) {
       fcntl(duplicate_fd, F_SETFD, 0) != 0 ||
       fcntl(fd, F_GETFD) != FD_CLOEXEC ||
       fcntl(duplicate_fd, F_GETFD) != 0) {
-    printf("fcntl duplicate descriptor-flag setup failed: %d\\n", errno);
+    printf("fcntl duplicate descriptor-flag setup failed: %d\n", errno);
     fflush(stdout);
     close(duplicate_fd);
     close(fd);
@@ -1784,7 +1849,7 @@ int main(int argc, char **argv) {
   if (fcntl(duplicate_fd, F_SETFD, FD_CLOEXEC | 2) != -1 ||
       errno != EINVAL || fcntl(fd, F_GETFD) != FD_CLOEXEC ||
       fcntl(duplicate_fd, F_GETFD) != 0) {
-    printf("fcntl invalid duplicate descriptor-flags state check failed: %d\\n",
+    printf("fcntl invalid duplicate descriptor-flags state check failed: %d\n",
            errno);
     fflush(stdout);
     close(duplicate_fd);
@@ -1863,7 +1928,7 @@ int main(int argc, char **argv) {
   if (low_minimum_cloexec_fd != 4 ||
       fcntl(low_minimum_cloexec_fd, F_GETFD) != FD_CLOEXEC ||
       close(low_minimum_cloexec_fd) != 0) {
-    printf("fcntl below-standard close-on-exec duplicate minimum check failed: %d\\n",
+    printf("fcntl below-standard close-on-exec duplicate minimum check failed: %d\n",
            errno);
     fflush(stdout);
     if (low_minimum_cloexec_fd >= 0) close(low_minimum_cloexec_fd);
@@ -1876,7 +1941,7 @@ int main(int argc, char **argv) {
   if (cloexec_duplicate_fd != 6 ||
       fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC ||
       fcntl(cloexec_duplicate_fd, F_GETFL) != fcntl(fd, F_GETFL)) {
-    printf("fcntl close-on-exec duplicate check failed: %d\\n", errno);
+    printf("fcntl close-on-exec duplicate check failed: %d\n", errno);
     fflush(stdout);
     if (cloexec_duplicate_fd >= 0) close(cloexec_duplicate_fd);
     close(fd);
@@ -1892,7 +1957,7 @@ int main(int argc, char **argv) {
       fcntl(fd, F_GETFD) != FD_CLOEXEC ||
       fcntl(cloexec_duplicate_fd, F_SETFD, FD_CLOEXEC) != 0 ||
       fcntl(cloexec_duplicate_fd, F_GETFD) != FD_CLOEXEC) {
-    printf("fcntl close-on-exec duplicate state check failed: %d\\n", errno);
+    printf("fcntl close-on-exec duplicate state check failed: %d\n", errno);
     fflush(stdout);
     close(cloexec_duplicate_fd);
     close(fd);
@@ -1900,7 +1965,7 @@ int main(int argc, char **argv) {
     return 113;
   }
   if (close(cloexec_duplicate_fd) != 0) {
-    printf("fcntl close-on-exec duplicate cleanup failed: %d\\n", errno);
+    printf("fcntl close-on-exec duplicate cleanup failed: %d\n", errno);
     fflush(stdout);
     close(fd);
     free(allocation);
