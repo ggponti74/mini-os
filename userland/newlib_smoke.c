@@ -437,6 +437,139 @@ int main(int argc, char **argv) {
     return 188;
   }
 
+  int not_directory_fd = openat(AT_FDCWD, "newlib-at-not-directory",
+                                O_CREAT | O_EXCL | O_RDWR, 0600);
+  if (not_directory_fd < 0) {
+    printf("non-directory dirfd setup failed: %d\\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 207;
+  }
+  errno = 0;
+  if (openat(not_directory_fd, "child", O_RDONLY) != -1 || errno != ENOTDIR) {
+    printf("openat non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 208;
+  }
+  errno = 0;
+  if (fstatat(not_directory_fd, "child", &at_status, 0) != -1 ||
+      errno != ENOTDIR) {
+    printf("fstatat non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 209;
+  }
+  errno = 0;
+  if (faccessat(not_directory_fd, "child", F_OK, 0) != -1 ||
+      errno != ENOTDIR) {
+    printf("faccessat non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 210;
+  }
+  errno = 0;
+  if (mkdirat(not_directory_fd, "child", 0700) != -1 || errno != ENOTDIR) {
+    printf("mkdirat non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 211;
+  }
+  errno = 0;
+  if (fchmodat(not_directory_fd, "child", 0600, 0) != -1 ||
+      errno != ENOTDIR) {
+    printf("fchmodat non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 212;
+  }
+  errno = 0;
+  if (unlinkat(not_directory_fd, "child", 0) != -1 || errno != ENOTDIR) {
+    printf("unlinkat non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 213;
+  }
+  errno = 0;
+  if (renameat(not_directory_fd, "child", at_dirfd_b, "not-moved") != -1 ||
+      errno != ENOTDIR) {
+    printf("renameat source non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 214;
+  }
+  errno = 0;
+  if (renameat(at_dirfd_a, "relative.dat", not_directory_fd, "not-moved") != -1 ||
+      errno != ENOTDIR) {
+    printf("renameat destination non-directory dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 215;
+  }
+  int closed_dirfd = openat(at_dirfd_a, ".", O_RDONLY | O_DIRECTORY);
+  if (closed_dirfd < 0 || close(closed_dirfd) != 0) {
+    printf("closed dirfd setup failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 216;
+  }
+  errno = 0;
+  if (openat(closed_dirfd, "child", O_RDONLY) != -1 || errno != EBADF) {
+    printf("openat closed dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 217;
+  }
+  errno = 0;
+  if (fstatat(closed_dirfd, "relative.dat", &at_status, 0) != -1 ||
+      errno != EBADF) {
+    printf("fstatat closed dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 218;
+  }
+  errno = 0;
+  if (faccessat(closed_dirfd, "relative.dat", F_OK, 0) != -1 ||
+      errno != EBADF) {
+    printf("faccessat closed dirfd check failed: %d\\n", errno);
+    fflush(stdout);
+    close(not_directory_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 219;
+  }
+  if (close(not_directory_fd) != 0 ||
+      unlinkat(AT_FDCWD, "newlib-at-not-directory", 0) != 0) {
+    printf("non-directory dirfd cleanup failed: %d\\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 220;
+  }
+
   int relative_fd = openat(at_dirfd_a, "relative.dat",
                            O_CREAT | O_EXCL | O_RDWR, 0600);
   const char relative_payload[] = "dirfd";
