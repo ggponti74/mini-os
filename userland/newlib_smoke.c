@@ -418,6 +418,119 @@ int main(int argc, char **argv) {
     return 183;
   }
 
+
+  if (mkdirat(AT_FDCWD, "newlib-at-dirfd-a", 0700) != 0 ||
+      mkdirat(AT_FDCWD, "newlib-at-dirfd-b", 0700) != 0) {
+    printf("dirfd-relative directory setup failed: %d\n", errno);
+    fflush(stdout);
+    return 187;
+  }
+  int at_dirfd_a = openat(AT_FDCWD, "newlib-at-dirfd-a",
+                          O_RDONLY | O_DIRECTORY);
+  int at_dirfd_b = openat(AT_FDCWD, "newlib-at-dirfd-b",
+                          O_RDONLY | O_DIRECTORY);
+  if (at_dirfd_a < 0 || at_dirfd_b < 0) {
+    printf("dirfd-relative directory open failed: %d\n", errno);
+    fflush(stdout);
+    if (at_dirfd_a >= 0) close(at_dirfd_a);
+    if (at_dirfd_b >= 0) close(at_dirfd_b);
+    return 188;
+  }
+
+  int relative_fd = openat(at_dirfd_a, "relative.dat",
+                           O_CREAT | O_EXCL | O_RDWR, 0600);
+  const char relative_payload[] = "dirfd";
+  if (relative_fd < 0 ||
+      write(relative_fd, relative_payload, sizeof(relative_payload)) !=
+          (int)sizeof(relative_payload) ||
+      close(relative_fd) != 0) {
+    printf("dirfd-relative open/write check failed: %d\n", errno);
+    fflush(stdout);
+    if (relative_fd >= 0) close(relative_fd);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 189;
+  }
+
+  if (fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != 0 ||
+      !S_ISREG(at_status.st_mode) ||
+      at_status.st_size != (off_t)sizeof(relative_payload) ||
+      (at_status.st_mode & 0777) != 0600 ||
+      faccessat(at_dirfd_a, "relative.dat", F_OK, 0) != 0) {
+    printf("dirfd-relative stat/existence check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 190;
+  }
+  errno = 0;
+  if (faccessat(at_dirfd_a, "relative.dat", X_OK, 0) != -1 ||
+      errno != EACCES) {
+    printf("dirfd-relative access permission check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 191;
+  }
+  if (fchmodat(at_dirfd_a, "relative.dat", 0400, 0) != 0 ||
+      fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != 0 ||
+      (at_status.st_mode & 0777) != 0400) {
+    printf("dirfd-relative chmod check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 192;
+  }
+
+  if (renameat(at_dirfd_a, "relative.dat",
+               at_dirfd_b, "moved.dat") != 0) {
+    printf("cross-directory renameat check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 193;
+  }
+  errno = 0;
+  if (fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != -1 ||
+      errno != ENOENT ||
+      fstatat(at_dirfd_b, "moved.dat", &at_status, 0) != 0 ||
+      !S_ISREG(at_status.st_mode) ||
+      (at_status.st_mode & 0777) != 0400) {
+    printf("dirfd-relative rename result check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 194;
+  }
+  if (fstatat(3, "/newlib-at-dirfd-b/moved.dat", &at_status, 0) != 0 ||
+      !S_ISREG(at_status.st_mode)) {
+    printf("absolute *at path ignores dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 195;
+  }
+  if (unlinkat(at_dirfd_b, "moved.dat", 0) != 0 ||
+      mkdirat(at_dirfd_b, "nested", 0700) != 0 ||
+      fchmodat(at_dirfd_b, "nested", 0500, 0) != 0 ||
+      fstatat(at_dirfd_b, "nested", &at_status, 0) != 0 ||
+      !S_ISDIR(at_status.st_mode) ||
+      (at_status.st_mode & 0777) != 0500 ||
+      unlinkat(at_dirfd_b, "nested", AT_REMOVEDIR) != 0) {
+    printf("dirfd-relative directory operations check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 196;
+  }
+  if (close(at_dirfd_a) != 0 || close(at_dirfd_b) != 0 ||
+      unlinkat(AT_FDCWD, "newlib-at-dirfd-a", AT_REMOVEDIR) != 0 ||
+      unlinkat(AT_FDCWD, "newlib-at-dirfd-b", AT_REMOVEDIR) != 0) {
+    printf("dirfd-relative cleanup check failed: %d\n", errno);
+    fflush(stdout);
+    return 197;
+  }
+
   if (chdir("newlib-cwd-test") != 0) {
     printf("nested chdir check failed: %d\n", errno);
     fflush(stdout);
