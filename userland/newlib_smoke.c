@@ -221,6 +221,42 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 72;
   }
+
+  int faccessat_mode_fd = openat(AT_FDCWD, "newlib-faccessat-mode",
+                                 O_CREAT | O_EXCL | O_WRONLY, 0400);
+  if (faccessat_mode_fd < 0 || close(faccessat_mode_fd) != 0) {
+    printf("faccessat mode setup failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0);
+    return 227;
+  }
+  if (faccessat(AT_FDCWD, "newlib-faccessat-mode", R_OK, 0) != 0) {
+    printf("faccessat read permission check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0);
+    return 228;
+  }
+  errno = 0;
+  if (faccessat(AT_FDCWD, "newlib-faccessat-mode", W_OK, 0) != -1 ||
+      errno != EACCES) {
+    printf("faccessat write permission check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0);
+    return 229;
+  }
+  errno = 0;
+  if (faccessat(AT_FDCWD, "newlib-faccessat-mode", 8, 0) != -1 ||
+      errno != EINVAL) {
+    printf("faccessat invalid mode check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0);
+    return 230;
+  }
+  if (unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0) != 0) {
+    printf("faccessat mode cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 231;
+  }
   errno = 0;
   if (fstatat(3, "newlib-cwd-test", &at_status, 0) != -1 ||
       errno != EBADF) {
