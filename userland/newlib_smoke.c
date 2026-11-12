@@ -463,6 +463,17 @@ int main(int argc, char **argv) {
     close(at_dirfd_b);
     return 190;
   }
+
+  if (fstatat(at_dirfd_a, "././relative.dat", &at_status, 0) != 0 ||
+      !S_ISREG(at_status.st_mode) ||
+      fstatat(at_dirfd_a, "../newlib-at-dirfd-b", &at_status, 0) != 0 ||
+      !S_ISDIR(at_status.st_mode)) {
+    printf("dirfd-relative dot/dot-dot path check failed: %d\\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 198;
+  }
   errno = 0;
   if (faccessat(at_dirfd_a, "relative.dat", X_OK, 0) != -1 ||
       errno != EACCES) {
@@ -480,6 +491,36 @@ int main(int argc, char **argv) {
     close(at_dirfd_a);
     close(at_dirfd_b);
     return 192;
+  }
+
+  if (fchmodat(at_dirfd_a, ".", 0600, 0) != 0) {
+    printf("dirfd search-permission setup failed: %d\\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 199;
+  }
+  errno = 0;
+  int denied_stat = fstatat(at_dirfd_a, "relative.dat", &at_status, 0);
+  int denied_stat_errno = errno;
+  errno = 0;
+  int denied_access = faccessat(at_dirfd_a, "relative.dat", F_OK, 0);
+  int denied_access_errno = errno;
+  errno = 0;
+  int denied_open = openat(at_dirfd_a, "relative.dat", O_RDONLY);
+  int denied_open_errno = errno;
+  if (denied_open >= 0) close(denied_open);
+  if (denied_stat != -1 || denied_stat_errno != EACCES ||
+      denied_access != -1 || denied_access_errno != EACCES ||
+      denied_open != -1 || denied_open_errno != EACCES ||
+      fchmodat(AT_FDCWD, "newlib-at-dirfd-a", 0700, 0) != 0) {
+    printf("dirfd search-permission enforcement check failed: %d/%d/%d\\n",
+           denied_stat_errno, denied_access_errno, denied_open_errno);
+    fflush(stdout);
+    fchmodat(AT_FDCWD, "newlib-at-dirfd-a", 0700, 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 200;
   }
 
   if (renameat(at_dirfd_a, "relative.dat",
