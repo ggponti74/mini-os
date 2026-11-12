@@ -287,21 +287,21 @@ int main(int argc, char **argv) {
   errno = 0;
   if (fstatat(AT_FDCWD, "newlib-at-missing-metadata", &at_status, 0) != -1 ||
       errno != ENOENT) {
-    printf("fstatat missing-path check failed: %d\\n", errno);
+    printf("fstatat missing-path check failed: %d\n", errno);
     fflush(stdout);
     return 236;
   }
   errno = 0;
   if (faccessat(AT_FDCWD, "newlib-at-missing-metadata", F_OK, 0) != -1 ||
       errno != ENOENT) {
-    printf("faccessat missing-path check failed: %d\\n", errno);
+    printf("faccessat missing-path check failed: %d\n", errno);
     fflush(stdout);
     return 237;
   }
   errno = 0;
   if (fchmodat(AT_FDCWD, "newlib-at-missing-metadata", 0600, 0) != -1 ||
       errno != ENOENT) {
-    printf("fchmodat missing-path check failed: %d\\n", errno);
+    printf("fchmodat missing-path check failed: %d\n", errno);
     fflush(stdout);
     return 238;
   }
