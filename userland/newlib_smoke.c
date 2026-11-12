@@ -478,7 +478,7 @@ int main(int argc, char **argv) {
   errno = 0;
   if (fstatat(at_dirfd_a, "relative.dat", &at_status, 1) != -1 ||
       errno != EINVAL) {
-    printf("fstatat unsupported flags check failed: %d\\n", errno);
+    printf("fstatat unsupported flags check failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -487,7 +487,7 @@ int main(int argc, char **argv) {
   errno = 0;
   if (faccessat(at_dirfd_a, "relative.dat", F_OK, 1) != -1 ||
       errno != EINVAL) {
-    printf("faccessat unsupported flags check failed: %d\\n", errno);
+    printf("faccessat unsupported flags check failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -496,7 +496,7 @@ int main(int argc, char **argv) {
   errno = 0;
   if (fchmodat(at_dirfd_a, "relative.dat", 0600, 1) != -1 ||
       errno != EINVAL) {
-    printf("fchmodat unsupported flags check failed: %d\\n", errno);
+    printf("fchmodat unsupported flags check failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -506,7 +506,7 @@ int main(int argc, char **argv) {
   if (unlinkat(at_dirfd_a, "relative.dat", 1) != -1 ||
       errno != EINVAL ||
       fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != 0) {
-    printf("unlinkat unsupported flags/no-mutation check failed: %d\\n", errno);
+    printf("unlinkat unsupported flags/no-mutation check failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -514,7 +514,7 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   if (mkdirat(-1, "invalid-dirfd", 0700) != -1 || errno != EBADF) {
-    printf("mkdirat invalid dirfd check failed: %d\\n", errno);
+    printf("mkdirat invalid dirfd check failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -524,7 +524,7 @@ int main(int argc, char **argv) {
   if (renameat(at_dirfd_a, "relative.dat", -1, "invalid-destination") != -1 ||
       errno != EBADF ||
       fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != 0) {
-    printf("renameat invalid destination dirfd/no-mutation check failed: %d\\n",
+    printf("renameat invalid destination dirfd/no-mutation check failed: %d\n",
            errno);
     fflush(stdout);
     close(at_dirfd_a);
