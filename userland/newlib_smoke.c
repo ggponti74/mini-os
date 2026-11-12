@@ -468,7 +468,7 @@ int main(int argc, char **argv) {
       !S_ISREG(at_status.st_mode) ||
       fstatat(at_dirfd_a, "../newlib-at-dirfd-b", &at_status, 0) != 0 ||
       !S_ISDIR(at_status.st_mode)) {
-    printf("dirfd-relative dot/dot-dot path check failed: %d\\n", errno);
+    printf("dirfd-relative dot/dot-dot path check failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -494,7 +494,7 @@ int main(int argc, char **argv) {
   }
 
   if (fchmodat(at_dirfd_a, ".", 0600, 0) != 0) {
-    printf("dirfd search-permission setup failed: %d\\n", errno);
+    printf("dirfd search-permission setup failed: %d\n", errno);
     fflush(stdout);
     close(at_dirfd_a);
     close(at_dirfd_b);
@@ -514,7 +514,7 @@ int main(int argc, char **argv) {
       denied_access != -1 || denied_access_errno != EACCES ||
       denied_open != -1 || denied_open_errno != EACCES ||
       fchmodat(AT_FDCWD, "newlib-at-dirfd-a", 0700, 0) != 0) {
-    printf("dirfd search-permission enforcement check failed: %d/%d/%d\\n",
+    printf("dirfd search-permission enforcement check failed: %d/%d/%d\n",
            denied_stat_errno, denied_access_errno, denied_open_errno);
     fflush(stdout);
     fchmodat(AT_FDCWD, "newlib-at-dirfd-a", 0700, 0);
