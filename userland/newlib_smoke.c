@@ -474,6 +474,63 @@ int main(int argc, char **argv) {
     close(at_dirfd_b);
     return 198;
   }
+
+  errno = 0;
+  if (fstatat(at_dirfd_a, "relative.dat", &at_status, 1) != -1 ||
+      errno != EINVAL) {
+    printf("fstatat unsupported flags check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 201;
+  }
+  errno = 0;
+  if (faccessat(at_dirfd_a, "relative.dat", F_OK, 1) != -1 ||
+      errno != EINVAL) {
+    printf("faccessat unsupported flags check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 202;
+  }
+  errno = 0;
+  if (fchmodat(at_dirfd_a, "relative.dat", 0600, 1) != -1 ||
+      errno != EINVAL) {
+    printf("fchmodat unsupported flags check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 203;
+  }
+  errno = 0;
+  if (unlinkat(at_dirfd_a, "relative.dat", 1) != -1 ||
+      errno != EINVAL ||
+      fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != 0) {
+    printf("unlinkat unsupported flags/no-mutation check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 204;
+  }
+  errno = 0;
+  if (mkdirat(-1, "invalid-dirfd", 0700) != -1 || errno != EBADF) {
+    printf("mkdirat invalid dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 205;
+  }
+  errno = 0;
+  if (renameat(at_dirfd_a, "relative.dat", -1, "invalid-destination") != -1 ||
+      errno != EBADF ||
+      fstatat(at_dirfd_a, "relative.dat", &at_status, 0) != 0) {
+    printf("renameat invalid destination dirfd/no-mutation check failed: %d\n",
+           errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 206;
+  }
   errno = 0;
   if (faccessat(at_dirfd_a, "relative.dat", X_OK, 0) != -1 ||
       errno != EACCES) {
