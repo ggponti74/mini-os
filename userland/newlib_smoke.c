@@ -741,6 +741,71 @@ int main(int argc, char **argv) {
     close(at_dirfd_b);
     return 195;
   }
+  int absolute_at_fd = openat(-1, "/newlib-at-absolute.dat",
+                             O_CREAT | O_EXCL | O_RDWR, 0600);
+  if (absolute_at_fd < 0 || close(absolute_at_fd) != 0) {
+    printf("absolute openat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 221;
+  }
+  errno = 0;
+  if (fstatat(-1, "/newlib-at-absolute.dat", &at_status, 0) != 0 ||
+      !S_ISREG(at_status.st_mode) || errno != 0) {
+    printf("absolute fstatat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 222;
+  }
+  errno = 0;
+  if (faccessat(-1, "/newlib-at-absolute.dat", F_OK, 0) != 0 || errno != 0) {
+    printf("absolute faccessat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 223;
+  }
+  errno = 0;
+  if (fchmodat(-1, "/newlib-at-absolute.dat", 0400, 0) != 0 || errno != 0) {
+    printf("absolute fchmodat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 224;
+  }
+  if (renameat(-1, "/newlib-at-absolute.dat", -1,
+               "/newlib-at-absolute-renamed.dat") != 0) {
+    printf("absolute renameat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 225;
+  }
+  if (unlinkat(-1, "/newlib-at-absolute-renamed.dat", 0) != 0) {
+    printf("absolute unlinkat invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute-renamed.dat", 0);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 226;
+  }
+  if (mkdirat(-1, "/newlib-at-absolute-dir", 0700) != 0 ||
+      fstatat(-1, "/newlib-at-absolute-dir", &at_status, 0) != 0 ||
+      !S_ISDIR(at_status.st_mode) ||
+      unlinkat(-1, "/newlib-at-absolute-dir", AT_REMOVEDIR) != 0) {
+    printf("absolute mkdirat/rmdir invalid-dirfd check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "/newlib-at-absolute-dir", AT_REMOVEDIR);
+    close(at_dirfd_a);
+    close(at_dirfd_b);
+    return 227;
+  }
   if (unlinkat(at_dirfd_b, "moved.dat", 0) != 0 ||
       mkdirat(at_dirfd_b, "nested", 0700) != 0 ||
       fchmodat(at_dirfd_b, "nested", 0500, 0) != 0 ||
