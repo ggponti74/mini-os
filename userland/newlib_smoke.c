@@ -312,6 +312,37 @@ int main(int argc, char **argv) {
     return 75;
   }
   errno = 0;
+  if (mkdirat(AT_FDCWD, "newlib-at-create", 0700) != -1 ||
+      errno != EEXIST) {
+    printf("mkdirat existing-directory check failed: %d\n", errno);
+    fflush(stdout);
+    return 232;
+  }
+  int mkdirat_existing_file_fd =
+      openat(AT_FDCWD, "newlib-mkdirat-existing-file",
+             O_CREAT | O_EXCL | O_WRONLY, 0600);
+  if (mkdirat_existing_file_fd < 0 ||
+      close(mkdirat_existing_file_fd) != 0) {
+    printf("mkdirat existing-file setup failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-mkdirat-existing-file", 0);
+    return 233;
+  }
+  errno = 0;
+  if (mkdirat(AT_FDCWD, "newlib-mkdirat-existing-file", 0700) != -1 ||
+      errno != EEXIST) {
+    printf("mkdirat existing-file check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-mkdirat-existing-file", 0);
+    return 234;
+  }
+  if (unlinkat(AT_FDCWD, "newlib-mkdirat-existing-file", 0) != 0) {
+    printf("mkdirat existing-file cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 235;
+  }
+
+  errno = 0;
   if (mkdirat(3, "newlib-at-invalid", 0700) != -1 || errno != EBADF) {
     printf("mkdirat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
