@@ -362,6 +362,55 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 83;
   }
+
+  if (mkdirat(AT_FDCWD, "newlib-unlinkat-dir", 0700) != 0) {
+    printf("unlinkat directory-error setup failed: %d\n", errno);
+    fflush(stdout);
+    return 221;
+  }
+  int unlinkat_child_fd = openat(AT_FDCWD, "newlib-unlinkat-dir/child",
+                                 O_CREAT | O_EXCL | O_WRONLY, 0600);
+  if (unlinkat_child_fd < 0 || close(unlinkat_child_fd) != 0) {
+    printf("unlinkat child-file setup failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir/child", 0);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir", AT_REMOVEDIR);
+    return 222;
+  }
+  errno = 0;
+  if (unlinkat(AT_FDCWD, "newlib-unlinkat-dir", 0) != -1 ||
+      errno != EISDIR) {
+    printf("unlinkat directory without AT_REMOVEDIR check failed: %d\n",
+           errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir/child", 0);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir", AT_REMOVEDIR);
+    return 223;
+  }
+  errno = 0;
+  if (unlinkat(AT_FDCWD, "newlib-unlinkat-dir/child", AT_REMOVEDIR) != -1 ||
+      errno != ENOTDIR) {
+    printf("unlinkat AT_REMOVEDIR regular-file check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir/child", 0);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir", AT_REMOVEDIR);
+    return 224;
+  }
+  errno = 0;
+  if (unlinkat(AT_FDCWD, "newlib-unlinkat-dir", AT_REMOVEDIR) != -1 ||
+      errno != ENOTEMPTY) {
+    printf("unlinkat non-empty directory check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir/child", 0);
+    unlinkat(AT_FDCWD, "newlib-unlinkat-dir", AT_REMOVEDIR);
+    return 225;
+  }
+  if (unlinkat(AT_FDCWD, "newlib-unlinkat-dir/child", 0) != 0 ||
+      unlinkat(AT_FDCWD, "newlib-unlinkat-dir", AT_REMOVEDIR) != 0) {
+    printf("unlinkat directory-error cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 226;
+  }
   errno = 0;
   if (unlinkat(AT_FDCWD, "", 0) != -1 || errno != ENOENT) {
     printf("unlinkat empty path check failed: %d\n", errno);
