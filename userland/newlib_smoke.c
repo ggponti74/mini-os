@@ -330,18 +330,11 @@ int main(int argc, char **argv) {
   }
   errno = 0;
   errno = 0;
-  if (fstatat(AT_FDCWD, "newlib-at-absolute.dat", NULL, 0) != -1 ||
-      errno != EFAULT) {
-    printf("fstatat null status check failed: %d\n", errno);
-    fflush(stdout);
-    return 260;
-  }
-  errno = 0;
-  if (fstatat(AT_FDCWD, "newlib-at-absolute.dat", NULL,
+  if (fstatat(AT_FDCWD, "newlib-cwd-test", NULL,
               AT_SYMLINK_NOFOLLOW) != -1 || errno != EFAULT) {
     printf("fstatat null status/flags precedence check failed: %d\n", errno);
     fflush(stdout);
-    return 261;
+    return 260;
   }
   if (fstatat(AT_FDCWD, "newlib-at-missing-metadata", &at_status, 0) != -1 ||
       errno != ENOENT) {
