@@ -414,6 +414,14 @@ int main(int argc, char **argv) {
     return 80;
   }
   errno = 0;
+  if (renameat(AT_FDCWD, "newlib-at-missing-rename-source",
+               AT_FDCWD, "newlib-at-missing-rename-target") != -1 ||
+      errno != ENOENT) {
+    printf("renameat missing-source check failed: %d\n", errno);
+    fflush(stdout);
+    return 239;
+  }
+  errno = 0;
   if (renameat(AT_FDCWD, "", AT_FDCWD,
                "newlib-at-rename-new") != -1 || errno != ENOENT ||
       access("newlib-at-rename-new", F_OK) != 0) {
@@ -500,6 +508,20 @@ int main(int argc, char **argv) {
     return 226;
   }
   errno = 0;
+  if (unlinkat(AT_FDCWD, "newlib-at-missing-unlink", 0) != -1 ||
+      errno != ENOENT) {
+    printf("unlinkat missing-file check failed: %d\n", errno);
+    fflush(stdout);
+    return 240;
+  }
+  errno = 0;
+  if (unlinkat(AT_FDCWD, "newlib-at-missing-directory", AT_REMOVEDIR) != -1 ||
+      errno != ENOENT) {
+    printf("unlinkat missing-directory check failed: %d\n", errno);
+    fflush(stdout);
+    return 241;
+  }
+  errno = 0;
   if (unlinkat(AT_FDCWD, "", 0) != -1 || errno != ENOENT) {
     printf("unlinkat empty path check failed: %d\n", errno);
     fflush(stdout);
@@ -547,6 +569,13 @@ int main(int argc, char **argv) {
     printf("openat directory-descriptor check failed: %d\n", errno);
     fflush(stdout);
     return 87;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-at-missing-open", O_RDONLY) != -1 ||
+      errno != ENOENT) {
+    printf("openat missing-path check failed: %d\n", errno);
+    fflush(stdout);
+    return 242;
   }
   errno = 0;
   if (openat(AT_FDCWD, "", O_RDONLY) != -1 || errno != ENOENT) {
