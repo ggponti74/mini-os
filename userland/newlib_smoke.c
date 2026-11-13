@@ -329,7 +329,6 @@ int main(int argc, char **argv) {
     return 259;
   }
   errno = 0;
-  errno = 0;
   if (fstatat(AT_FDCWD, "newlib-cwd-test", NULL,
               AT_SYMLINK_NOFOLLOW) != -1 || errno != EFAULT) {
     printf("fstatat null status/flags precedence check failed: %d\n", errno);
