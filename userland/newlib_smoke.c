@@ -1545,6 +1545,39 @@ int main(int argc, char **argv) {
     return 176;
   }
 
+  mode_t mkdirat_previous_umask = umask(0077);
+  if (mkdirat(AT_FDCWD, "newlib-mkdirat-umask-wide", 0777) != 0 ||
+      stat("newlib-mkdirat-umask-wide", &directory_status) != 0 ||
+      !S_ISDIR(directory_status.st_mode) ||
+      (directory_status.st_mode & 0777) != 0700) {
+    printf("mkdirat umask wide-mode check failed: %d\\n", errno);
+    fflush(stdout);
+    umask(mkdirat_previous_umask);
+    rmdir("newlib-mkdirat-umask-wide");
+    return 273;
+  }
+  if (mkdirat(AT_FDCWD, "newlib-mkdirat-umask-limited", 0755) != 0 ||
+      stat("newlib-mkdirat-umask-limited", &directory_status) != 0 ||
+      !S_ISDIR(directory_status.st_mode) ||
+      (directory_status.st_mode & 0777) != 0700) {
+    printf("mkdirat umask limited-mode check failed: %d\\n", errno);
+    fflush(stdout);
+    umask(mkdirat_previous_umask);
+    rmdir("newlib-mkdirat-umask-wide");
+    rmdir("newlib-mkdirat-umask-limited");
+    return 274;
+  }
+  if (umask(mkdirat_previous_umask) != 0077 ||
+      rmdir("newlib-mkdirat-umask-wide") != 0 ||
+      rmdir("newlib-mkdirat-umask-limited") != 0) {
+    printf("mkdirat umask cleanup check failed: %d\\n", errno);
+    fflush(stdout);
+    umask(mkdirat_previous_umask);
+    rmdir("newlib-mkdirat-umask-wide");
+    rmdir("newlib-mkdirat-umask-limited");
+    return 275;
+  }
+
   int chmod_test_fd = open("newlib-fchmod.dat", O_CREAT | O_EXCL | O_RDWR, 0644);
   if (chmod_test_fd < 0 || fchmod(chmod_test_fd, 0600) != 0 ||
       fstat(chmod_test_fd, &status) != 0 ||
