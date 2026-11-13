@@ -329,6 +329,20 @@ int main(int argc, char **argv) {
     return 259;
   }
   errno = 0;
+  errno = 0;
+  if (fstatat(AT_FDCWD, "newlib-at-absolute.dat", NULL, 0) != -1 ||
+      errno != EFAULT) {
+    printf("fstatat null status check failed: %d\n", errno);
+    fflush(stdout);
+    return 260;
+  }
+  errno = 0;
+  if (fstatat(AT_FDCWD, "newlib-at-absolute.dat", NULL,
+              AT_SYMLINK_NOFOLLOW) != -1 || errno != EFAULT) {
+    printf("fstatat null status/flags precedence check failed: %d\n", errno);
+    fflush(stdout);
+    return 261;
+  }
   if (fstatat(AT_FDCWD, "newlib-at-missing-metadata", &at_status, 0) != -1 ||
       errno != ENOENT) {
     printf("fstatat missing-path check failed: %d\n", errno);
