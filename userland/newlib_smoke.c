@@ -465,6 +465,27 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 79;
   }
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0000, 0) != 0 ||
+      stat("newlib-at-create", &at_status) != 0 ||
+      !S_ISDIR(at_status.st_mode) || (at_status.st_mode & 07777) != 0000) {
+    printf("fchmodat directory zero-mode check failed: %d\n", errno);
+    fflush(stdout);
+    fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0);
+    return 267;
+  }
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0750, 0) != 0 ||
+      stat("newlib-at-create", &at_status) != 0 ||
+      !S_ISDIR(at_status.st_mode) || (at_status.st_mode & 07777) != 0750) {
+    printf("fchmodat directory restore-mode check failed: %d\n", errno);
+    fflush(stdout);
+    fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0);
+    return 268;
+  }
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0) != 0) {
+    printf("fchmodat directory mode cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 269;
+  }
   int fchmodat_mode_fd =
       openat(AT_FDCWD, "newlib-fchmodat-mode",
              O_CREAT | O_EXCL | O_WRONLY, 0600);
