@@ -465,6 +465,36 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 79;
   }
+  int fchmodat_mode_fd =
+      openat(AT_FDCWD, "newlib-fchmodat-mode",
+             O_CREAT | O_EXCL | O_WRONLY, 0600);
+  if (fchmodat_mode_fd < 0 || close(fchmodat_mode_fd) != 0) {
+    printf("fchmodat mode setup failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-fchmodat-mode", 0);
+    return 263;
+  }
+  if (fchmodat(AT_FDCWD, "newlib-fchmodat-mode", 04755, 0) != 0 ||
+      stat("newlib-fchmodat-mode", &at_status) != 0 ||
+      !S_ISREG(at_status.st_mode) || (at_status.st_mode & 07777) != 0755) {
+    printf("fchmodat permission-bit masking check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-fchmodat-mode", 0);
+    return 264;
+  }
+  if (fchmodat(AT_FDCWD, "newlib-fchmodat-mode", 0000, 0) != 0 ||
+      stat("newlib-fchmodat-mode", &at_status) != 0 ||
+      (at_status.st_mode & 07777) != 0000) {
+    printf("fchmodat zero-mode check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-fchmodat-mode", 0);
+    return 265;
+  }
+  if (unlinkat(AT_FDCWD, "newlib-fchmodat-mode", 0) != 0) {
+    printf("fchmodat mode cleanup failed: %d\n", errno);
+    fflush(stdout);
+    return 266;
+  }
 
   int at_rename_fd = open("newlib-at-rename-old",
                           O_CREAT | O_EXCL | O_WRONLY, 0600);
