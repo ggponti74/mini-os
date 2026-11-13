@@ -460,6 +460,29 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 78;
   }
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0500, 0) != 0) {
+    printf("fchmodat invalid-flags state setup failed: %d\n", errno);
+    fflush(stdout);
+    return 270;
+  }
+  errno = 0;
+  if (fchmodat(AT_FDCWD, "newlib-at-create", 0777, 1) != -1 ||
+      errno != EINVAL || stat("newlib-at-create", &at_status) != 0 ||
+      (at_status.st_mode & 07777) != 0500) {
+    printf("fchmodat invalid-flags state preservation check failed: %d\n",
+           errno);
+    fflush(stdout);
+    fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0);
+    return 271;
+  }
+  errno = 0;
+  if (fchmodat(AT_FDCWD, "newlib-at-missing-flags", 0600, 1) != -1 ||
+      errno != EINVAL) {
+    printf("fchmodat invalid-flags precedence check failed: %d\n", errno);
+    fflush(stdout);
+    fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0);
+    return 272;
+  }
   if (fchmodat(AT_FDCWD, "newlib-at-create", 0700, 0) != 0) {
     printf("newlib at-file cleanup failed: %d\n", errno);
     fflush(stdout);
