@@ -577,6 +577,109 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 242;
   }
+  int openat_flags_fd =
+      openat(AT_FDCWD, "newlib-openat-flags", O_CREAT | O_EXCL | O_RDWR,
+             0600);
+  const char openat_flags_payload[] = "flags";
+  if (openat_flags_fd < 0 ||
+      write(openat_flags_fd, openat_flags_payload,
+            sizeof(openat_flags_payload)) !=
+          (int)sizeof(openat_flags_payload) ||
+      close(openat_flags_fd) != 0) {
+    printf("openat flag-test setup failed: %d\n", errno);
+    fflush(stdout);
+    if (openat_flags_fd >= 0) close(openat_flags_fd);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 243;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-cwd-test", O_CREAT | O_EXCL | O_WRONLY,
+             0600) != -1 || errno != EEXIST) {
+    printf("openat exclusive-existing-path check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 244;
+  }
+  int openat_directory_fd =
+      openat(AT_FDCWD, "newlib-cwd-test", O_RDONLY | O_DIRECTORY);
+  if (openat_directory_fd < 0 ||
+      fstat(openat_directory_fd, &at_status) != 0 ||
+      !S_ISDIR(at_status.st_mode) || close(openat_directory_fd) != 0) {
+    printf("openat directory-only directory check failed: %d\n", errno);
+    fflush(stdout);
+    if (openat_directory_fd >= 0) close(openat_directory_fd);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 245;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-openat-flags", O_RDONLY | O_DIRECTORY) != -1 ||
+      errno != ENOTDIR) {
+    printf("openat directory-only regular-file check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 246;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-openat-flags", O_RDONLY | O_TRUNC) != -1 ||
+      errno != EINVAL) {
+    printf("openat read-only truncate rejection check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 247;
+  }
+  int openat_flags_verify =
+      openat(AT_FDCWD, "newlib-openat-flags", O_RDONLY);
+  char openat_flags_readback[sizeof(openat_flags_payload)] = {0};
+  if (openat_flags_verify < 0 ||
+      read(openat_flags_verify, openat_flags_readback,
+           sizeof(openat_flags_readback)) !=
+          (int)sizeof(openat_flags_readback) ||
+      memcmp(openat_flags_payload, openat_flags_readback,
+             sizeof(openat_flags_payload)) != 0 ||
+      close(openat_flags_verify) != 0) {
+    printf("openat rejected-truncate preservation check failed: %d\n", errno);
+    fflush(stdout);
+    if (openat_flags_verify >= 0) close(openat_flags_verify);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 248;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-openat-flags", 3) != -1 ||
+      errno != EINVAL) {
+    printf("openat invalid access-mode check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 249;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-openat-flags", O_RDONLY | 0x40000000) != -1 ||
+      errno != EINVAL) {
+    printf("openat unsupported-flag check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 250;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, "newlib-openat-flags",
+             O_CREAT | O_DIRECTORY | O_WRONLY, 0600) != -1 ||
+      errno != EINVAL) {
+    printf("openat create-directory flag conflict check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 251;
+  }
+  int openat_cloexec_fd =
+      openat(AT_FDCWD, "newlib-openat-flags", O_RDONLY | O_CLOEXEC);
+  if (openat_cloexec_fd < 0 ||
+      fcntl(openat_cloexec_fd, F_GETFD) != FD_CLOEXEC ||
+      close(openat_cloexec_fd) != 0 ||
+      unlinkat(AT_FDCWD, "newlib-openat-flags", 0) != 0) {
+    printf("openat close-on-exec flag check failed: %d\n", errno);
+    fflush(stdout);
+    if (openat_cloexec_fd >= 0) close(openat_cloexec_fd);
+    unlinkat(AT_FDCWD, "newlib-openat-flags", 0);
+    return 252;
+  }
   errno = 0;
   if (openat(AT_FDCWD, "", O_RDONLY) != -1 || errno != ENOENT) {
     printf("openat empty path check failed: %d\n", errno);
