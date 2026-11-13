@@ -245,6 +245,22 @@ int main(int argc, char **argv) {
     return 229;
   }
   errno = 0;
+  if (faccessat(AT_FDCWD, "newlib-faccessat-mode", X_OK, 0) != -1 ||
+      errno != EACCES) {
+    printf("faccessat execute permission check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0);
+    return 261;
+  }
+  errno = 0;
+  if (faccessat(AT_FDCWD, "newlib-faccessat-mode", R_OK | W_OK, 0) != -1 ||
+      errno != EACCES) {
+    printf("faccessat combined permission check failed: %d\n", errno);
+    fflush(stdout);
+    unlinkat(AT_FDCWD, "newlib-faccessat-mode", 0);
+    return 262;
+  }
+  errno = 0;
   if (faccessat(AT_FDCWD, "newlib-faccessat-mode", 8, 0) != -1 ||
       errno != EINVAL) {
     printf("faccessat invalid mode check failed: %d\n", errno);
