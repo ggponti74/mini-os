@@ -1550,7 +1550,7 @@ int main(int argc, char **argv) {
       stat("newlib-mkdirat-umask-wide", &directory_status) != 0 ||
       !S_ISDIR(directory_status.st_mode) ||
       (directory_status.st_mode & 0777) != 0700) {
-    printf("mkdirat umask wide-mode check failed: %d\\n", errno);
+    printf("mkdirat umask wide-mode check failed: %d\n", errno);
     fflush(stdout);
     umask(mkdirat_previous_umask);
     rmdir("newlib-mkdirat-umask-wide");
@@ -1560,7 +1560,7 @@ int main(int argc, char **argv) {
       stat("newlib-mkdirat-umask-limited", &directory_status) != 0 ||
       !S_ISDIR(directory_status.st_mode) ||
       (directory_status.st_mode & 0777) != 0700) {
-    printf("mkdirat umask limited-mode check failed: %d\\n", errno);
+    printf("mkdirat umask limited-mode check failed: %d\n", errno);
     fflush(stdout);
     umask(mkdirat_previous_umask);
     rmdir("newlib-mkdirat-umask-wide");
@@ -1570,7 +1570,7 @@ int main(int argc, char **argv) {
   if (umask(mkdirat_previous_umask) != 0077 ||
       rmdir("newlib-mkdirat-umask-wide") != 0 ||
       rmdir("newlib-mkdirat-umask-limited") != 0) {
-    printf("mkdirat umask cleanup check failed: %d\\n", errno);
+    printf("mkdirat umask cleanup check failed: %d\n", errno);
     fflush(stdout);
     umask(mkdirat_previous_umask);
     rmdir("newlib-mkdirat-umask-wide");
