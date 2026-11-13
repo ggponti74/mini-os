@@ -285,6 +285,50 @@ int main(int argc, char **argv) {
     return 178;
   }
   errno = 0;
+  if (faccessat(AT_FDCWD, NULL, F_OK, 0) != -1 || errno != EFAULT) {
+    printf("faccessat null path check failed: %d\n", errno);
+    fflush(stdout);
+    return 253;
+  }
+  errno = 0;
+  if (fchmodat(AT_FDCWD, NULL, 0600, 0) != -1 || errno != EFAULT) {
+    printf("fchmodat null path check failed: %d\n", errno);
+    fflush(stdout);
+    return 254;
+  }
+  errno = 0;
+  if (mkdirat(AT_FDCWD, NULL, 0700) != -1 || errno != EFAULT) {
+    printf("mkdirat null path check failed: %d\n", errno);
+    fflush(stdout);
+    return 255;
+  }
+  errno = 0;
+  if (unlinkat(AT_FDCWD, NULL, 0) != -1 || errno != EFAULT) {
+    printf("unlinkat null path check failed: %d\n", errno);
+    fflush(stdout);
+    return 256;
+  }
+  errno = 0;
+  if (openat(AT_FDCWD, NULL, O_RDONLY) != -1 || errno != EFAULT) {
+    printf("openat null path check failed: %d\n", errno);
+    fflush(stdout);
+    return 257;
+  }
+  errno = 0;
+  if (renameat(AT_FDCWD, NULL, AT_FDCWD,
+               "newlib-at-null-rename-target") != -1 || errno != EFAULT) {
+    printf("renameat null source-path check failed: %d\n", errno);
+    fflush(stdout);
+    return 258;
+  }
+  errno = 0;
+  if (renameat(AT_FDCWD, "newlib-at-null-rename-source",
+               AT_FDCWD, NULL) != -1 || errno != EFAULT) {
+    printf("renameat null destination-path check failed: %d\n", errno);
+    fflush(stdout);
+    return 259;
+  }
+  errno = 0;
   if (fstatat(AT_FDCWD, "newlib-at-missing-metadata", &at_status, 0) != -1 ||
       errno != ENOENT) {
     printf("fstatat missing-path check failed: %d\n", errno);
