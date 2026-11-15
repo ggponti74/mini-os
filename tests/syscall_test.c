@@ -704,8 +704,18 @@ static void test_vector_io(void) {
   vectors[0].length = 2;
   vectors[1].base = second;
   vectors[1].length = 4;
+  second[2] = 'X';
+  second[3] = 'Y';
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 2) == 4);
-  CHECK(second[0] == 'F' && second[1] == 'G');
+  CHECK(second[0] == 'F' && second[1] == 'G' &&
+        second[2] == 'X' && second[3] == 'Y');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 4);
+
+  vectors[0].base = NULL;
+  vectors[0].length = 0;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == 0);
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == 0);
+  CHECK(file_node.length == 4);
 
   CHECK(syscall_dispatch(SYS_READV, 7, (uint32_t)vectors, 1) == -EBADF);
   CHECK(syscall_dispatch(SYS_WRITEV, 7, (uint32_t)vectors, 1) == -EBADF);
@@ -739,7 +749,20 @@ static void test_vector_io(void) {
 
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
   CHECK(fd == 3);
+  vectors[0].base = first;
+  vectors[0].length = 1;
   CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == -EBADF);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == -EISDIR);
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == -EISDIR);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
@@ -792,9 +815,19 @@ static void test_positional_vector_io(void) {
   vectors[1].length = 2;
   file_node.length = sizeof(file_data);
   request.offset = 254;
+  first[0] = 'X';
+  first[1] = 'Y';
   CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
                          (uint32_t)&request) == 2);
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  CHECK(first[2] == 0 && first[3] == 0 &&
+        second[0] == 'C' && second[1] == 'D');
+
+  vectors[0].base = NULL;
+  vectors[0].length = 0;
+  request.vector_count = 1;
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 0);
 
   request.offset = -1;
   CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
