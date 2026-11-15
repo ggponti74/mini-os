@@ -762,7 +762,7 @@ static void test_vector_io(void) {
   fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir", O_RDONLY, 0);
   CHECK(fd == 3);
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 1) == -EISDIR);
-  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == -EISDIR);
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
