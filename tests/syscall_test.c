@@ -717,6 +717,38 @@ static void test_vector_io(void) {
   CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 1) == 0);
   CHECK(file_node.length == 4);
 
+  /* Zero-length entries between active vectors must be ignored. */
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  vectors[0].base = first;
+  vectors[0].length = 1;
+  vectors[1].base = NULL;
+  vectors[1].length = 0;
+  vectors[2].base = second;
+  vectors[2].length = 1;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 3) == 2);
+  CHECK(first[0] == 'D' && second[0] == 'E');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  /* Validate every vector before transferring any data. */
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  first[0] = 'X';
+  vectors[0].base = first;
+  vectors[0].length = 1;
+  vectors[1].base = NULL;
+  vectors[1].length = 1;
+  vectors[2].base = second;
+  vectors[2].length = 1;
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 3) == -EFAULT);
+  CHECK(first[0] == 'X');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 0);
+
+  vectors[0].base = (void *)"Z";
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 3) == -EFAULT);
+  CHECK(file_node.length == 4 && file_data[0] == 'D');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 0);
+
+  vectors[0].base = NULL;
+  vectors[0].length = 0;
   CHECK(syscall_dispatch(SYS_READV, 7, (uint32_t)vectors, 1) == -EBADF);
   CHECK(syscall_dispatch(SYS_WRITEV, 7, (uint32_t)vectors, 1) == -EBADF);
   CHECK(syscall_dispatch(SYS_READV, fd, 0, 1) == -EFAULT);
@@ -767,7 +799,7 @@ static void test_vector_io(void) {
 }
 
 static void test_positional_vector_io(void) {
-  struct test_iovec { void *base; uint32_t length; } vectors[2];
+  struct test_iovec { void *base; uint32_t length; } vectors[3];
   struct test_positional_iovec_request {
     int32_t offset;
     uint32_t vector_count;
@@ -829,6 +861,45 @@ static void test_positional_vector_io(void) {
   CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
                          (uint32_t)&request) == 0);
 
+  /* Positional vector operations also skip zero-length middle entries. */
+  vectors[0].base = first;
+  vectors[0].length = 1;
+  vectors[1].base = NULL;
+  vectors[1].length = 0;
+  vectors[2].base = second;
+  vectors[2].length = 1;
+  request.offset = 0;
+  request.vector_count = 3;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 2);
+  CHECK(first[0] == 'A' && second[0] == 'x');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  vectors[0].base = (void *)"M";
+  vectors[2].base = (void *)"N";
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 2);
+  CHECK(file_data[0] == 'M' && file_data[1] == 'N');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  /* A bad later vector must prevent earlier vectors from being transferred. */
+  first[0] = 'Q';
+  vectors[0].base = first;
+  vectors[1].length = 1;
+  vectors[2].base = second;
+  request.offset = 0;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EFAULT);
+  CHECK(first[0] == 'Q');
+
+  vectors[0].base = (void *)"R";
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == -EFAULT);
+  CHECK(file_data[0] == 'M');
+
+  vectors[0].base = NULL;
+  vectors[0].length = 0;
+  request.vector_count = 1;
   request.offset = -1;
   CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
                          (uint32_t)&request) == -EINVAL);
