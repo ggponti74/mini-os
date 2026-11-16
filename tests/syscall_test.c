@@ -472,6 +472,7 @@ static void test_dup2_replacement_and_shared_state(void) {
 
 static void test_dup2_when_descriptor_table_is_full(void) {
   int descriptors[5];
+  uint8_t byte = 0;
 
   reset_file();
   for (int i = 0; i < 5; i++) {
@@ -485,8 +486,8 @@ static void test_dup2_when_descriptor_table_is_full(void) {
         descriptors[4]);
   CHECK(syscall_dispatch(SYS_FCNTL, descriptors[4], F_GETFD, 0) == 0);
   CHECK(syscall_dispatch(SYS_LSEEK, descriptors[4], 0, SEEK_CUR) == 2);
-  CHECK(syscall_dispatch(SYS_READ, descriptors[4], (uint32_t)&descriptors[0],
-                         1) == 1);
+  CHECK(syscall_dispatch(SYS_READ, descriptors[4], (uint32_t)&byte, 1) == 1);
+  CHECK(byte == 'c');
   CHECK(syscall_dispatch(SYS_LSEEK, descriptors[0], 0, SEEK_CUR) == 3);
 
   for (int i = 0; i < 5; i++) {
