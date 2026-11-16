@@ -625,6 +625,37 @@ static void test_directory_relative_unlink_rename(void) {
   reset_file();
 }
 
+static void test_descriptor_table_exhaustion(void) {
+  int descriptors[5];
+
+  reset_file();
+  for (int i = 0; i < 5; i++) {
+    descriptors[i] =
+        syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+    CHECK(descriptors[i] == i + 3);
+  }
+
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0) ==
+        -EMFILE);
+  CHECK(syscall_dispatch(SYS_DUP, descriptors[0], 0, 0) == -EMFILE);
+  CHECK(syscall_dispatch(SYS_FCNTL, descriptors[0], F_DUPFD, 3) == -EMFILE);
+  CHECK(syscall_dispatch(SYS_FCNTL, descriptors[0], F_DUPFD_CLOEXEC, 3) ==
+        -EMFILE);
+  CHECK(syscall_dispatch(SYS_FCNTL, descriptors[0], F_GETFL, 0) == O_RDWR);
+
+  CHECK(syscall_dispatch(SYS_CLOSE, descriptors[2], 0, 0) == 0);
+  descriptors[2] =
+      syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
+  CHECK(descriptors[2] == 5);
+  CHECK(syscall_dispatch(SYS_FCNTL, descriptors[2], F_GETFL, 0) == O_RDONLY);
+
+  for (int i = 0; i < 5; i++) {
+    CHECK(syscall_dispatch(SYS_CLOSE, descriptors[i], 0, 0) == 0);
+  }
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0) == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, 3, 0, 0) == 0);
+}
+
 static void test_sync_calls(void) {
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
@@ -1119,6 +1150,7 @@ static int32_t test_main(void) {
   test_timer_ticks = 1234;
 
   test_standard_descriptor_fcntl();
+  test_descriptor_table_exhaustion();
   test_open_read_seek_and_stat();
   test_open_cloexec();
   test_dup2_replacement_and_shared_state();
