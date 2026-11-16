@@ -1229,3 +1229,4 @@ void kputchar_color(char character, uint8_t color) {
   (void)character;
   (void)color;
 }
+
