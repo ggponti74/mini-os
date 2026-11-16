@@ -67,6 +67,27 @@ static void reset_file(void) {
   file_node.device_data = file_data;
 }
 
+static void test_standard_descriptor_fcntl(void) {
+  /* Standard descriptors expose status flags but cannot be duplicated here. */
+  CHECK(syscall_dispatch(SYS_FCNTL, 0, F_GETFL, 0) == O_RDONLY);
+  CHECK(syscall_dispatch(SYS_FCNTL, 1, F_GETFL, 0) == O_WRONLY);
+  CHECK(syscall_dispatch(SYS_FCNTL, 2, F_GETFL, 0) == O_WRONLY);
+
+  CHECK(syscall_dispatch(SYS_FCNTL, 0, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, 1, F_SETFD, FD_CLOEXEC) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, 1, F_GETFD, 0) == FD_CLOEXEC);
+  CHECK(syscall_dispatch(SYS_FCNTL, 1, F_SETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, 1, F_GETFD, 0) == 0);
+
+  CHECK(syscall_dispatch(SYS_FCNTL, 2, F_SETFD, 2) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FCNTL, 2, F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, 0, F_SETFL, O_APPEND) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FCNTL, 1, F_DUPFD, 3) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FCNTL, 2, 999, 0) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_FCNTL, -1, F_GETFD, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_FCNTL, 8, F_GETFD, 0) == -EBADF);
+}
+
 static void test_open_read_seek_and_stat(void) {
   uint8_t buffer[8] = {0};
   struct stat status;
@@ -1097,6 +1118,7 @@ static int32_t test_main(void) {
   syscall_dispatch(SYS_UMASK, 0022, 0, 0);
   test_timer_ticks = 1234;
 
+  test_standard_descriptor_fcntl();
   test_open_read_seek_and_stat();
   test_open_cloexec();
   test_dup2_replacement_and_shared_state();
