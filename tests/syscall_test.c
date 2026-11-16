@@ -932,6 +932,53 @@ static void test_vector_io(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
+static void test_append_flag_shared_by_duplicates(void) {
+  struct test_iovec { void *base; uint32_t length; } vectors[2];
+  int fd;
+  int duplicate;
+
+  reset_file();
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0);
+  CHECK(fd == 3);
+  duplicate = syscall_dispatch(SYS_DUP, fd, 0, 0);
+  CHECK(duplicate == 4);
+
+  CHECK(syscall_dispatch(SYS_FCNTL, duplicate, F_SETFL,
+                         O_WRONLY | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"X", 1) == 1);
+  CHECK(file_node.length == 4 && file_data[3] == 'X');
+  CHECK(syscall_dispatch(SYS_LSEEK, duplicate, 0, SEEK_CUR) == 4);
+
+  vectors[0].base = (void *)"Y";
+  vectors[0].length = 1;
+  vectors[1].base = (void *)"Z";
+  vectors[1].length = 1;
+  CHECK(syscall_dispatch(SYS_WRITEV, duplicate, (uint32_t)vectors, 2) == 2);
+  CHECK(file_node.length == 6 && file_data[4] == 'Y' &&
+        file_data[5] == 'Z');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 6);
+
+  CHECK(syscall_dispatch(SYS_FCNTL, fd, F_SETFL, O_WRONLY) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, duplicate, F_GETFL, 0) == O_WRONLY);
+  CHECK(syscall_dispatch(SYS_LSEEK, duplicate, 1, SEEK_SET) == 1);
+  CHECK(syscall_dispatch(SYS_WRITE, duplicate, (uint32_t)"q", 1) == 1);
+  CHECK(file_data[1] == 'q' && file_node.length == 6);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  CHECK(syscall_dispatch(SYS_FCNTL, duplicate, F_SETFL,
+                         O_WRONLY | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"!", 1) == 1);
+  CHECK(file_node.length == 7 && file_data[6] == '!');
+  CHECK(syscall_dispatch(SYS_LSEEK, duplicate, 0, SEEK_CUR) == 7);
+
+  CHECK(syscall_dispatch(SYS_CLOSE, duplicate, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_positional_vector_io(void) {
   struct test_iovec { void *base; uint32_t length; } vectors[3];
   struct test_positional_iovec_request {
@@ -1246,6 +1293,7 @@ static int32_t test_main(void) {
   test_sync_calls();
   test_positional_io();
   test_vector_io();
+  test_append_flag_shared_by_duplicates();
   test_positional_vector_io();
   test_open_flags_and_errors();
   test_open_creation_umask();
@@ -1498,76 +1546,3 @@ int initrd_remove_file(const char *filename) {
 
 int initrd_remove_directory(const char *dirname) {
   if (!dirname) {
-    return -1;
-  }
-  for (uint32_t i = 0; i < directory_count; i++) {
-    if (directory_nodes[i].flags != 0 && strings_equal(dirname, directory_nodes[i].name)) {
-      directory_nodes[i].flags = 0;
-      directory_nodes[i].name[0] = '\0';
-      directory_nodes[i].length = 0;
-      directory_nodes[i].inode = 0;
-      return 0;
-    }
-  }
-  return -1;
-}
-
-int vfs_readdir(vfs_node_t *directory, uint32_t index,
-                vfs_dirent_t *entry) {
-  if (!directory || !entry || !(directory->flags & FS_DIRECTORY)) return -1;
-  if (directory != &directory_node) return 0;
-  if (index != 0) return 0;
-  entry->name[0] = 'f'; entry->name[1] = 'i'; entry->name[2] = 'l';
-  entry->name[3] = 'e'; entry->name[4] = '\0';
-  entry->inode = 42;
-  entry->type = FS_FILE;
-  return 1;
-}
-
-uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,
-                  uint8_t *buffer) {
-  if (offset >= node->length) {
-    return 0;
-  }
-  if (size > node->length - offset) {
-    size = node->length - offset;
-  }
-  uint8_t *data = node->device_data;
-  for (uint32_t i = 0; i < size; i++) {
-    buffer[i] = data[offset + i];
-  }
-  return size;
-}
-
-int vfs_truncate(vfs_node_t *node, uint32_t length) {
-  if (!node || length > sizeof(file_data)) {
-    return -1;
-  }
-  uint8_t *data = node->device_data;
-  for (uint32_t i = node->length; i < length; i++) {
-    data[i] = 0;
-  }
-  node->length = length;
-  return 0;
-}
-
-uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size,
-                   const uint8_t *buffer) {
-  if (offset >= sizeof(file_data)) {
-    return 0;
-  }
-  if (size > sizeof(file_data) - offset) {
-    size = sizeof(file_data) - offset;
-  }
-  uint8_t *data = node->device_data;
-  for (uint32_t i = node->length; i < offset; i++) {
-    data[i] = 0;
-  }
-  for (uint32_t i = 0; i < size; i++) {
-    data[offset + i] = buffer[i];
-  }
-  if (offset + size > node->length) {
-    node->length = offset + size;
-  }
-  return size;
-}
