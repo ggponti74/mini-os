@@ -97,6 +97,23 @@ static void test_open_read_seek_and_stat(void) {
   CHECK(buffer[0] == 'b' && buffer[1] == 'c');
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_END) == 3);
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, 99) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 3);
+
+  /* Failed negative seeks must leave the shared file offset unchanged. */
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, (uint32_t)-1, SEEK_SET) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, (uint32_t)-4, SEEK_CUR) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 3);
+
+  /* Seeking beyond EOF is valid, and SEEK_END uses the current file size. */
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 2, SEEK_END) == 5);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, (uint32_t)-1, SEEK_END) == 2);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  /* Positive overflow is distinct from a negative resulting position. */
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0x7fffffff, SEEK_END) ==
+        -EOVERFLOW);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_LSEEK, 7, 0, SEEK_SET) == -EBADF);
   CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
   CHECK(status.st_ino == 42);
   CHECK(status.st_size == 3);
