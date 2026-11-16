@@ -1,8 +1,4 @@
-$ENV:Path += ";D:\Windows\Git"
-$ENV:Path += ";D:\Windows\Git\bin"
-$ENV:Path += ";D:\Windows\mingw64\bin"
-$ENV:Path += ";D:\Windows\nasm"
-$ENV:Path += ";D:\Windows\QEMU"
+$ENV:Path += ";D:\Windows\Git;D:\Windows\Git\bin;D:\Windows\mingw64\bin;D:\Windows\nasm;D:\Windows\QEMU"
 
 Set-Alias -Scope Global -Name make -Value mingw32-make.exe
 
