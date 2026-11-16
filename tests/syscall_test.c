@@ -450,7 +450,9 @@ static void test_dup2_replacement_and_shared_state(void) {
   CHECK(byte == 'c');
   CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_CUR) == 3);
 
+  CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_SETFD, FD_CLOEXEC) == 0);
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, target_fd, 0) == target_fd);
+  CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_GETFD, 0) == FD_CLOEXEC);
   CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_CUR) == 3);
   CHECK(syscall_dispatch(SYS_FCNTL, source_fd, F_SETFL, O_RDWR | O_APPEND) == 0);
   CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_GETFL, 0) ==
@@ -466,6 +468,30 @@ static void test_dup2_replacement_and_shared_state(void) {
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 8, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, target_fd, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 3, 0) == -EBADF);
+}
+
+static void test_dup2_when_descriptor_table_is_full(void) {
+  int descriptors[5];
+
+  reset_file();
+  for (int i = 0; i < 5; i++) {
+    descriptors[i] =
+        syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+    CHECK(descriptors[i] == i + 3);
+  }
+
+  CHECK(syscall_dispatch(SYS_LSEEK, descriptors[0], 2, SEEK_SET) == 2);
+  CHECK(syscall_dispatch(SYS_DUP2, descriptors[0], descriptors[4], 0) ==
+        descriptors[4]);
+  CHECK(syscall_dispatch(SYS_FCNTL, descriptors[4], F_GETFD, 0) == 0);
+  CHECK(syscall_dispatch(SYS_LSEEK, descriptors[4], 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_READ, descriptors[4], (uint32_t)&descriptors[0],
+                         1) == 1);
+  CHECK(syscall_dispatch(SYS_LSEEK, descriptors[0], 0, SEEK_CUR) == 3);
+
+  for (int i = 0; i < 5; i++) {
+    CHECK(syscall_dispatch(SYS_CLOSE, descriptors[i], 0, 0) == 0);
+  }
 }
 
 static void test_directory_relative_syscalls(void) {
@@ -1154,6 +1180,7 @@ static int32_t test_main(void) {
   test_open_read_seek_and_stat();
   test_open_cloexec();
   test_dup2_replacement_and_shared_state();
+  test_dup2_when_descriptor_table_is_full();
   test_directory_relative_syscalls();
   test_directory_relative_unlink_rename();
   test_directory_relative_access_mkdir_chmod();
