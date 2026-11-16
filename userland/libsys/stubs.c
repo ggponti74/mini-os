@@ -705,7 +705,7 @@ static int account_name_matches(const char *name, const char *expected) {
         name++;
         expected++;
     }
-    return *name == '\\0' && *expected == '\\0';
+    return *name == '\0' && *expected == '\0';
 }
 
 struct passwd *getpwuid(uid_t uid) {
