@@ -1532,3 +1532,32 @@ uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size,
 int vfs_truncate(vfs_node_t *node, uint32_t length) {
   if (!node || length > sizeof(file_data)) {
     return -1;
+  }
+  uint8_t *data = node->device_data;
+  for (uint32_t i = node->length; i < length; i++) {
+    data[i] = 0;
+  }
+  node->length = length;
+  return 0;
+}
+
+uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size,
+                   const uint8_t *buffer) {
+  if (offset >= sizeof(file_data)) {
+    return 0;
+  }
+  if (size > sizeof(file_data) - offset) {
+    size = sizeof(file_data) - offset;
+  }
+  uint8_t *data = node->device_data;
+  for (uint32_t i = node->length; i < offset; i++) {
+    data[i] = 0;
+  }
+  for (uint32_t i = 0; i < size; i++) {
+    data[offset + i] = buffer[i];
+  }
+  if (offset + size > node->length) {
+    node->length = offset + size;
+  }
+  return size;
+}
