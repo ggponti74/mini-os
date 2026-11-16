@@ -10,6 +10,8 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <grp.h>
+#include <pwd.h>
 #include <sys/uio.h>
 #include <sys/utsname.h>
 #include <unistd.h>
@@ -1345,6 +1347,40 @@ int main(int argc, char **argv) {
     fflush(stdout);
     return 40;
   }
+  struct passwd *root_user_by_uid = getpwuid(0);
+  struct passwd *root_user_by_name = getpwnam("root");
+  if (!root_user_by_uid || root_user_by_uid != root_user_by_name ||
+      root_user_by_uid->pw_uid != 0 || root_user_by_uid->pw_gid != 0 ||
+      strcmp(root_user_by_uid->pw_name, "root") != 0 ||
+      strcmp(root_user_by_uid->pw_dir, "/") != 0) {
+    printf("root passwd lookup check failed\n");
+    fflush(stdout);
+    return 52;
+  }
+  if (getpwuid(1) != NULL || getpwnam("nobody") != NULL) {
+    printf("unknown passwd lookup check failed\n");
+    fflush(stdout);
+    return 53;
+  }
+
+  struct group *root_group_by_gid = getgrgid(0);
+  struct group *root_group_by_name = getgrnam("root");
+  if (!root_group_by_gid || root_group_by_gid != root_group_by_name ||
+      root_group_by_gid->gr_gid != 0 ||
+      strcmp(root_group_by_gid->gr_name, "root") != 0 ||
+      !root_group_by_gid->gr_mem ||
+      strcmp(root_group_by_gid->gr_mem[0], "root") != 0 ||
+      root_group_by_gid->gr_mem[1] != NULL) {
+    printf("root group lookup check failed\n");
+    fflush(stdout);
+    return 54;
+  }
+  if (getgrgid(1) != NULL || getgrnam("nogroup") != NULL) {
+    printf("unknown group lookup check failed\n");
+    fflush(stdout);
+    return 55;
+  }
+
   char hostname[16];
   char short_hostname[4];
   errno = 0;
