@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
+#include <grp.h>
+#include <pwd.h>
 #include <unistd.h>
 #include "memory.h"
 #include "memory_layout.h"
@@ -665,6 +667,61 @@ gid_t _getgid(void) {
 
 gid_t _getegid(void) {
     return 0;
+}
+
+/* mini-os currently exposes only the root user and root group. */
+static char root_account_name[] = "root";
+static char root_account_password[] = "";
+static char root_account_gecos[] = "root";
+static char root_account_home[] = "/";
+static char root_account_shell[] = "";
+
+static struct passwd root_passwd = {
+    .pw_name = root_account_name,
+    .pw_passwd = root_account_password,
+    .pw_uid = 0,
+    .pw_gid = 0,
+    .pw_gecos = root_account_gecos,
+    .pw_dir = root_account_home,
+    .pw_shell = root_account_shell
+};
+
+static char root_group_password[] = "";
+static char root_group_member[] = "root";
+static char *root_group_members[] = { root_group_member, NULL };
+
+static struct group root_group = {
+    .gr_name = root_account_name,
+    .gr_passwd = root_group_password,
+    .gr_gid = 0,
+    .gr_mem = root_group_members
+};
+
+static int account_name_matches(const char *name, const char *expected) {
+    if (!name) {
+        return 0;
+    }
+    while (*name && *expected && *name == *expected) {
+        name++;
+        expected++;
+    }
+    return *name == '\\0' && *expected == '\\0';
+}
+
+struct passwd *getpwuid(uid_t uid) {
+    return uid == 0 ? &root_passwd : NULL;
+}
+
+struct passwd *getpwnam(const char *name) {
+    return account_name_matches(name, root_account_name) ? &root_passwd : NULL;
+}
+
+struct group *getgrgid(gid_t gid) {
+    return gid == 0 ? &root_group : NULL;
+}
+
+struct group *getgrnam(const char *name) {
+    return account_name_matches(name, root_account_name) ? &root_group : NULL;
 }
 
 /* The current system has one fixed host identity and no hostname service. */
