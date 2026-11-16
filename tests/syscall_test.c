@@ -679,12 +679,22 @@ static void test_descriptor_table_exhaustion(void) {
 
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0) ==
         -EMFILE);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY | O_TRUNC, 0) ==
+        -EMFILE);
+  CHECK(file_node.length == 3 && file_data[0] == 'a' &&
+        file_data[1] == 'b' && file_data[2] == 'c');
   CHECK(syscall_dispatch(SYS_DUP, descriptors[0], 0, 0) == -EMFILE);
   CHECK(syscall_dispatch(SYS_FCNTL, descriptors[0], F_DUPFD, 3) == -EMFILE);
   CHECK(syscall_dispatch(SYS_FCNTL, descriptors[0], F_DUPFD_CLOEXEC, 3) ==
         -EMFILE);
   CHECK(syscall_dispatch(SYS_FCNTL, descriptors[0], F_GETFL, 0) == O_RDWR);
 
+  CHECK(syscall_dispatch(SYS_CLOSE, descriptors[2], 0, 0) == 0);
+  descriptors[2] =
+      syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                       O_WRONLY | O_TRUNC | O_APPEND, 0);
+  CHECK(descriptors[2] == 5);
+  CHECK(file_node.length == 0);
   CHECK(syscall_dispatch(SYS_CLOSE, descriptors[2], 0, 0) == 0);
   descriptors[2] =
       syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0);
