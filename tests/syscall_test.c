@@ -432,8 +432,10 @@ static void test_dup2_replacement_and_shared_state(void) {
   reset_file();
   int source_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   int target_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  int target_alias = syscall_dispatch(SYS_DUP, target_fd, 0, 0);
   CHECK(source_fd == 3);
   CHECK(target_fd == 4);
+  CHECK(target_alias == 5);
 
   CHECK(syscall_dispatch(SYS_LSEEK, source_fd, 1, SEEK_SET) == 1);
   CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 2, SEEK_SET) == 2);
@@ -443,6 +445,12 @@ static void test_dup2_replacement_and_shared_state(void) {
   CHECK(syscall_dispatch(SYS_DUP2, source_fd, target_fd, 0) == target_fd);
   CHECK(syscall_dispatch(SYS_FCNTL, target_fd, F_GETFD, 0) == 0);
   CHECK(syscall_dispatch(SYS_LSEEK, target_fd, 0, SEEK_CUR) == 1);
+
+  /* Replacing one alias must leave the old open file alive through the other. */
+  CHECK(syscall_dispatch(SYS_LSEEK, target_alias, 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_READ, target_alias, (uint32_t)&byte, 1) == 1);
+  CHECK(byte == 'c');
+  CHECK(syscall_dispatch(SYS_LSEEK, target_alias, 0, SEEK_CUR) == 3);
 
   CHECK(syscall_dispatch(SYS_READ, target_fd, (uint32_t)&byte, 1) == 1);
   CHECK(byte == 'b');
@@ -467,6 +475,7 @@ static void test_dup2_replacement_and_shared_state(void) {
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 2, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 8, 0) == -EBADF);
   CHECK(syscall_dispatch(SYS_CLOSE, target_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, target_alias, 0, 0) == 0);
   CHECK(syscall_dispatch(SYS_DUP2, target_fd, 3, 0) == -EBADF);
 }
 
