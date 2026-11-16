@@ -1353,12 +1353,12 @@ int main(int argc, char **argv) {
       root_user_by_uid->pw_uid != 0 || root_user_by_uid->pw_gid != 0 ||
       strcmp(root_user_by_uid->pw_name, "root") != 0 ||
       strcmp(root_user_by_uid->pw_dir, "/") != 0) {
-    printf("root passwd lookup check failed\\n");
+    printf("root passwd lookup check failed\n");
     fflush(stdout);
     return 52;
   }
   if (getpwuid(1) != NULL || getpwnam("nobody") != NULL) {
-    printf("unknown passwd lookup check failed\\n");
+    printf("unknown passwd lookup check failed\n");
     fflush(stdout);
     return 53;
   }
@@ -1371,12 +1371,12 @@ int main(int argc, char **argv) {
       !root_group_by_gid->gr_mem ||
       strcmp(root_group_by_gid->gr_mem[0], "root") != 0 ||
       root_group_by_gid->gr_mem[1] != NULL) {
-    printf("root group lookup check failed\\n");
+    printf("root group lookup check failed\n");
     fflush(stdout);
     return 54;
   }
   if (getgrgid(1) != NULL || getgrnam("nogroup") != NULL) {
-    printf("unknown group lookup check failed\\n");
+    printf("unknown group lookup check failed\n");
     fflush(stdout);
     return 55;
   }
