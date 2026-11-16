@@ -1181,6 +1181,39 @@ static void test_app_sbrk(void) {
   syscall_reset_app_heap();
 }
 
+static void test_open_creation_umask(void) {
+  struct stat status;
+
+  reset_file();
+  CHECK(syscall_dispatch(SYS_UMASK, 0022, 0, 0) == 0022);
+  created_exists = 0;
+  int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
+                            O_CREAT | O_RDWR, 0666);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
+  CHECK((status.st_mode & 0777) == 0644);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
+  created_exists = 0;
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
+                        O_CREAT | O_RDWR, 0666);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
+  CHECK((status.st_mode & 0777) == 0600);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_UMASK, 0022, 0, 0) == 0077);
+
+  /* O_CREAT on an existing file must not replace its permissions. */
+  file_node.mode = 0640;
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                        O_CREAT | O_RDONLY, 0777);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
+  CHECK((status.st_mode & 0777) == 0640);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static int32_t test_main(void) {
   reset_file();
   directory_node.flags = FS_DIRECTORY;
@@ -1205,6 +1238,7 @@ static int32_t test_main(void) {
   test_vector_io();
   test_positional_vector_io();
   test_open_flags_and_errors();
+  test_open_creation_umask();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);
   struct stat masked_status;
