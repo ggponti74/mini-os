@@ -868,6 +868,31 @@ static void test_positional_vector_io(void) {
   CHECK(first[2] == 0 && first[3] == 0 &&
         second[0] == 'C' && second[1] == 'D');
 
+  /* EOF in a later positional vector returns the accumulated bytes. */
+  vectors[0].base = first;
+  vectors[0].length = 1;
+  vectors[1].base = second;
+  vectors[1].length = 4;
+  first[0] = 'X';
+  second[0] = 'Y';
+  second[1] = 'Z';
+  request.offset = 254;
+  CHECK(syscall_dispatch(SYS_PREADV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 2);
+  CHECK(first[0] == 0 && second[0] == 0 && second[1] == 'Z');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
+  /* A boundary write may stop partway through the second vector. */
+  vectors[0].base = (void *)"P";
+  vectors[0].length = 1;
+  vectors[1].base = (void *)"QR";
+  vectors[1].length = 2;
+  request.offset = 254;
+  CHECK(syscall_dispatch(SYS_PWRITEV, fd, (uint32_t)vectors,
+                         (uint32_t)&request) == 2);
+  CHECK(file_data[254] == 'P' && file_data[255] == 'Q');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 2);
+
   vectors[0].base = NULL;
   vectors[0].length = 0;
   request.vector_count = 1;
