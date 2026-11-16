@@ -943,6 +943,9 @@ static void test_positional_vector_io(void) {
 
 static void test_standard_input_and_sbrk(void) {
   uint8_t buffer[8] = {0};
+  uint8_t first[4] = {0};
+  uint8_t second[4] = {0};
+  struct test_iovec { void *base; uint32_t length; } vectors[2];
 
   keyboard_keys[0] = 'h';
   keyboard_keys[1] = 'i';
@@ -951,10 +954,31 @@ static void test_standard_input_and_sbrk(void) {
   keyboard_keys[4] = '\n';
   keyboard_key_count = 5;
   keyboard_key_index = 0;
-  CHECK(syscall_dispatch(SYS_READ, 0, (uint32_t)buffer, 2) == 2);
-  CHECK(buffer[0] == 'h' && buffer[1] == 'e');
-  CHECK(syscall_dispatch(SYS_READ, 0, (uint32_t)buffer, sizeof(buffer)) == 1);
-  CHECK(buffer[0] == '\n');
+
+  /* A malformed later vector must not consume any standard input. */
+  vectors[0].base = first;
+  vectors[0].length = 1;
+  vectors[1].base = NULL;
+  vectors[1].length = 1;
+  CHECK(syscall_dispatch(SYS_READV, 0, (uint32_t)vectors, 2) == -EFAULT);
+  CHECK(first[0] == 0 && keyboard_key_index == 0);
+
+  /* Standard input is split across vectors, preserving line editing. */
+  vectors[1].base = second;
+  vectors[1].length = sizeof(second);
+  CHECK(syscall_dispatch(SYS_READV, 0, (uint32_t)vectors, 2) == 3);
+  CHECK(first[0] == 'h' && second[0] == 'e' && second[1] == '\n');
+
+  vectors[0].base = NULL;
+  vectors[0].length = 0;
+  vectors[1].base = NULL;
+  vectors[1].length = 0;
+  CHECK(syscall_dispatch(SYS_READV, 0, (uint32_t)vectors, 2) == 0);
+  CHECK(syscall_dispatch(SYS_WRITEV, 1, (uint32_t)vectors, 2) == 0);
+  CHECK(syscall_dispatch(SYS_WRITEV, 2, (uint32_t)vectors, 2) == 0);
+  CHECK(syscall_dispatch(SYS_READV, 1, (uint32_t)vectors, 0) == -EBADF);
+  CHECK(syscall_dispatch(SYS_WRITEV, 0, (uint32_t)vectors, 0) == -EBADF);
+
   CHECK(syscall_dispatch(SYS_READ, 0, (uint32_t)buffer, 0) == 0);
   CHECK(syscall_dispatch(SYS_READ, 0, 0, 1) == -EFAULT);
   CHECK(syscall_dispatch(SYS_READ, 7, (uint32_t)buffer, 1) == -EBADF);
