@@ -699,6 +699,19 @@ static void test_vector_io(void) {
         second[0] == 'F' && second[1] == 'G');
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 4);
 
+  /* EOF in a later vector returns the accumulated bytes and stops cleanly. */
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 2, SEEK_SET) == 2);
+  vectors[0].base = first;
+  vectors[0].length = 1;
+  vectors[1].base = second;
+  vectors[1].length = sizeof(second);
+  second[0] = 'X';
+  second[1] = 'Y';
+  CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 2) == 2);
+  CHECK(first[0] == 'F' && second[0] == 'G' &&
+        second[1] == 'Y');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) == 4);
+
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
   vectors[0].base = first;
   vectors[0].length = 2;
@@ -770,10 +783,10 @@ static void test_vector_io(void) {
   CHECK(syscall_dispatch(SYS_READV, fd, (uint32_t)vectors, 2) == -EINVAL);
 
   CHECK(syscall_dispatch(SYS_LSEEK, fd, 254, SEEK_SET) == 254);
-  vectors[0].base = (void *)"XY";
-  vectors[0].length = 2;
-  vectors[1].base = (void *)"Z";
-  vectors[1].length = 1;
+  vectors[0].base = (void *)"X";
+  vectors[0].length = 1;
+  vectors[1].base = (void *)"YZ";
+  vectors[1].length = 2;
   CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 2) == 2);
   CHECK(file_node.length == sizeof(file_data));
   CHECK(file_data[254] == 'X' && file_data[255] == 'Y');
