@@ -396,6 +396,65 @@ static void test_open_flags_and_errors(void) {
 }
 
 
+static void test_open_flag_validation_and_path_errors(void) {
+  char long_path[129];
+  for (uint32_t i = 0; i < sizeof(long_path) - 1; i++) {
+    long_path[i] = 'x';
+  }
+  long_path[sizeof(long_path) - 1] = '\0';
+
+  reset_file();
+  CHECK(syscall_dispatch(SYS_OPEN, 0, O_RDONLY, 0) == -EFAULT);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"", O_RDONLY, 0) == -ENOENT);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)long_path, O_RDONLY, 0) ==
+        -ENAMETOOLONG);
+
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_ACCMODE, 0) ==
+        -EINVAL);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY | O_TRUNC, 0) ==
+        -EINVAL);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY | 0x8000, 0) ==
+        -EINVAL);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"missing",
+                         O_DIRECTORY | O_CREAT | O_RDONLY, 0600) == -EINVAL);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_DIRECTORY, 0) ==
+        -ENOTDIR);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"missing", O_DIRECTORY, 0) ==
+        -ENOENT);
+  CHECK(file_node.length == 3 && file_data[0] == 'a' &&
+        file_data[1] == 'b' && file_data[2] == 'c');
+  CHECK(vfs_lookup(fs_root, "missing") == NULL);
+
+  created_exists = 0;
+  int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"created",
+                            O_CREAT | O_EXCL | O_RDWR, 0640);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"xyz", 3) == 3);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+
+  struct stat status;
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"created",
+                         O_CREAT | O_EXCL | O_RDWR, 0600) == -EEXIST);
+  CHECK(syscall_dispatch(SYS_STAT, (uint32_t)"created",
+                         (uint32_t)&status, 0) == 0);
+  CHECK((status.st_mode & 0777) == 0640 && status.st_size == 3);
+  CHECK(created_node.length == 3 && created_data[0] == 'x' &&
+        created_data[1] == 'y' && created_data[2] == 'z');
+
+  directory_node.flags = FS_DIRECTORY;
+  directory_node.mode = 0700;
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
+                        O_RDONLY | O_DIRECTORY, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
+                         O_WRONLY | O_DIRECTORY, 0) == -EISDIR);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"dir",
+                         O_WRONLY | O_TRUNC | O_DIRECTORY, 0) == -EISDIR);
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
+  CHECK(S_ISDIR(status.st_mode) && status.st_size == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_open_cloexec(void) {
   reset_file();
 
@@ -1475,6 +1534,7 @@ static int32_t test_main(void) {
   test_append_writev_at_capacity();
   test_positional_vector_io();
   test_open_flags_and_errors();
+  test_open_flag_validation_and_path_errors();
   test_open_permission_failures_preserve_file();
   test_openat_create_existing_permissions();
   test_open_creation_umask();
