@@ -708,6 +708,40 @@ static void test_descriptor_table_exhaustion(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, 3, 0, 0) == 0);
 }
 
+static void test_open_create_when_descriptor_table_is_full(void) {
+  int descriptors[5];
+  struct openat_request { uint32_t flags; uint32_t mode; } request;
+
+  reset_file();
+  created_exists = 0;
+  for (int i = 0; i < 5; i++) {
+    descriptors[i] =
+        syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+    CHECK(descriptors[i] == i + 3);
+  }
+
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"created",
+                         O_CREAT | O_WRONLY, 0600) == -EMFILE);
+  CHECK(!created_exists);
+  CHECK(vfs_lookup(fs_root, "created") == NULL);
+
+  request.flags = O_CREAT | O_WRONLY;
+  request.mode = 0600;
+  CHECK(syscall_dispatch(SYS_OPENAT, AT_FDCWD, (uint32_t)"created",
+                         (uint32_t)&request) == -EMFILE);
+  CHECK(!created_exists);
+  CHECK(vfs_lookup(fs_root, "created") == NULL);
+
+  for (int i = 0; i < 5; i++) {
+    CHECK(syscall_dispatch(SYS_CLOSE, descriptors[i], 0, 0) == 0);
+  }
+
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"created",
+                         O_CREAT | O_WRONLY, 0600) == 3);
+  CHECK(created_exists);
+  CHECK(syscall_dispatch(SYS_CLOSE, 3, 0, 0) == 0);
+}
+
 static void test_sync_calls(void) {
   int fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
   CHECK(fd == 3);
@@ -1345,6 +1379,7 @@ static int32_t test_main(void) {
 
   test_standard_descriptor_fcntl();
   test_descriptor_table_exhaustion();
+  test_open_create_when_descriptor_table_is_full();
   test_open_read_seek_and_stat();
   test_open_cloexec();
   test_dup2_replacement_and_shared_state();
