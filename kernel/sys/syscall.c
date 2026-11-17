@@ -198,6 +198,18 @@ static int open_file(const char *path, uint32_t flags, uint32_t mode) {
   }
   vfs_node_t *node = vfs_lookup(fs_root, resolved_path);
   int created = 0;
+  if (!node && (flags & OPEN_CREAT)) {
+    int descriptor_available = 0;
+    for (int fd = 3; fd < SYSCALL_FD_COUNT; fd++) {
+      if (!descriptors[fd].used) {
+        descriptor_available = 1;
+        break;
+      }
+    }
+    if (!descriptor_available) {
+      return -EMFILE;
+    }
+  }
   if (node && (flags & O_CREAT) && (flags & O_EXCL)) {
     return -EEXIST;
   }
