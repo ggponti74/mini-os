@@ -60,6 +60,7 @@ static void reset_file(void) {
   file_data[0] = 'a';
   file_data[1] = 'b';
   file_data[2] = 'c';
+  file_node.name[0] = '\0';
   file_node.flags = FS_FILE;
   file_node.mode = 0600;
   file_node.length = 3;
