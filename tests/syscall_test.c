@@ -1334,6 +1334,86 @@ static void test_app_sbrk(void) {
   syscall_reset_app_heap();
 }
 
+static void test_open_permission_failures_preserve_file(void) {
+  struct stat status;
+  int fd;
+
+  reset_file();
+  file_node.mode = 0400;
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                         O_WRONLY | O_TRUNC, 0) == -EACCES);
+  CHECK(file_node.length == 3 && file_data[0] == 'a' &&
+        file_data[1] == 'b' && file_data[2] == 'c');
+
+  file_node.mode = 0200;
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0) ==
+        -EACCES);
+  CHECK(file_node.length == 3 && file_data[0] == 'a' &&
+        file_data[1] == 'b' && file_data[2] == 'c');
+
+  file_node.mode = 0000;
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDONLY, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0) ==
+        -EACCES);
+  CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0) ==
+        -EACCES);
+
+  file_node.mode = 0600;
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_RDWR, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
+  CHECK((status.st_mode & 0777) == 0600);
+  CHECK(file_node.length == 3 && file_data[0] == 'a' &&
+        file_data[1] == 'b' && file_data[2] == 'c');
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
+static void test_openat_create_existing_permissions(void) {
+  struct openat_request { uint32_t flags; uint32_t mode; } request;
+  struct stat status;
+  int directory_fd;
+  int fd;
+
+  reset_file();
+  directory_node.mode = 0700;
+  directory_fd = syscall_dispatch(
+      SYS_OPEN, (uint32_t)"dir", O_RDONLY | O_DIRECTORY, 0);
+  CHECK(directory_fd == 3);
+
+  file_node.mode = 0400;
+  request.flags = O_CREAT | O_WRONLY;
+  request.mode = 0777;
+  CHECK(syscall_dispatch(SYS_OPENAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -EACCES);
+  CHECK(file_node.mode == 0400 && file_node.length == 3 &&
+        file_data[0] == 'a');
+
+  file_node.mode = 0200;
+  request.flags = O_CREAT | O_RDONLY;
+  CHECK(syscall_dispatch(SYS_OPENAT, directory_fd, (uint32_t)"file",
+                         (uint32_t)&request) == -EACCES);
+  CHECK(file_node.mode == 0200 && file_node.length == 3 &&
+        file_data[0] == 'a');
+
+  file_node.mode = 0600;
+  request.flags = O_CREAT | O_RDWR | O_TRUNC;
+  fd = syscall_dispatch(SYS_OPENAT, directory_fd, (uint32_t)"file",
+                        (uint32_t)&request);
+  CHECK(fd == 4);
+  CHECK(file_node.mode == 0600 && file_node.length == 0);
+  CHECK(syscall_dispatch(SYS_FSTAT, fd, (uint32_t)&status, 0) == 0);
+  CHECK((status.st_mode & 0777) == 0600);
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, directory_fd, 0, 0) == 0);
+}
+
 static void test_open_creation_umask(void) {
   struct stat status;
 
@@ -1395,6 +1475,8 @@ static int32_t test_main(void) {
   test_append_writev_at_capacity();
   test_positional_vector_io();
   test_open_flags_and_errors();
+  test_open_permission_failures_preserve_file();
+  test_openat_create_existing_permissions();
   test_open_creation_umask();
   CHECK(syscall_dispatch(SYS_UMASK, 0077, 0, 0) == 0022);
   CHECK(syscall_dispatch(SYS_MKDIR, (uint32_t)"masked-dir", 0777, 0) == 0);
