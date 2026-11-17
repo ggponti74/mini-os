@@ -979,6 +979,68 @@ static void test_append_flag_shared_by_duplicates(void) {
   CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
 }
 
+static void test_append_independent_open_files(void) {
+  int append_fd;
+  int ordinary_fd;
+
+  reset_file();
+  append_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                               O_WRONLY | O_APPEND, 0);
+  ordinary_fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0);
+  CHECK(append_fd == 3 && ordinary_fd == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, append_fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+  CHECK(syscall_dispatch(SYS_FCNTL, ordinary_fd, F_GETFL, 0) == O_WRONLY);
+
+  CHECK(syscall_dispatch(SYS_LSEEK, append_fd, 0, SEEK_SET) == 0);
+  CHECK(syscall_dispatch(SYS_LSEEK, ordinary_fd, 1, SEEK_SET) == 1);
+  CHECK(syscall_dispatch(SYS_WRITE, append_fd, (uint32_t)"A", 1) == 1);
+  CHECK(file_node.length == 4 && file_data[3] == 'A');
+  CHECK(syscall_dispatch(SYS_LSEEK, append_fd, 0, SEEK_CUR) == 4);
+  CHECK(syscall_dispatch(SYS_LSEEK, ordinary_fd, 0, SEEK_CUR) == 1);
+
+  CHECK(syscall_dispatch(SYS_WRITE, ordinary_fd, (uint32_t)"B", 1) == 1);
+  CHECK(file_data[1] == 'B' && file_node.length == 4);
+  CHECK(syscall_dispatch(SYS_LSEEK, ordinary_fd, 0, SEEK_CUR) == 2);
+  CHECK(syscall_dispatch(SYS_LSEEK, append_fd, 0, SEEK_CUR) == 4);
+  CHECK(syscall_dispatch(SYS_FCNTL, ordinary_fd, F_SETFL,
+                         O_WRONLY | O_APPEND) == 0);
+  CHECK(syscall_dispatch(SYS_FCNTL, append_fd, F_GETFL, 0) ==
+        (O_WRONLY | O_APPEND));
+
+  CHECK(syscall_dispatch(SYS_CLOSE, ordinary_fd, 0, 0) == 0);
+  CHECK(syscall_dispatch(SYS_CLOSE, append_fd, 0, 0) == 0);
+}
+
+static void test_append_writev_at_capacity(void) {
+  struct test_iovec { void *base; uint32_t length; } vectors[2];
+  int fd;
+
+  reset_file();
+  file_node.length = sizeof(file_data) - 2;
+  fd = syscall_dispatch(SYS_OPEN, (uint32_t)"file",
+                        O_WRONLY | O_APPEND, 0);
+  CHECK(fd == 3);
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_SET) == 0);
+
+  vectors[0].base = (void *)"XY";
+  vectors[0].length = 2;
+  vectors[1].base = (void *)"Z12";
+  vectors[1].length = 3;
+  CHECK(syscall_dispatch(SYS_WRITEV, fd, (uint32_t)vectors, 2) == 2);
+  CHECK(file_node.length == sizeof(file_data));
+  CHECK(file_data[sizeof(file_data) - 2] == 'X' &&
+        file_data[sizeof(file_data) - 1] == 'Y');
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) ==
+        (int32_t)sizeof(file_data));
+
+  CHECK(syscall_dispatch(SYS_WRITE, fd, (uint32_t)"!", 1) == 0);
+  CHECK(file_node.length == sizeof(file_data));
+  CHECK(syscall_dispatch(SYS_LSEEK, fd, 0, SEEK_CUR) ==
+        (int32_t)sizeof(file_data));
+  CHECK(syscall_dispatch(SYS_CLOSE, fd, 0, 0) == 0);
+}
+
 static void test_positional_vector_io(void) {
   struct test_iovec { void *base; uint32_t length; } vectors[3];
   struct test_positional_iovec_request {
@@ -1294,6 +1356,8 @@ static int32_t test_main(void) {
   test_positional_io();
   test_vector_io();
   test_append_flag_shared_by_duplicates();
+  test_append_independent_open_files();
+  test_append_writev_at_capacity();
   test_positional_vector_io();
   test_open_flags_and_errors();
   test_open_creation_umask();
