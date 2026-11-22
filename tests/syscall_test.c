@@ -9,9 +9,12 @@
 #include "sys/stat.h"
 #include "sys/syscall.h"
 
+static void test_check_failed(uint32_t line, const char *expression);
+
 #define CHECK(condition)                                                       \
   do {                                                                         \
     if (!(condition)) {                                                        \
+      test_check_failed(__LINE__, #condition);                                 \
       failures++;                                                              \
     }                                                                          \
   } while (0)
@@ -27,6 +30,37 @@ _Static_assert(sizeof(struct stat) == 72 &&
                "Newlib i686 stat ABI");
 
 static int failures;
+
+static void test_check_failed(uint32_t line, const char *expression) {
+  char message[256];
+  char digits[10];
+  uint32_t length = 0;
+  uint32_t digit_count = 0;
+
+  const char prefix[] = "FAIL line ";
+  for (uint32_t i = 0; i < sizeof(prefix) - 1; i++) {
+    message[length++] = prefix[i];
+  }
+  do {
+    digits[digit_count++] = (char)('0' + line % 10);
+    line /= 10;
+  } while (line != 0 && digit_count < sizeof(digits));
+  while (digit_count != 0) {
+    message[length++] = digits[--digit_count];
+  }
+  message[length++] = ':';
+  message[length++] = ' ';
+  while (*expression && length < sizeof(message) - 2) {
+    message[length++] = *expression++;
+  }
+  message[length++] = '\n';
+
+  uint32_t syscall_number = 4;
+  __asm__ volatile("int $0x80"
+                   : "+a"(syscall_number)
+                   : "b"(1), "c"(message), "d"(length)
+                   : "memory");
+}
 static uint8_t file_data[256];
 static vfs_node_t file_node;
 static vfs_node_t directory_node;
