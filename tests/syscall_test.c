@@ -195,6 +195,7 @@ static void test_open_flags_and_errors(void) {
   int fd;
   uint8_t read_probe = 0;
 
+  created_exists = 0;
   reset_file();
   file_node.mode = 0400;
   CHECK(syscall_dispatch(SYS_OPEN, (uint32_t)"file", O_WRONLY, 0) ==
